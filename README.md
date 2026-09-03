@@ -5,8 +5,17 @@ base piece (bracelet, pendant, kaleera…), see the piece take shape and watch t
 price update as they go. You get an admin console for the repo of components,
 stock alerts and the order book.
 
-Runs as a single Node process with a SQLite database — no build step, no cloud
-services, no external accounts.
+There are two ways to run it, both from this repository:
+
+1. **The hosted app** (`hosted/index.html`) — one self-contained page backed by
+   the Claude artifact database. Published at a URL you open on a phone or a PC
+   and add to the home screen. Nothing to install or maintain.
+2. **The self-hosted app** (`server/` + `public/`) — a single Node process with
+   a SQLite database, which you run on your own machine or server. It enforces
+   stock server-side, so a customer cannot oversell by editing the page.
+
+Both offer the same designer, cost calculator, stock rules, studio and order
+book. Everything below describes the self-hosted app unless it says otherwise.
 
 ## Quick start
 
@@ -25,7 +34,23 @@ You can also set `ADMIN_PASSWORD` before the first run to choose the initial one
 ```bash
 npm test         # end-to-end smoke test against a throwaway database
 npm run reset    # wipe orders + catalog and re-seed the demo data
+npm run icons    # regenerate the app icons from scripts/icons.js
 ```
+
+### Installing it on a phone or desktop
+
+The app is a PWA: it ships a web manifest, an offline app shell and its own
+icons, so browsers offer to install it.
+
+- **Android / Chrome / Edge** — open the app, then *Install app* from the
+  browser menu (Chrome usually offers it by itself).
+- **iPhone / iPad** — open it in Safari, then *Share → Add to Home Screen*.
+- **Windows / macOS** — Chrome or Edge shows an install icon in the address bar.
+
+Installing needs the app served over **HTTPS**, or from `localhost` on the same
+machine. The app shell is cached so it opens instantly and survives a dropped
+connection; anything under `/api` is always fetched live, so stock counts and
+orders are never served stale.
 
 ## What the customer sees
 
@@ -79,7 +104,10 @@ server/
 public/
   index.html js/designer.js   Customer designer
   admin.html js/admin.js      Admin console
+  manifest.webmanifest sw.js  Installable app shell
+hosted/index.html   The hosted single-page build (artifact database)
 scripts/seed.js     Demo data + generated sample artwork
+scripts/icons.js    Renders the app icons (no image dependencies)
 test/smoke.js       End-to-end API test
 data/               SQLite database + uploaded images (git-ignored)
 ```
@@ -94,6 +122,22 @@ data/               SQLite database + uploaded images (git-ignored)
 | `BUSINESS_NAME` | `CustomJewelz` | Initial shop name |
 | `DB_PATH` | `data/customjewelz.db` | Database file |
 | `NODE_ENV` | — | Set to `production` to mark the session cookie `secure` |
+
+## The hosted build
+
+`hosted/index.html` is the same product as one page. It keeps the catalogue,
+delivery areas, orders and settings in the artifact database rather than SQLite,
+so it needs no server at all. Differences worth knowing:
+
+- The studio is behind a PIN (`2468` by default, changeable under **Setup**).
+  That keeps the studio out of the way on a shared screen; it is not a security
+  boundary, so treat the link itself as the thing to control.
+- Stock is re-checked against the live database at the moment an order is
+  placed, so a stale tab cannot claim components that have since gone. Two
+  customers ordering the very last charm within the same instant is still
+  possible — the self-hosted build closes that window with a transaction.
+- Component artwork is an emoji or an uploaded photo, shrunk in the browser so
+  each component record stays small.
 
 ## Before going live
 

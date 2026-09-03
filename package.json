@@ -10,7 +10,8 @@
     "dev": "node --watch server/index.js",
     "seed": "node scripts/seed.js",
     "reset": "node scripts/seed.js --reset",
-    "test": "node test/smoke.js"
+    "test": "node test/smoke.js",
+    "icons": "node scripts/icons.js"
   },
   "engines": {
     "node": ">=18"

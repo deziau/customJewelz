@@ -1,0 +1,21 @@
+{
+  "name": "CustomJewelz — design your piece",
+  "short_name": "CustomJewelz",
+  "description": "Design a custom bracelet, pendant or kaleera from our charms, with the price updating as you go.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#361c2a",
+  "theme_color": "#361c2a",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Design a piece", "url": "/" },
+    { "name": "Studio (admin)", "url": "/admin" }
+  ]
+}

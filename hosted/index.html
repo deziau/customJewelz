@@ -1,0 +1,1694 @@
+<title>Kaleera Workbench</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --ground: #f3f1ec;
+  --surface: #fffefc;
+  --surface-2: #eeebe4;
+  --ink: #241b26;
+  --muted: #756b76;
+  --line: #ddd7d3;
+  --line-strong: #c6bdc0;
+  --accent: #6d2f4a;
+  --accent-ink: #ffffff;
+  --accent-soft: #f2e6ea;
+  --gold: #a8791f;
+  --jade: #2f6b52;
+  --jade-soft: #e3ede8;
+  --ochre: #8a5f12;
+  --ochre-soft: #f5ecd8;
+  --crimson: #a3302e;
+  --crimson-soft: #f7e4e2;
+  --crimson-solid: #9c2d2b;
+  --jade-solid: #276146;
+  --velvet-1: #f6f2ef;
+  --velvet-2: #e2d8dd;
+  --shadow-sm: 0 1px 2px rgba(36, 27, 38, .07);
+  --shadow-md: 0 2px 4px rgba(36, 27, 38, .05), 0 10px 28px rgba(36, 27, 38, .08);
+  --shadow-lg: 0 24px 70px rgba(36, 27, 38, .28);
+  --radius: 10px;
+  --display: "Marcellus", Georgia, "Times New Roman", serif;
+  --body: "Karla", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #171319;
+    --surface: #221b25;
+    --surface-2: #2c242f;
+    --ink: #efe9ec;
+    --muted: #a295a0;
+    --muted: #a396a1;
+    --line: #3a303d;
+    --line-strong: #4e414f;
+    --accent: #c9789a;
+    --accent-ink: #22101a;
+    --accent-soft: #3a2432;
+    --gold: #d7a343;
+    --jade: #7fc0a0;
+    --jade-soft: #1f3a2e;
+    --ochre: #d3a44f;
+    --ochre-soft: #392e18;
+    --crimson: #ec8280;
+    --crimson-soft: #3b2020;
+    --crimson-solid: #b23f3c;
+    --jade-solid: #2f7d5b;
+    --velvet-1: #26202b;
+    --velvet-2: #171220;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
+    --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #171319;
+  --surface: #221b25;
+  --surface-2: #2c242f;
+  --ink: #efe9ec;
+  --muted: #a396a1;
+  --line: #3a303d;
+  --line-strong: #4e414f;
+  --accent: #c9789a;
+  --accent-ink: #22101a;
+  --accent-soft: #3a2432;
+  --gold: #d7a343;
+  --jade: #7fc0a0;
+  --jade-soft: #1f3a2e;
+  --ochre: #d3a44f;
+  --ochre-soft: #392e18;
+  --crimson: #ec8280;
+  --crimson-soft: #3b2020;
+  --crimson-solid: #b23f3c;
+  --jade-solid: #2f7d5b;
+  --velvet-1: #26202b;
+  --velvet-2: #171220;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; letter-spacing: .01em; }
+h1 { font-size: 21px; }
+h2 { font-size: 17px; }
+h3 { font-size: 15px; }
+
+.eyebrow {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .13em;
+  color: var(--muted); font-weight: 600;
+}
+.mono { font-family: var(--mono); font-size: .86em; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+
+/* ------------------------------------------------------------------ chrome */
+
+.masthead {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding: 13px 22px; background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.wordmark { font-family: var(--display); font-size: 20px; letter-spacing: .04em; }
+.wordmark em { font-style: normal; color: var(--accent); }
+.masthead .spacer { flex: 1; }
+
+.modes { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; }
+.modes button {
+  border: none; background: none; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--muted); padding: 6px 15px; border-radius: 999px; cursor: pointer;
+}
+.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+/* --------------------------------------------------------------- bill rail */
+
+.bill-bar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
+  padding: 11px 22px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.stat { display: flex; flex-direction: column; gap: 1px; }
+.stat b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.stat.headline b { font-family: var(--display); font-size: 25px; font-weight: 400; color: var(--accent); }
+.bill-bar .spacer { flex: 1; }
+
+/* ------------------------------------------------------------------ layout */
+
+.bench {
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr) 300px;
+  gap: 18px; padding: 18px 22px 64px; align-items: start;
+  max-width: 1500px; margin: 0 auto;
+}
+.rail { position: sticky; top: 74px; display: grid; gap: 16px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.panel > header {
+  display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap;
+  padding: 12px 14px; border-bottom: 1px solid var(--line);
+}
+.panel > header h2 { white-space: nowrap; }
+.panel > header .spacer { flex: 1; }
+.panel .pad { padding: 14px; }
+
+/* ------------------------------------------------------------------- tray */
+
+.cat-strip { display: flex; gap: 5px; flex-wrap: wrap; padding: 11px 14px 0; }
+.cat {
+  border: 1px solid var(--line); background: none; color: var(--muted);
+  font: inherit; font-size: 12.5px; border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+.cat:hover { border-color: var(--line-strong); color: var(--ink); }
+.cat[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+.tray { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
+.piece {
+  position: relative; border: 1px solid var(--line); border-radius: 9px; padding: 9px 8px;
+  background: var(--surface); text-align: center; cursor: grab; display: grid; gap: 2px;
+  justify-items: center; transition: border-color .14s, transform .1s;
+}
+.piece:hover { border-color: var(--accent); transform: translateY(-1px); }
+.piece:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.piece:active { cursor: grabbing; }
+.piece .art { width: 100%; height: 56px; display: grid; place-items: center; pointer-events: none; }
+.piece .art img { max-width: 100%; max-height: 56px; object-fit: contain; }
+.piece .art .glyph { font-size: 38px; line-height: 1; }
+.piece .nm { font-size: 12px; line-height: 1.25; overflow-wrap: anywhere; }
+.piece .pr { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.piece .left { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.piece.base { grid-column: 1 / -1; grid-template-columns: 56px 1fr; justify-items: start; text-align: left; align-items: center; column-gap: 10px; }
+.piece.base .art { width: 56px; grid-row: span 3; }
+.piece.on { border-color: var(--accent); background: var(--accent-soft); }
+.piece.gone { opacity: .45; cursor: not-allowed; }
+.piece.gone .left { color: var(--crimson); font-weight: 500; }
+.used {
+  position: absolute; top: -7px; right: -7px; min-width: 21px; height: 21px; padding: 0 6px;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-family: var(--mono); font-size: 11px; font-weight: 500; display: grid; place-items: center;
+}
+
+/* ------------------------------------------------------------------ stage */
+
+.stage-col { display: grid; gap: 12px; justify-items: center; }
+.stage {
+  position: relative; width: 100%; max-width: 640px; aspect-ratio: 1;
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 42%, var(--velvet-1) 0%, var(--velvet-2) 78%),
+    var(--velvet-2);
+  box-shadow: inset 0 0 60px rgba(36, 27, 38, .06), var(--shadow-md);
+  touch-action: none;
+}
+.stage::after {
+  content: ""; position: absolute; inset: 14px; border: 1px solid var(--line); border-radius: 6px;
+  pointer-events: none; opacity: .55;
+}
+.stage.over { outline: 2px dashed var(--accent); outline-offset: -8px; }
+.stage-base {
+  position: absolute; inset: 0; margin: auto; width: 66%; height: 66%;
+  object-fit: contain; pointer-events: none; user-select: none;
+}
+.stage-hint {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+  gap: 7px; text-align: center; padding: 40px; pointer-events: none; max-width: 44ch; margin: auto;
+}
+.charm { position: absolute; transform-origin: center; cursor: grab; user-select: none; }
+.charm img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.charm .glyph { display: grid; place-items: center; width: 100%; height: 100%; line-height: 1; }
+.charm.on { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 5px; }
+.charm .lift {
+  position: absolute; top: -11px; right: -11px; width: 23px; height: 23px; border-radius: 50%;
+  border: none; background: var(--crimson); color: #fff; font-size: 15px; line-height: 1;
+  cursor: pointer; display: none; place-items: center; padding: 0;
+}
+.charm.on .lift { display: grid; }
+
+.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+/* ------------------------------------------------------------------- bill */
+
+.bill { list-style: none; margin: 0; padding: 0; }
+.bill li {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline;
+  padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.bill li:last-child { border-bottom: none; }
+.bill .q { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.bill .amt { font-variant-numeric: tabular-nums; font-weight: 600; }
+.sum { display: grid; gap: 4px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line-strong); font-size: 13.5px; }
+.sum > div { display: flex; justify-content: space-between; gap: 12px; }
+.sum .grand {
+  margin-top: 6px; padding-top: 9px; border-top: 1px solid var(--line);
+  font-family: var(--display); font-size: 20px; color: var(--accent);
+}
+.sum .grand span:last-child { font-variant-numeric: tabular-nums; }
+
+/* ----------------------------------------------------------------- controls */
+
+button, .btn {
+  font: inherit; font-size: 13.5px; border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--ink); border-radius: 8px; padding: 7px 13px; cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+button:hover:not(:disabled), .btn:hover { border-color: var(--accent); }
+button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+button:disabled { opacity: .45; cursor: not-allowed; }
+.solid { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.solid:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.ghost { border-color: transparent; background: none; }
+.warnbtn { color: var(--crimson); border-color: var(--crimson-soft); }
+.full { width: 100%; }
+.tiny { padding: 4px 9px; font-size: 12px; }
+
+label.f { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); margin-bottom: 11px; }
+input, select, textarea {
+  font: inherit; font-size: 14px; width: 100%; padding: 8px 10px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+}
+textarea { min-height: 64px; resize: vertical; font-size: 13.5px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; margin: 0 0 13px; }
+legend { padding: 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.choice {
+  display: grid; gap: 3px; border: 1px solid var(--line-strong); border-radius: 9px;
+  padding: 10px 11px; cursor: pointer; font-size: 12.5px; color: var(--muted);
+}
+.choice b { font-size: 13.5px; color: var(--ink); font-weight: 600; }
+.choice input { position: absolute; opacity: 0; width: 0; height: 0; }
+.choice.on { border-color: var(--accent); background: var(--accent-soft); }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+.tag.ok { background: var(--jade-soft); color: var(--jade); }
+.tag.low { background: var(--ochre-soft); color: var(--ochre); }
+.tag.out { background: var(--crimson-soft); color: var(--crimson); }
+.tag.flat { background: var(--surface-2); color: var(--muted); }
+.tag.on { background: var(--accent-soft); color: var(--accent); }
+
+/* ------------------------------------------------------------------ admin */
+
+.admin-wrap { max-width: 1360px; margin: 0 auto; padding: 18px 22px 64px; display: grid; gap: 18px; }
+.tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.summary > div { background: var(--surface); padding: 14px 16px; display: grid; gap: 3px; }
+.summary b { font-family: var(--display); font-size: 27px; font-weight: 400; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.summary .sev-out b { color: var(--crimson); }
+.summary .sev-low b { color: var(--ochre); }
+
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: none; }
+td.r, th.r { text-align: right; }
+td.r { font-variant-numeric: tabular-nums; }
+.mini { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.mini img { max-width: 26px; max-height: 26px; }
+.mini .glyph { font-size: 20px; line-height: 1; }
+.acts { display: flex; gap: 5px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.acts input[type="number"] { width: 62px; padding: 4px 7px; font-size: 12.5px; }
+.stripe { border-left: 3px solid transparent; }
+.stripe.out { border-left-color: var(--crimson); }
+.stripe.low { border-left-color: var(--ochre); }
+
+.blank { padding: 22px 14px; text-align: center; color: var(--muted); font-size: 13.5px; }
+
+/* ----------------------------------------------------------------- dialogs */
+
+dialog {
+  padding: 0; border: 1px solid var(--line); border-radius: 14px; max-width: 540px;
+  width: calc(100% - 30px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg);
+}
+dialog::backdrop { background: rgba(36, 27, 38, .5); }
+dialog > header { padding: 15px 19px; border-bottom: 1px solid var(--line); }
+dialog .body { padding: 17px 19px; max-height: 64vh; overflow: auto; }
+dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+
+.notice { padding: 9px 12px; border-radius: 8px; font-size: 13px; background: var(--crimson-soft); color: var(--crimson); }
+
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: grid; gap: 8px; justify-items: end; }
+.toast {
+  background: var(--ink); color: var(--ground); padding: 10px 14px; border-radius: 9px;
+  font-size: 13px; max-width: 340px; box-shadow: var(--shadow-md); animation: lift .18s ease-out;
+}
+.toast.bad { background: var(--crimson-solid); color: #fff; }
+.toast.good { background: var(--jade-solid); color: #fff; }
+@keyframes lift { from { opacity: 0; transform: translateY(7px); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+.boot { display: grid; place-content: center; gap: 8px; text-align: center; min-height: 62vh; padding: 30px; }
+
+@media (max-width: 1120px) {
+  .bench { grid-template-columns: 1fr; }
+  .rail { position: static; }
+  .tray { max-height: none; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
+  .stage-col { order: -1; }
+}
+@media (max-width: 560px) {
+  .masthead, .bill-bar, .bench, .admin-wrap { padding-left: 14px; padding-right: 14px; }
+  .bill-bar { gap: 16px; }
+  .choices, .pair { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="masthead">
+  <div class="wordmark">Custom<em>Jewelz</em></div>
+  <div class="modes" role="group" aria-label="Choose view">
+    <button id="mode-shop" aria-pressed="true">Design</button>
+    <button id="mode-admin" aria-pressed="false">Studio</button>
+  </div>
+  <div class="spacer"></div>
+  <span class="eyebrow" id="conn">connecting…</span>
+</div>
+
+<main id="boot" class="boot">
+  <h2>Opening the workbench</h2>
+  <p class="muted">Loading your component tray and order book.</p>
+</main>
+
+<!-- ===================================================== customer view -->
+<div id="shop" hidden>
+  <div class="bill-bar">
+    <div class="stat"><span class="eyebrow">Components</span><b class="num" id="s-count">0</b></div>
+    <div class="stat"><span class="eyebrow">Components subtotal</span><b id="s-items">—</b></div>
+    <div class="stat"><span class="eyebrow">Delivery</span><b id="s-ship">—</b></div>
+    <div class="stat headline"><span class="eyebrow">Running total</span><b id="s-total">—</b></div>
+    <div class="spacer"></div>
+    <button id="s-clear">Start over</button>
+    <button class="solid" id="s-order" disabled>Review &amp; order</button>
+  </div>
+
+  <div class="bench">
+    <div class="rail">
+      <section class="panel">
+        <header><h2>Component tray</h2><span class="spacer"></span><span class="eyebrow">drag or tap to add</span></header>
+        <div class="cat-strip" id="cats"></div>
+        <div class="tray" id="tray"></div>
+      </section>
+    </div>
+
+    <div class="stage-col">
+      <div class="stage" id="stage">
+        <div class="stage-hint" id="hint">
+          <h2>Begin with a base</h2>
+          <p class="muted">Choose a bracelet band, pendant frame or kaleera from the tray.
+            Then drag charms onto it and place them where you want them attached.</p>
+        </div>
+      </div>
+      <div class="tools">
+        <button class="tiny" data-tool="bigger">Larger</button>
+        <button class="tiny" data-tool="smaller">Smaller</button>
+        <button class="tiny" data-tool="ccw">⟲</button>
+        <button class="tiny" data-tool="cw">⟳</button>
+        <button class="tiny" data-tool="front">Bring forward</button>
+        <button class="tiny warnbtn" data-tool="lift">Take off</button>
+      </div>
+      <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
+        Drag a charm from the tray onto the piece, then drag it again to position it.
+        Tap a charm to select it — resize, rotate or take it off with the controls above,
+        or press Delete.
+      </p>
+    </div>
+
+    <div class="rail">
+      <section class="panel">
+        <header><h2>Your piece</h2></header>
+        <div class="pad">
+          <ul class="bill" id="bill"></ul>
+          <div class="sum" id="sum"></div>
+          <button class="solid full" id="s-order-2" style="margin-top:14px" disabled>Review &amp; order</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== studio view -->
+<div id="admin" hidden>
+  <div class="admin-wrap">
+    <div class="tabs" id="admin-tabs">
+      <button class="cat" data-view="overview" aria-pressed="true">Overview</button>
+      <button class="cat" data-view="tray" aria-pressed="false">Component repo</button>
+      <button class="cat" data-view="stock" aria-pressed="false">Stock alerts</button>
+      <button class="cat" data-view="orders" aria-pressed="false">Orders</button>
+      <button class="cat" data-view="delivery" aria-pressed="false">Delivery areas</button>
+      <button class="cat" data-view="setup" aria-pressed="false">Setup</button>
+    </div>
+    <div id="admin-body"></div>
+  </div>
+</div>
+
+<!-- =========================================================== dialogs -->
+<dialog id="dlg-checkout">
+  <header><h2>Confirm your piece</h2></header>
+  <form id="form-checkout">
+    <div class="body">
+      <div id="ck-lines"></div>
+      <fieldset>
+        <legend>How you'll receive it</legend>
+        <div class="choices">
+          <label class="choice on" id="ch-collect">
+            <input type="radio" name="fulfilment" value="collect" checked>
+            <b>Collect when ready</b><span>Pick it up from the studio. No delivery charge.</span>
+          </label>
+          <label class="choice" id="ch-ship">
+            <input type="radio" name="fulfilment" value="ship">
+            <b>Ship when ready</b><span>Posted to your address once it's made.</span>
+          </label>
+        </div>
+        <div id="ship-fields" hidden style="margin-top:13px">
+          <label class="f"><span>Delivery area</span><select name="area" id="ck-area"></select></label>
+          <label class="f"><span>Delivery address</span><textarea name="address" placeholder="House · street · city · postcode"></textarea></label>
+        </div>
+      </fieldset>
+      <div class="pair">
+        <label class="f"><span>Your name *</span><input name="name" required autocomplete="name"></label>
+        <label class="f"><span>Phone *</span><input name="phone" required inputmode="tel" autocomplete="tel"></label>
+      </div>
+      <label class="f"><span>Email</span><input name="email" type="email" autocomplete="email"></label>
+      <label class="f"><span>Notes for the maker</span><textarea name="notes" placeholder="Initial letters, wrist size, engraving, the date you need it by…"></textarea></label>
+      <p class="notice" id="ck-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="ck-back">Keep editing</button>
+      <button type="submit" class="solid" id="ck-submit">Place order</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-done">
+  <header><h2>Order placed</h2></header>
+  <div class="body" id="done-body"></div>
+  <footer><button class="solid" id="done-close">Design another</button></footer>
+</dialog>
+
+<dialog id="dlg-piece">
+  <header><h2 id="piece-title">Add a component</h2></header>
+  <form id="form-piece">
+    <div class="body">
+      <input type="hidden" name="id">
+      <div class="pair">
+        <label class="f"><span>Name *</span><input name="name" required></label>
+        <label class="f"><span>SKU</span><input name="sku" placeholder="auto"></label>
+        <label class="f"><span>Section *</span><select name="category" id="piece-cat" required></select></label>
+        <label class="f"><span>Price *</span><input name="price" type="number" min="0" step="0.01" required></label>
+        <label class="f"><span>Quantity in repo *</span><input name="quantity" type="number" min="0" step="1" required></label>
+        <label class="f"><span>Size on the piece (px)</span><input name="width" type="number" min="20" max="620" step="1" value="86"></label>
+      </div>
+      <label class="f"><span>Description</span><textarea name="note"></textarea></label>
+      <fieldset>
+        <legend>Artwork</legend>
+        <div class="pair">
+          <label class="f"><span>Emoji or symbol</span><input name="glyph" placeholder="💎" maxlength="4"></label>
+          <label class="f"><span>…or upload a photo</span><input name="upload" type="file" accept="image/*"></label>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="mini" id="piece-preview"></div>
+          <span class="muted" style="font-size:12.5px">Photos are shrunk to fit. A clear cut-out on a plain background works best.</span>
+        </div>
+      </fieldset>
+      <label class="f" style="grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
+        <input type="checkbox" name="active" checked style="width:auto"><span style="color:var(--ink)">Show to customers</span>
+      </label>
+      <p class="notice" id="piece-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="piece-cancel">Cancel</button>
+      <button type="submit" class="solid">Save component</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-order">
+  <header><h2 id="order-title">Order</h2></header>
+  <div class="body" id="order-body"></div>
+  <footer><button id="order-close">Close</button></footer>
+</dialog>
+
+<dialog id="dlg-pin">
+  <header><h2>Studio access</h2></header>
+  <form id="form-pin">
+    <div class="body">
+      <label class="f"><span>Studio PIN</span><input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label>
+      <p class="muted" style="font-size:12.5px;margin:0">Keeps the studio out of the way on a shared screen. Change it under Setup.</p>
+      <p class="notice" id="pin-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="pin-cancel">Cancel</button>
+      <button type="submit" class="solid">Open studio</button>
+    </footer>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const S = {
+  db: null,
+  ready: false,
+  settings: { businessName: 'CustomJewelz', currency: '₹', threshold: 10, pin: '2468', sections: [] },
+  pieces: [],
+  byId: new Map(),
+  zones: [],
+  orders: [],
+  section: null,
+  mode: 'shop',
+  adminView: 'overview',
+  adminOpen: false,
+  base: null,
+  charms: [],
+  picked: null,
+  zTop: 1,
+  pendingArt: null,
+};
+
+/* ------------------------------------------------------------- utilities */
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+function money(n) {
+  const v = Number(n || 0);
+  return S.settings.currency + v.toLocaleString(undefined, {
+    minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2,
+  });
+}
+
+function toast(msg, kind = '') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  $('#toasts').append(el);
+  setTimeout(() => el.remove(), 4300);
+}
+
+/** Artwork is either an uploaded/seeded image or a single glyph. */
+function artHtml(piece, cls = '') {
+  const art = piece && piece.art;
+  if (art && art.t === 'img') return `<img class="${cls}" src="${esc(art.v)}" alt="">`;
+  return `<span class="glyph ${cls}">${esc((art && art.v) || '◇')}</span>`;
+}
+
+function sections() {
+  return S.settings.sections && S.settings.sections.length ? S.settings.sections : [];
+}
+
+function sectionOf(slug) {
+  return sections().find((c) => c.slug === slug) || { slug, name: slug, kind: 'attachment' };
+}
+
+/* --------------------------------------------------------------- database */
+
+async function connect() {
+  const db = await claude.use('db');
+  if (!db) {
+    $('#boot').innerHTML = `<h2>This view can't reach the shop's database</h2>
+      <p class="muted">Open the artifact link directly in a browser while signed in.
+      The designer needs the live component tray to price and reserve pieces.</p>`;
+    $('#conn').textContent = 'offline';
+    return;
+  }
+  S.db = db;
+  $('#conn').textContent = 'live';
+
+  db.doc('meta/settings').onSnapshot((snap) => {
+    if (snap.exists) S.settings = { ...S.settings, ...snap.data() };
+    paint();
+  }, onDbError);
+
+  db.collection('catalog').onSnapshot((snap) => {
+    S.pieces = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
+    S.byId = new Map(S.pieces.map((p) => [p.id, p]));
+    dropMissing();
+    if (!S.ready && S.pieces.length) { S.ready = true; setMode(S.mode); }
+    paint();
+  }, onDbError);
+
+  db.collection('zones').onSnapshot((snap) => {
+    S.zones = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((z) => z.active !== false).sort((a, b) => a.cost - b.cost);
+    paint();
+  }, onDbError);
+
+  db.collection('orders').onSnapshot((snap) => {
+    S.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    if (S.mode === 'admin') paintAdmin();
+  }, onDbError);
+
+  setTimeout(() => {
+    if (!S.ready) {
+      $('#boot').innerHTML = `<h2>The component tray is empty</h2>
+        <p class="muted">Open <b>Studio → Component repo</b> and add your first bracelet band,
+        pendant frame or charm. Customers see it here the moment you save.</p>`;
+      S.ready = true;
+      setMode(S.mode);
+      $('#boot').hidden = S.mode === 'admin';
+    }
+  }, 4000);
+}
+
+function onDbError(err) {
+  const code = err && err.code;
+  if (code === 'revoked' || code === 'not_granted') { $('#conn').textContent = 'read-only'; return; }
+  $('#conn').textContent = 'reconnecting…';
+}
+
+/** Drop anything the studio retired or deleted while a design was open. */
+function dropMissing() {
+  const live = (id) => S.byId.has(id) && S.byId.get(id).active !== false;
+  const before = S.charms.length;
+  S.charms = S.charms.filter((c) => live(c.pieceId));
+  if (S.base && !live(S.base)) { S.base = null; toast('That base piece is no longer available.', 'bad'); }
+  else if (S.charms.length !== before) toast('Some charms are no longer available and were taken off.', 'bad');
+}
+
+/* ------------------------------------------------------------ stock rules */
+
+function usedOf(id) {
+  return S.charms.filter((c) => c.pieceId === id).length + (S.base === id ? 1 : 0);
+}
+
+function freeOf(id) {
+  const p = S.byId.get(id);
+  return p ? Math.max(0, (p.quantity || 0) - usedOf(id)) : 0;
+}
+
+function mayAdd(p) {
+  if ((p.quantity || 0) <= 0) { toast(`${p.name} is out of stock.`, 'bad'); return false; }
+  if (usedOf(p.id) >= p.quantity) {
+    toast(`Only ${p.quantity} ${p.quantity === 1 ? 'is' : 'are'} available of ${p.name}.`, 'bad');
+    return false;
+  }
+  return true;
+}
+
+/* -------------------------------------------------------------- the tray */
+
+function paintSections() {
+  const shown = sections().filter((c) => S.pieces.some((p) => p.category === c.slug && p.active !== false));
+  if (!S.section || !shown.some((c) => c.slug === S.section)) S.section = shown.length ? shown[0].slug : null;
+  $('#cats').innerHTML = shown.map((c) =>
+    `<button class="cat" data-slug="${esc(c.slug)}" aria-pressed="${c.slug === S.section}">${esc(c.name)}</button>`).join('');
+}
+
+function paintTray() {
+  const items = S.pieces.filter((p) => p.active !== false && p.category === S.section);
+  if (!items.length) { $('#tray').innerHTML = '<p class="blank">Nothing in this section yet.</p>'; return; }
+  $('#tray').innerHTML = items.map((p) => {
+    const kind = sectionOf(p.category).kind;
+    const used = usedOf(p.id);
+    const free = freeOf(p.id);
+    return `<div class="piece ${kind === 'base' ? 'base' : ''} ${kind === 'base' && S.base === p.id ? 'on' : ''} ${free <= 0 ? 'gone' : ''}"
+      data-id="${esc(p.id)}" draggable="${free > 0}" tabindex="0" role="button"
+      title="${esc(p.note || p.name)}">
+      <div class="art">${artHtml(p)}</div>
+      <div class="nm">${esc(p.name)}</div>
+      <div class="pr">${money(p.price)}</div>
+      <div class="left">${(p.quantity || 0) <= 0 ? 'out of stock' : `${free} of ${p.quantity} left`}</div>
+      ${used ? `<span class="used">${used}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ------------------------------------------------------------- the stage */
+
+function fanOut(x, y) {
+  for (let i = 0; i < 26; i += 1) {
+    if (!S.charms.some((c) => Math.hypot(c.x - x, c.y - y) < 6)) break;
+    x = clamp(x + Math.cos(i * 0.9) * (9 + i * 1.4), 6, 94);
+    y = clamp(y + Math.sin(i * 0.9) * (9 + i * 1.4), 6, 94);
+  }
+  return { x, y };
+}
+
+function chooseBase(p) {
+  if (S.base === p.id) return;
+  const was = S.base;
+  S.base = null;
+  if (!mayAdd(p)) { S.base = was; return; }
+  S.base = p.id;
+  paint();
+}
+
+function attach(p, x, y) {
+  if (sectionOf(p.category).kind === 'base') { chooseBase(p); return; }
+  if (!S.base) { toast('Choose a base piece first.', 'bad'); return; }
+  if (!mayAdd(p)) return;
+  const stage = $('#stage');
+  const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
+  S.charms.push({
+    uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    pieceId: p.id, x: spot.x, y: spot.y,
+    w: clamp(((p.width || 86) / stage.clientWidth) * 100, 3, 60),
+    rot: 0, z: ++S.zTop,
+  });
+  S.picked = S.charms[S.charms.length - 1].uid;
+  paint();
+}
+
+function takeOff(uid) {
+  S.charms = S.charms.filter((c) => c.uid !== uid);
+  if (S.picked === uid) S.picked = null;
+  paint();
+}
+
+function paintStage() {
+  const stage = $('#stage');
+  $$('.charm, .stage-base', stage).forEach((n) => n.remove());
+  const base = S.base ? S.byId.get(S.base) : null;
+  $('#hint').hidden = Boolean(base);
+
+  if (base) {
+    if (base.art && base.art.t === 'img') {
+      const img = document.createElement('img');
+      img.className = 'stage-base';
+      img.src = base.art.v;
+      img.alt = base.name;
+      stage.append(img);
+    } else {
+      const holder = document.createElement('div');
+      holder.className = 'stage-base';
+      holder.style.cssText += ';display:grid;place-items:center;font-size:min(38vh,260px);line-height:1';
+      holder.textContent = (base.art && base.art.v) || '◇';
+      stage.append(holder);
+    }
+  }
+
+  for (const c of S.charms) {
+    const p = S.byId.get(c.pieceId);
+    if (!p) continue;
+    const node = document.createElement('div');
+    node.className = 'charm' + (S.picked === c.uid ? ' on' : '');
+    node.dataset.uid = c.uid;
+    node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${c.w}%;aspect-ratio:1;z-index:${c.z};` +
+      `transform:translate(-50%,-50%) rotate(${c.rot}deg)`;
+    node.innerHTML = artHtml(p) + '<button class="lift" aria-label="Take off ' + esc(p.name) + '">×</button>';
+    const glyph = node.querySelector('.glyph');
+    if (glyph) glyph.style.fontSize = `calc(${c.w}vw * 0.5)`;
+    node.querySelector('.lift').addEventListener('pointerdown', (e) => { e.stopPropagation(); takeOff(c.uid); });
+    node.addEventListener('pointerdown', (e) => startMove(e, c, node));
+    stage.append(node);
+  }
+}
+
+/** One pointer path covers mouse, pen and touch. */
+function startMove(ev, charm, node) {
+  ev.preventDefault();
+  S.picked = charm.uid;
+  charm.z = ++S.zTop;
+  node.style.zIndex = String(charm.z);
+  $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
+
+  const rect = $('#stage').getBoundingClientRect();
+  const x0 = ev.clientX; const y0 = ev.clientY;
+  const ox = charm.x; const oy = charm.y;
+  let moved = false;
+
+  const move = (e) => {
+    moved = true;
+    charm.x = clamp(ox + ((e.clientX - x0) / rect.width) * 100, 2, 98);
+    charm.y = clamp(oy + ((e.clientY - y0) / rect.height) * 100, 2, 98);
+    node.style.left = charm.x + '%';
+    node.style.top = charm.y + '%';
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    if (!moved) paintStage();
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+/* --------------------------------------------------------------- the bill */
+
+function billLines() {
+  const counts = new Map();
+  if (S.base) counts.set(S.base, 1);
+  for (const c of S.charms) counts.set(c.pieceId, (counts.get(c.pieceId) || 0) + 1);
+  const lines = [];
+  for (const [id, qty] of counts) {
+    const p = S.byId.get(id);
+    if (!p) continue;
+    lines.push({ id, sku: p.sku, name: p.name, category: p.category, unit: p.price, qty, total: p.price * qty });
+  }
+  return lines.sort((a, b) => b.total - a.total);
+}
+
+function shippingNow() {
+  if (!$('#dlg-checkout').open) return 0;
+  if ($('input[name=fulfilment]:checked').value !== 'ship') return 0;
+  const z = S.zones.find((x) => x.id === $('#ck-area').value);
+  return z ? z.cost : 0;
+}
+
+function paintBill() {
+  const lines = billLines();
+  const items = lines.reduce((s, l) => s + l.total, 0);
+  const ship = shippingNow();
+  const count = lines.reduce((s, l) => s + l.qty, 0);
+
+  $('#s-count').textContent = count;
+  $('#s-items').textContent = count ? money(items) : '—';
+  $('#s-ship').textContent = ship ? money(ship) : '—';
+  $('#s-total').textContent = count ? money(items + ship) : '—';
+
+  $('#bill').innerHTML = lines.length
+    ? lines.map((l) => `<li><span>${esc(l.name)}</span><span class="q">×${l.qty}</span>
+        <span class="amt">${money(l.total)}</span></li>`).join('')
+    : '<li class="blank" style="display:block">Nothing on the piece yet.</li>';
+
+  $('#sum').innerHTML = `
+    <div><span>Components</span><span class="num">${money(items)}</span></div>
+    <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'chosen at checkout'}</span></div>
+    <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
+
+  const ready = Boolean(S.base);
+  $('#s-order').disabled = !ready;
+  $('#s-order-2').disabled = !ready;
+  return { lines, items, ship };
+}
+
+function paint() {
+  if (S.mode === 'shop') { paintSections(); paintTray(); paintStage(); paintBill(); }
+  else paintAdmin();
+}
+</script>
+
+<script>
+'use strict';
+
+/* --------------------------------------------------------------- checkout */
+
+function orderNumber() {
+  const d = new Date();
+  const stamp = String(d.getFullYear()).slice(2) +
+    String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  return `CJ-${stamp}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+}
+
+function openCheckout() {
+  const { lines, items } = paintBill();
+  $('#ck-lines').innerHTML = `<ul class="bill">${lines.map((l) =>
+    `<li><span>${esc(l.name)}</span><span class="q">×${l.qty}</span>
+     <span class="amt">${money(l.total)}</span></li>`).join('')}</ul><div class="sum" id="ck-sum"></div>`;
+  $('#ck-area').innerHTML = S.zones.length
+    ? S.zones.map((z) => `<option value="${esc(z.id)}">${esc(z.area)} — ${money(z.cost)}${
+        z.eta ? ` · ${esc(z.eta)} days` : ''}</option>`).join('')
+    : '<option value="">No delivery areas set up</option>';
+  $('#ck-error').hidden = true;
+  paintCheckoutSum(items);
+  $('#dlg-checkout').showModal();
+}
+
+function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) {
+  const ship = shippingNow();
+  const node = $('#ck-sum');
+  if (node) {
+    node.innerHTML = `
+      <div><span>Components</span><span class="num">${money(items)}</span></div>
+      <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'free — collect in studio'}</span></div>
+      <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
+  }
+  paintBill();
+}
+
+/**
+ * Re-read every component straight from the store before committing, so a
+ * design built minutes ago cannot claim stock another customer just took.
+ */
+async function placeOrder(form) {
+  const lines = billLines();
+  if (!lines.length) throw new Error('Your piece is empty.');
+
+  const fresh = await Promise.all(lines.map((l) => S.db.doc(`catalog/${l.id}`).get()));
+  const short = [];
+  fresh.forEach((snap, i) => {
+    const l = lines[i];
+    const now = snap.exists ? snap.data() : null;
+    if (!now || now.active === false) short.push(`${l.name} is no longer available.`);
+    else if ((now.quantity || 0) < l.qty) {
+      short.push((now.quantity || 0) === 0
+        ? `${l.name} has just sold out.`
+        : `Only ${now.quantity} of ${l.name} left — your piece uses ${l.qty}.`);
+    }
+  });
+  if (short.length) throw new Error(short.join(' '));
+
+  const fulfilment = form.get('fulfilment');
+  let ship = 0; let areaName = null;
+  if (fulfilment === 'ship') {
+    const zone = S.zones.find((z) => z.id === form.get('area'));
+    if (!zone) throw new Error('Choose a delivery area we ship to.');
+    if (!String(form.get('address') || '').trim()) throw new Error('Enter the delivery address.');
+    ship = zone.cost;
+    areaName = zone.area;
+  }
+
+  const items = lines.reduce((s, l) => s + l.total, 0);
+  const id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const order = {
+    no: orderNumber(),
+    name: String(form.get('name')).trim(),
+    phone: String(form.get('phone')).trim(),
+    email: String(form.get('email') || '').trim(),
+    notes: String(form.get('notes') || '').trim(),
+    fulfilment, area: areaName,
+    address: fulfilment === 'ship' ? String(form.get('address')).trim() : '',
+    items: lines.map((l) => ({ id: l.id, sku: l.sku, name: l.name, unit: l.unit, qty: l.qty, total: l.total })),
+    design: { base: S.base, charms: S.charms.map(({ pieceId, x, y, w, rot, z }) => ({ pieceId, x, y, w, rot, z })) },
+    itemsTotal: items, shipping: ship, total: items + ship,
+    status: 'new',
+    createdAt: new Date().toISOString(),
+  };
+
+  await S.db.doc(`orders/${id}`).set(order);
+  // Take the components out of the repo now that the order is on the book.
+  await Promise.all(lines.map((l, i) => {
+    const now = fresh[i].data();
+    return S.db.doc(`catalog/${l.id}`).update({ quantity: (now.quantity || 0) - l.qty });
+  }));
+  return order;
+}
+
+function showDone(order) {
+  $('#done-body').innerHTML = `
+    <p>Thank you — order <b class="mono">${esc(order.no)}</b> is on the book.</p>
+    <div class="sum">
+      <div><span>Components</span><span class="num">${money(order.itemsTotal)}</span></div>
+      <div><span>Delivery${order.area ? ` — ${esc(order.area)}` : ''}</span>
+        <span class="num">${order.shipping ? money(order.shipping) : 'free'}</span></div>
+      <div class="grand"><span>Total</span><span>${money(order.total)}</span></div>
+    </div>
+    <p class="muted" style="margin-bottom:0">${order.fulfilment === 'ship'
+      ? 'We’ll post it to your address as soon as it’s made and message you the tracking details.'
+      : 'We’ll message you the moment it’s ready to collect from the studio.'}</p>`;
+  $('#dlg-done').showModal();
+}
+
+function clearDesign() {
+  S.base = null; S.charms = []; S.picked = null;
+  paint();
+}
+
+/* ------------------------------------------------------------ studio: data */
+
+const STATUS = { new: 'New', making: 'Being made', ready: 'Ready', done: 'Completed', cancelled: 'Cancelled' };
+const STATUS_TAG = { new: 'low', making: 'low', ready: 'ok', done: 'flat', cancelled: 'out' };
+const OPEN_STATUS = ['new', 'making'];
+
+function threshold() { return Number(S.settings.threshold) || 10; }
+
+function buckets() {
+  const t = threshold();
+  return {
+    out: S.pieces.filter((p) => (p.quantity || 0) <= 0),
+    low: S.pieces.filter((p) => (p.quantity || 0) > 0 && p.quantity < t),
+    ok: S.pieces.filter((p) => (p.quantity || 0) >= t),
+  };
+}
+
+/** Everything the bench has to pull for orders that are not finished. */
+function pickList() {
+  const need = new Map();
+  for (const o of S.orders) {
+    if (!OPEN_STATUS.includes(o.status)) continue;
+    for (const it of o.items || []) {
+      const row = need.get(it.id) || { name: it.name, sku: it.sku, needed: 0 };
+      row.needed += it.qty;
+      need.set(it.id, row);
+    }
+  }
+  return [...need.entries()].map(([id, r]) => ({
+    id, ...r, inRepo: S.byId.has(id) ? (S.byId.get(id).quantity || 0) : 0,
+  })).sort((a, b) => b.needed - a.needed);
+}
+
+/* ----------------------------------------------------------- studio: views */
+
+function stockRow(p) {
+  const t = threshold();
+  const q = p.quantity || 0;
+  const tag = q <= 0 ? '<span class="tag out">out of stock</span>'
+    : q < t ? `<span class="tag low">low · ${q}</span>` : `<span class="tag ok">${q}</span>`;
+  return `<tr class="stripe ${q <= 0 ? 'out' : q < t ? 'low' : ''}" data-id="${esc(p.id)}">
+    <td><div class="mini">${artHtml(p)}</div></td>
+    <td><b>${esc(p.name)}</b><br><span class="mono muted">${esc(p.sku)}</span>${
+      p.active === false ? ' <span class="tag flat">hidden</span>' : ''}</td>
+    <td>${esc(sectionOf(p.category).name)}</td>
+    <td class="r">${money(p.price)}</td>
+    <td class="r">${tag}</td>
+    <td><div class="acts">
+      <input type="number" value="10" step="1" aria-label="How many arrived">
+      <button class="tiny" data-act="add">Add stock</button>
+      <button class="tiny" data-act="edit">Edit</button>
+      <button class="tiny warnbtn" data-act="del">Delete</button>
+    </div></td>
+  </tr>`;
+}
+
+function stockTable(rows, blank) {
+  return `<div class="scroll"><table class="repo">
+    <thead><tr><th></th><th>Component</th><th>Section</th><th class="r">Price</th><th class="r">In repo</th><th></th></tr></thead>
+    <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="6" class="blank">${blank}</td></tr>`}</tbody>
+  </table></div>`;
+}
+
+function viewOverview() {
+  const b = buckets();
+  const pick = pickList();
+  const open = S.orders.filter((o) => OPEN_STATUS.includes(o.status)).length;
+  const ready = S.orders.filter((o) => o.status === 'ready').length;
+  const value = S.orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + (o.total || 0), 0);
+  return `
+    <div class="summary">
+      <div><span class="eyebrow">Orders to make</span><b>${open}</b></div>
+      <div><span class="eyebrow">Ready to hand over</span><b>${ready}</b></div>
+      <div class="sev-out"><span class="eyebrow">Out of stock</span><b>${b.out.length}</b></div>
+      <div class="sev-low"><span class="eyebrow">Low · under ${threshold()}</span><b>${b.low.length}</b></div>
+      <div><span class="eyebrow">Order value</span><b>${money(value)}</b></div>
+    </div>
+    <section class="panel">
+      <header><h2>What the open orders need</h2><span class="spacer"></span>
+        <span class="eyebrow">across every order still to make</span></header>
+      <div class="scroll"><table>
+        <thead><tr><th>Component</th><th>SKU</th><th class="r">Needed</th><th class="r">In repo</th><th class="r">Cover</th></tr></thead>
+        <tbody>${pick.length ? pick.map((r) => `<tr class="stripe ${r.inRepo < r.needed ? 'out' : ''}">
+          <td>${esc(r.name)}</td><td class="mono muted">${esc(r.sku)}</td>
+          <td class="r">${r.needed}</td><td class="r">${r.inRepo}</td>
+          <td class="r">${r.inRepo < r.needed
+            ? `<span class="tag out">short ${r.needed - r.inRepo}</span>`
+            : '<span class="tag ok">covered</span>'}</td></tr>`).join('')
+          : '<tr><td colspan="5" class="blank">No orders waiting to be made.</td></tr>'}</tbody>
+      </table></div>
+    </section>`;
+}
+
+function viewTray() {
+  return `
+    <section class="panel">
+      <header><h2>Component repo</h2><span class="spacer"></span>
+        <input id="repo-find" placeholder="Search name or SKU" style="width:210px">
+        <button class="solid" id="repo-add">Add component</button></header>
+      ${stockTable(S.pieces, 'Nothing in the repo yet — add your first component.')}
+    </section>
+    <section class="panel">
+      <header><h2>Sections</h2><span class="spacer"></span>
+        <input id="sec-name" placeholder="Section name" style="width:170px">
+        <select id="sec-kind" style="width:auto">
+          <option value="attachment">Attachment — charms, drops</option>
+          <option value="base">Base piece — band, frame, kaleera</option>
+        </select>
+        <button id="sec-add">Add</button></header>
+      <div class="pad" style="display:flex;gap:7px;flex-wrap:wrap">
+        ${sections().map((c) => `<span class="tag ${c.kind === 'base' ? 'on' : 'flat'}">${esc(c.name)}
+          <button class="ghost tiny" data-sec="${esc(c.slug)}" style="padding:0 2px" aria-label="Remove ${esc(c.name)}">×</button>
+        </span>`).join('') || '<span class="muted">No sections yet.</span>'}
+      </div>
+    </section>`;
+}
+
+function viewStock() {
+  const b = buckets();
+  return `
+    <section class="panel">
+      <header><h2>Out of stock</h2><span class="spacer"></span><span class="tag out">${b.out.length}</span></header>
+      ${stockTable(b.out, 'Nothing is out of stock.')}
+    </section>
+    <section class="panel">
+      <header><h2>Low quantity — under ${threshold()}</h2><span class="spacer"></span>
+        <span class="tag low">${b.low.length}</span></header>
+      ${stockTable(b.low, 'Nothing is running low.')}
+    </section>
+    <section class="panel">
+      <header><h2>Healthy stock</h2><span class="spacer"></span><span class="tag ok">${b.ok.length}</span></header>
+      ${stockTable(b.ok, 'Nothing here yet.')}
+    </section>`;
+}
+
+function viewOrders() {
+  return `<section class="panel">
+    <header><h2>Order book</h2><span class="spacer"></span>
+      <select id="ord-filter" style="width:auto">
+        <option value="">Every status</option>
+        ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+      </select></header>
+    <div class="scroll"><table id="ord-table">
+      <thead><tr><th>Order</th><th>Customer</th><th>Receiving</th><th>Components needed</th>
+        <th class="r">Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>${S.orders.length ? S.orders.map((o) => `<tr data-id="${esc(o.id)}" data-status="${esc(o.status)}">
+        <td><b class="mono">${esc(o.no)}</b><br><span class="muted" style="font-size:12px">${
+          esc(new Date(o.createdAt).toLocaleString())}</span></td>
+        <td>${esc(o.name)}<br><span class="muted mono">${esc(o.phone)}</span></td>
+        <td>${o.fulfilment === 'ship'
+          ? `Ship — ${esc(o.area || '')}<br><span class="muted num">${money(o.shipping)}</span>`
+          : 'Collect in studio'}</td>
+        <td style="font-size:12.5px">${(o.items || []).map((i) => `${esc(i.name)} ×${i.qty}`).join('<br>')}</td>
+        <td class="r"><b>${money(o.total)}</b></td>
+        <td><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span></td>
+        <td><div class="acts">
+          <select data-act="status" style="width:auto">
+            ${Object.entries(STATUS).map(([k, v]) =>
+              `<option value="${k}" ${k === o.status ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>
+          <button class="tiny" data-act="open">Details</button>
+        </div></td></tr>`).join('')
+        : '<tr><td colspan="7" class="blank">No orders yet.</td></tr>'}</tbody>
+    </table></div>
+  </section>`;
+}
+
+function viewDelivery() {
+  return `<section class="panel">
+    <header><h2>Delivery areas &amp; charges</h2><span class="spacer"></span>
+      <input id="z-area" placeholder="Area name" style="width:160px">
+      <input id="z-cost" type="number" min="0" step="0.01" placeholder="Charge" style="width:100px">
+      <input id="z-eta" placeholder="Days" style="width:74px">
+      <button class="solid" id="z-add">Add area</button></header>
+    <div class="scroll"><table id="z-table">
+      <thead><tr><th>Area</th><th class="r">Delivery charge</th><th>Days</th><th>Offered</th><th></th></tr></thead>
+      <tbody>${S.zones.length ? S.zones.map((z) => `<tr data-id="${esc(z.id)}">
+        <td><input value="${esc(z.area)}" data-f="area"></td>
+        <td class="r"><input type="number" min="0" step="0.01" value="${z.cost}" data-f="cost" style="width:110px"></td>
+        <td><input value="${esc(z.eta || '')}" data-f="eta" style="width:80px"></td>
+        <td><input type="checkbox" data-f="active" ${z.active !== false ? 'checked' : ''} style="width:auto"></td>
+        <td><div class="acts">
+          <button class="tiny" data-act="save">Save</button>
+          <button class="tiny warnbtn" data-act="del">Delete</button>
+        </div></td></tr>`).join('')
+        : '<tr><td colspan="5" class="blank">No delivery areas — customers can only collect.</td></tr>'}</tbody>
+    </table></div>
+  </section>`;
+}
+
+function viewSetup() {
+  return `
+    <section class="panel">
+      <header><h2>Shop details</h2></header>
+      <div class="pad">
+        <div class="pair">
+          <label class="f"><span>Business name</span><input id="set-name" value="${esc(S.settings.businessName)}"></label>
+          <label class="f"><span>Currency symbol</span><input id="set-cur" value="${esc(S.settings.currency)}"></label>
+          <label class="f"><span>Low-stock threshold</span>
+            <input id="set-thr" type="number" min="1" step="1" value="${threshold()}"></label>
+          <label class="f"><span>Studio PIN</span><input id="set-pin" value="${esc(S.settings.pin || '')}"></label>
+        </div>
+        <button class="solid" id="set-save">Save</button>
+      </div>
+    </section>
+    <section class="panel">
+      <header><h2>How stock is counted</h2></header>
+      <div class="pad" style="max-width:66ch;display:grid;gap:9px">
+        <p style="margin:0">Placing an order takes its components out of the repo straight away, so the
+          next customer sees the lower count. Cancelling an order puts them back.</p>
+        <p style="margin:0">Deleting a component that appears on a past order hides it from customers
+          instead of erasing it, so the order stays readable.</p>
+        <p class="muted" style="margin:0">The PIN keeps the studio out of the way on a shared screen —
+          it is not a security boundary. Anyone you send this link to can reach the shop.</p>
+      </div>
+    </section>`;
+}
+
+const ADMIN_VIEWS = { overview: viewOverview, tray: viewTray, stock: viewStock, orders: viewOrders, delivery: viewDelivery, setup: viewSetup };
+
+function paintAdmin() {
+  $$('#admin-tabs .cat').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.adminView)));
+  $('#admin-body').innerHTML = (ADMIN_VIEWS[S.adminView] || viewOverview)();
+  wireAdmin();
+}
+</script>
+
+<script>
+'use strict';
+
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+async function saveSettings(patch) {
+  await S.db.doc('meta/settings').set({ ...S.settings, ...patch });
+}
+
+function dbFail(err) {
+  const code = err && err.code;
+  if (code === 'invalid_argument') return 'That change was refused — check the values and try again.';
+  if (code === 'quota_exceeded') return 'The shop database is full. Delete something before adding more.';
+  if (code === 'resource_exhausted') return 'Too many changes at once. Give it a moment and try again.';
+  if (code === 'not_granted' || code === 'revoked') return 'This view can only read the shop.';
+  return (err && err.message) || 'That did not save.';
+}
+
+const guard = (fn) => async (...args) => {
+  try { await fn(...args); } catch (err) { toast(dbFail(err), 'bad'); }
+};
+
+/* -------------------------------------------------------- component dialog */
+
+/** Shrink an uploaded photo so a component document stays small. */
+function shrink(file, edge = 260) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('That image could not be read.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file is not an image we can use.'));
+      img.onload = () => {
+        const scale = Math.min(1, edge / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        let out = c.toDataURL('image/webp', 0.86);
+        if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/png');
+        resolve(out);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openPieceDialog(piece) {
+  const f = $('#form-piece');
+  f.reset();
+  $('#piece-error').hidden = true;
+  $('#piece-title').textContent = piece ? `Edit ${piece.name}` : 'Add a component';
+  $('#piece-cat').innerHTML = sections().map((c) =>
+    `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('')
+    || '<option value="">Add a section first</option>';
+
+  S.pendingArt = piece ? piece.art : null;
+  if (piece) {
+    f.id.value = piece.id;
+    f.name.value = piece.name;
+    f.sku.value = piece.sku || '';
+    f.category.value = piece.category;
+    f.price.value = piece.price;
+    f.quantity.value = piece.quantity || 0;
+    f.width.value = piece.width || 86;
+    f.note.value = piece.note || '';
+    f.glyph.value = piece.art && piece.art.t === 'glyph' ? piece.art.v : '';
+    f.active.checked = piece.active !== false;
+  } else {
+    f.id.value = '';
+  }
+  $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
+  $('#dlg-piece').showModal();
+}
+
+/* ------------------------------------------------------------ studio wiring */
+
+function wireAdmin() {
+  const body = $('#admin-body');
+
+  $('#repo-find')?.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    $$('.repo tbody tr', body).forEach((tr) => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
+  });
+  $('#repo-add')?.addEventListener('click', () => {
+    if (!sections().length) return toast('Add a section first — charms, bangles, chains…', 'bad');
+    openPieceDialog(null);
+  });
+
+  $$('.repo', body).forEach((table) => table.addEventListener('click', guard(async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    const piece = S.byId.get(tr.dataset.id);
+    if (!piece) return;
+    if (btn.dataset.act === 'edit') return openPieceDialog(piece);
+    if (btn.dataset.act === 'add') {
+      const delta = parseInt(tr.querySelector('input[type=number]').value, 10);
+      if (!Number.isInteger(delta) || delta === 0) return toast('Enter how many arrived.', 'bad');
+      if ((piece.quantity || 0) + delta < 0) return toast(`Only ${piece.quantity || 0} in the repo.`, 'bad');
+      await S.db.doc(`catalog/${piece.id}`).update({ quantity: (piece.quantity || 0) + delta });
+      toast('Stock updated.', 'good');
+    }
+    if (btn.dataset.act === 'del') {
+      const onOrder = S.orders.some((o) => (o.items || []).some((i) => i.id === piece.id));
+      if (!confirm(onOrder
+        ? `${piece.name} appears on past orders, so it will be hidden from customers rather than deleted. Continue?`
+        : `Delete ${piece.name} from the repo?`)) return;
+      if (onOrder) { await S.db.doc(`catalog/${piece.id}`).update({ active: false }); toast('Hidden from customers.', 'good'); }
+      else { await S.db.doc(`catalog/${piece.id}`).delete(); toast('Deleted.', 'good'); }
+    }
+  })));
+
+  $('#sec-add')?.addEventListener('click', guard(async () => {
+    const name = $('#sec-name').value.trim();
+    if (!name) return toast('Name the section first.', 'bad');
+    const s = slug(name);
+    if (sections().some((c) => c.slug === s)) return toast('That section already exists.', 'bad');
+    await saveSettings({ sections: [...sections(), { slug: s, name, kind: $('#sec-kind').value }] });
+    toast('Section added.', 'good');
+  }));
+
+  $$('button[data-sec]', body).forEach((b) => b.addEventListener('click', guard(async () => {
+    const used = S.pieces.filter((p) => p.category === b.dataset.sec).length;
+    if (used) return toast(`That section still holds ${used} component${used === 1 ? '' : 's'}.`, 'bad');
+    await saveSettings({ sections: sections().filter((c) => c.slug !== b.dataset.sec) });
+  })));
+
+  $('#ord-filter')?.addEventListener('change', (e) => {
+    $$('#ord-table tbody tr').forEach((tr) => { tr.hidden = e.target.value && tr.dataset.status !== e.target.value; });
+  });
+
+  $('#ord-table')?.addEventListener('change', guard(async (e) => {
+    const sel = e.target.closest('select[data-act="status"]');
+    if (!sel) return;
+    await setOrderStatus(sel.closest('tr').dataset.id, sel.value);
+  }));
+
+  $('#ord-table')?.addEventListener('click', (e) => {
+    if (!e.target.closest('button[data-act="open"]')) return;
+    showOrder(S.orders.find((o) => o.id === e.target.closest('tr').dataset.id));
+  });
+
+  $('#z-add')?.addEventListener('click', guard(async () => {
+    const area = $('#z-area').value.trim();
+    const cost = Number($('#z-cost').value);
+    if (!area) return toast('Name the delivery area.', 'bad');
+    if (!Number.isFinite(cost) || cost < 0) return toast('The charge must be zero or more.', 'bad');
+    if (S.zones.some((z) => z.area.toLowerCase() === area.toLowerCase())) return toast('That area already exists.', 'bad');
+    await S.db.doc(`zones/z${Date.now().toString(36)}`).set({ area, cost, eta: $('#z-eta').value.trim(), active: true });
+    toast('Delivery area added.', 'good');
+  }));
+
+  $('#z-table')?.addEventListener('click', guard(async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    if (btn.dataset.act === 'del') {
+      if (!confirm('Delete this delivery area?')) return;
+      await S.db.doc(`zones/${tr.dataset.id}`).delete();
+    } else {
+      const cost = Number(tr.querySelector('[data-f=cost]').value);
+      if (!Number.isFinite(cost) || cost < 0) return toast('The charge must be zero or more.', 'bad');
+      await S.db.doc(`zones/${tr.dataset.id}`).set({
+        area: tr.querySelector('[data-f=area]').value.trim(),
+        cost, eta: tr.querySelector('[data-f=eta]').value.trim(),
+        active: tr.querySelector('[data-f=active]').checked,
+      });
+    }
+    toast('Saved.', 'good');
+  }));
+
+  $('#set-save')?.addEventListener('click', guard(async () => {
+    const thr = parseInt($('#set-thr').value, 10);
+    if (!Number.isInteger(thr) || thr < 1) return toast('The threshold must be a whole number above zero.', 'bad');
+    await saveSettings({
+      businessName: $('#set-name').value.trim() || 'CustomJewelz',
+      currency: $('#set-cur').value.trim() || '₹',
+      threshold: thr,
+      pin: $('#set-pin').value.trim() || S.settings.pin,
+    });
+    toast('Saved.', 'good');
+  }));
+}
+
+/** Cancelling frees the components; reopening claims them again. */
+async function setOrderStatus(id, status) {
+  const order = S.orders.find((o) => o.id === id);
+  if (!order || order.status === status) return;
+
+  if (status === 'cancelled') {
+    await Promise.all((order.items || []).map(async (it) => {
+      const snap = await S.db.doc(`catalog/${it.id}`).get();
+      if (snap.exists) await S.db.doc(`catalog/${it.id}`).update({ quantity: (snap.data().quantity || 0) + it.qty });
+    }));
+  } else if (order.status === 'cancelled') {
+    const snaps = await Promise.all((order.items || []).map((it) => S.db.doc(`catalog/${it.id}`).get()));
+    const short = (order.items || []).filter((it, i) =>
+      !snaps[i].exists || (snaps[i].data().quantity || 0) < it.qty);
+    if (short.length) {
+      toast(`Cannot reopen — not enough ${short.map((s) => s.name).join(', ')} in the repo.`, 'bad');
+      paintAdmin();
+      return;
+    }
+    await Promise.all((order.items || []).map((it, i) =>
+      S.db.doc(`catalog/${it.id}`).update({ quantity: snaps[i].data().quantity - it.qty })));
+  }
+
+  await S.db.doc(`orders/${id}`).update({ status });
+  toast('Order updated.', 'good');
+}
+
+function showOrder(o) {
+  if (!o) return;
+  $('#order-title').textContent = `Order ${o.no}`;
+  $('#order-body').innerHTML = `
+    <p><b>${esc(o.name)}</b> · <span class="mono">${esc(o.phone)}</span>${
+      o.email ? ` · ${esc(o.email)}` : ''}</p>
+    <p>${o.fulfilment === 'ship'
+      ? `<b>Ship to ${esc(o.area)}</b><br>${esc(o.address || '').replace(/\n/g, '<br>')}`
+      : '<b>Collect from the studio when ready</b>'}</p>
+    ${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}
+    <h3 style="margin:16px 0 6px">Components to pull</h3>
+    <table><thead><tr><th>Component</th><th>SKU</th><th class="r">Qty</th><th class="r">Line</th></tr></thead>
+      <tbody>${(o.items || []).map((i) => `<tr><td>${esc(i.name)}</td>
+        <td class="mono muted">${esc(i.sku)}</td><td class="r">${i.qty}</td>
+        <td class="r">${money(i.total)}</td></tr>`).join('')}</tbody></table>
+    <div class="sum">
+      <div><span>Components</span><span class="num">${money(o.itemsTotal)}</span></div>
+      <div><span>Delivery</span><span class="num">${money(o.shipping)}</span></div>
+      <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
+    </div>`;
+  $('#dlg-order').showModal();
+}
+
+/* -------------------------------------------------------------------- boot */
+
+function setMode(mode) {
+  S.mode = mode;
+  $('#mode-shop').setAttribute('aria-pressed', String(mode === 'shop'));
+  $('#mode-admin').setAttribute('aria-pressed', String(mode === 'admin'));
+  $('#shop').hidden = mode !== 'shop' || !S.ready;
+  $('#admin').hidden = mode !== 'admin';
+  $('#boot').hidden = S.ready || mode === 'admin';
+  paint();
+}
+
+function wireShop() {
+  $('#cats').addEventListener('click', (e) => {
+    const b = e.target.closest('.cat');
+    if (!b) return;
+    S.section = b.dataset.slug;
+    paintSections();
+    paintTray();
+  });
+
+  const trayAct = (e) => {
+    const node = e.target.closest('.piece');
+    if (!node) return;
+    const p = S.byId.get(node.dataset.id);
+    if (!p) return;
+    if (sectionOf(p.category).kind === 'base') chooseBase(p);
+    else attach(p, 50, 50);
+  };
+  $('#tray').addEventListener('click', trayAct);
+  $('#tray').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trayAct(e); }
+  });
+  $('#tray').addEventListener('dragstart', (e) => {
+    const node = e.target.closest('.piece');
+    if (!node || node.classList.contains('gone')) return e.preventDefault();
+    e.dataTransfer.setData('text/plain', node.dataset.id);
+    e.dataTransfer.effectAllowed = 'copy';
+  });
+
+  const stage = $('#stage');
+  stage.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; stage.classList.add('over'); });
+  stage.addEventListener('dragleave', () => stage.classList.remove('over'));
+  stage.addEventListener('drop', (e) => {
+    e.preventDefault();
+    stage.classList.remove('over');
+    const p = S.byId.get(e.dataTransfer.getData('text/plain'));
+    if (!p) return;
+    const r = stage.getBoundingClientRect();
+    attach(p, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+  });
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.target === stage || e.target.classList.contains('stage-base') || e.target.closest('.stage-hint')) {
+      S.picked = null;
+      paintStage();
+    }
+  });
+
+  $$('.tools button').forEach((b) => b.addEventListener('click', () => {
+    const c = S.charms.find((x) => x.uid === S.picked);
+    if (!c) return toast('Tap a charm on the piece first.');
+    if (b.dataset.tool === 'bigger') c.w = clamp(c.w * 1.15, 3, 60);
+    if (b.dataset.tool === 'smaller') c.w = clamp(c.w / 1.15, 3, 60);
+    if (b.dataset.tool === 'ccw') c.rot -= 15;
+    if (b.dataset.tool === 'cw') c.rot += 15;
+    if (b.dataset.tool === 'front') c.z = ++S.zTop;
+    if (b.dataset.tool === 'lift') return takeOff(c.uid);
+    paintStage();
+  }));
+
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && S.picked) { e.preventDefault(); takeOff(S.picked); }
+  });
+
+  $('#s-clear').addEventListener('click', clearDesign);
+  $('#s-order').addEventListener('click', openCheckout);
+  $('#s-order-2').addEventListener('click', openCheckout);
+  window.addEventListener('resize', () => { if (S.mode === 'shop') paintStage(); });
+}
+
+function wireCheckout() {
+  $('#ck-back').addEventListener('click', () => $('#dlg-checkout').close());
+  $$('input[name=fulfilment]').forEach((i) => i.addEventListener('change', () => {
+    const ship = i.value === 'ship' && i.checked;
+    $('#ship-fields').hidden = !ship;
+    $('#ch-ship').classList.toggle('on', ship);
+    $('#ch-collect').classList.toggle('on', !ship);
+    $('textarea[name=address]').required = ship;
+    paintCheckoutSum();
+  }));
+  $('#ck-area').addEventListener('change', () => paintCheckoutSum());
+
+  $('#form-checkout').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#ck-error');
+    const submit = $('#ck-submit');
+    err.hidden = true;
+    submit.disabled = true;
+    try {
+      const order = await placeOrder(new FormData(e.target));
+      $('#dlg-checkout').close();
+      clearDesign();
+      showDone(order);
+    } catch (ex) {
+      err.hidden = false;
+      err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
+      paint();
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  $('#done-close').addEventListener('click', () => $('#dlg-done').close());
+  $('#order-close').addEventListener('click', () => $('#dlg-order').close());
+}
+
+function wirePieceDialog() {
+  const f = $('#form-piece');
+  $('#piece-cancel').addEventListener('click', () => $('#dlg-piece').close());
+
+  f.glyph.addEventListener('input', () => {
+    if (f.glyph.value.trim()) S.pendingArt = { t: 'glyph', v: f.glyph.value.trim() };
+    $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
+  });
+
+  f.upload.addEventListener('change', async () => {
+    const file = f.upload.files[0];
+    if (!file) return;
+    try {
+      S.pendingArt = { t: 'img', v: await shrink(file) };
+      f.glyph.value = '';
+      $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
+    } catch (ex) { toast(ex.message, 'bad'); }
+  });
+
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#piece-error');
+    err.hidden = true;
+    const data = new FormData(f);
+    const price = Number(data.get('price'));
+    const quantity = parseInt(data.get('quantity'), 10);
+    const name = String(data.get('name')).trim();
+    try {
+      if (!name) throw new Error('Give the component a name.');
+      if (!data.get('category')) throw new Error('Choose a section.');
+      if (!Number.isFinite(price) || price < 0) throw new Error('The price must be zero or more.');
+      if (!Number.isInteger(quantity) || quantity < 0) throw new Error('The quantity must be a whole number, zero or more.');
+
+      const id = data.get('id');
+      const doc = {
+        name,
+        sku: String(data.get('sku') || '').trim() || `SKU-${Date.now().toString(36).toUpperCase()}`,
+        category: data.get('category'),
+        price, quantity,
+        width: parseInt(data.get('width'), 10) || 86,
+        note: String(data.get('note') || '').trim(),
+        art: S.pendingArt || { t: 'glyph', v: '◇' },
+        active: f.active.checked,
+        order: id && S.byId.has(id) ? (S.byId.get(id).order || 0) : S.pieces.length + 1,
+      };
+      await S.db.doc(`catalog/${id || 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)}`).set(doc);
+      $('#dlg-piece').close();
+      toast('Saved.', 'good');
+    } catch (ex) {
+      err.hidden = false;
+      err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
+    }
+  });
+}
+
+function wireStudio() {
+  $('#mode-shop').addEventListener('click', () => setMode('shop'));
+  $('#mode-admin').addEventListener('click', () => {
+    if (S.adminOpen) return setMode('admin');
+    $('#pin-error').hidden = true;
+    $('#form-pin').reset();
+    $('#dlg-pin').showModal();
+  });
+  $('#pin-cancel').addEventListener('click', () => $('#dlg-pin').close());
+  $('#form-pin').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (String(new FormData(e.target).get('pin')) !== String(S.settings.pin)) {
+      $('#pin-error').hidden = false;
+      $('#pin-error').textContent = 'That PIN does not match. Try again.';
+      return;
+    }
+    $('#dlg-pin').close();
+    S.adminOpen = true;
+    setMode('admin');
+  });
+  $('#admin-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('.cat');
+    if (!b) return;
+    S.adminView = b.dataset.view;
+    paintAdmin();
+  });
+}
+
+setMode('shop');
+wireShop();
+wireCheckout();
+wirePieceDialog();
+wireStudio();
+connect();
+</script>
