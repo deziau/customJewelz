@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design your piece · CustomJewelz</title>
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="icon" href="/img/samples/charm-heart.svg">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand" id="brand">Custom<span>Jewelz</span></div>
+  <div class="spacer"></div>
+  <a class="btn small" href="/admin">Admin</a>
+</div>
+
+<div class="costbar">
+  <div class="metric"><small>Pieces</small><b id="cb-count">0</b></div>
+  <div class="metric"><small>Items subtotal</small><b id="cb-items">—</b></div>
+  <div class="metric"><small>Shipping</small><b id="cb-ship">—</b></div>
+  <div class="metric total"><small>Running total</small><b id="cb-total">—</b></div>
+  <div class="spacer"></div>
+  <button class="small" id="btn-clear">Start over</button>
+  <button class="primary" id="btn-checkout" disabled>Review &amp; order</button>
+</div>
+
+<main class="workspace">
+
+  <section class="panel sticky">
+    <header><h2>Repo</h2><span class="muted" style="margin-left:auto;font-size:12px">drag onto the piece</span></header>
+    <div class="tabs" id="tabs"></div>
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <section class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="stage-empty" id="stage-empty">
+        <h2>Start with a base</h2>
+        <p class="muted">Pick a bracelet, pendant or kaleera frame from the repo,<br>then drag charms onto it.</p>
+      </div>
+    </div>
+    <div class="stage-tools">
+      <button class="small" data-tool="bigger">Bigger</button>
+      <button class="small" data-tool="smaller">Smaller</button>
+      <button class="small" data-tool="rotate-left">⟲ Rotate</button>
+      <button class="small" data-tool="rotate-right">⟳ Rotate</button>
+      <button class="small" data-tool="front">Bring to front</button>
+      <button class="small danger" data-tool="delete">Remove selected</button>
+    </div>
+    <p class="muted" style="font-size:12.5px;text-align:center;max-width:560px">
+      Drag any charm from the repo onto the piece, then drag it around to position it.
+      Click a charm to select it — use the buttons above or the Delete key to adjust.
+    </p>
+  </section>
+
+  <section class="panel sticky">
+    <header><h2>Your piece</h2></header>
+    <div class="body">
+      <ul class="lines" id="lines"><li class="empty">Nothing added yet.</li></ul>
+      <div class="totals" id="totals"></div>
+      <button class="primary wide" id="btn-checkout-2" style="margin-top:12px" disabled>Review &amp; order</button>
+    </div>
+  </section>
+
+</main>
+
+<dialog id="checkout">
+  <header><h2>Complete your order</h2></header>
+  <form id="checkout-form" method="dialog">
+    <div class="content">
+      <div id="checkout-summary"></div>
+
+      <fieldset>
+        <legend>How would you like to receive it?</legend>
+        <div class="radio-row">
+          <label class="radio-card on" id="rc-pickup">
+            <input type="radio" name="fulfilment" value="pickup" checked>
+            <b>Collect when ready</b><br><span class="muted">Pick up from the studio. No shipping charge.</span>
+          </label>
+          <label class="radio-card" id="rc-ship">
+            <input type="radio" name="fulfilment" value="ship">
+            <b>Ship when ready</b><br><span class="muted">Delivered to your address.</span>
+          </label>
+        </div>
+        <div id="ship-fields" hidden style="margin-top:12px">
+          <label class="field"><span>Delivery area</span>
+            <select name="shippingArea" id="shipping-area"></select>
+          </label>
+          <label class="field"><span>Delivery address</span>
+            <textarea name="shippingAddress" placeholder="House / street / city / postcode"></textarea>
+          </label>
+        </div>
+      </fieldset>
+
+      <label class="field"><span>Your name *</span><input name="customerName" required></label>
+      <label class="field"><span>Phone *</span><input name="customerPhone" required></label>
+      <label class="field"><span>Email</span><input name="customerEmail" type="email"></label>
+      <label class="field"><span>Notes for the maker</span>
+        <textarea name="notes" placeholder="Initial letters, sizing, engraving, occasion date…"></textarea>
+      </label>
+      <p id="checkout-error" class="pill red" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="checkout-cancel">Keep editing</button>
+      <button type="submit" class="primary" id="checkout-submit">Place order</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="confirmation">
+  <header><h2>Order placed</h2></header>
+  <div class="content" id="confirmation-body"></div>
+  <footer><button class="primary" id="confirmation-close">Design another</button></footer>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="/js/designer.js"></script>
+</body>
+</html>

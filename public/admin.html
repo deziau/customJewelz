@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · CustomJewelz</title>
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/admin.css">
+<link rel="icon" href="/img/samples/charm-star.svg">
+</head>
+<body>
+
+<div id="login-screen" class="login" hidden>
+  <form class="panel" id="login-form">
+    <header><h2>Admin sign in</h2></header>
+    <div class="body">
+      <label class="field"><span>Password</span><input type="password" name="password" required autofocus></label>
+      <p class="pill red" id="login-error" hidden></p>
+      <button class="primary wide" type="submit">Sign in</button>
+      <p class="muted" style="font-size:12px;margin-bottom:0">Default password is <code>admin123</code> — change it in Settings.</p>
+    </div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="topbar">
+    <div class="brand">Custom<span>Jewelz</span> <span class="muted" style="font-size:13px">admin</span></div>
+    <nav class="nav" id="nav">
+      <button data-view="dashboard" class="tab">Dashboard</button>
+      <button data-view="repo" class="tab">Repo</button>
+      <button data-view="stock" class="tab">Stock alerts <span class="pill red" id="nav-stock-badge" hidden>0</span></button>
+      <button data-view="orders" class="tab">Orders <span class="pill amber" id="nav-orders-badge" hidden>0</span></button>
+      <button data-view="shipping" class="tab">Shipping</button>
+      <button data-view="settings" class="tab">Settings</button>
+    </nav>
+    <div class="spacer"></div>
+    <a class="btn small" href="/" target="_blank">Open shop</a>
+    <button class="small" id="btn-logout">Sign out</button>
+  </div>
+
+  <main id="view" class="admin-main"></main>
+</div>
+
+<dialog id="element-dialog">
+  <header><h2 id="element-dialog-title">Add a piece</h2></header>
+  <form id="element-form" enctype="multipart/form-data">
+    <div class="content">
+      <input type="hidden" name="id">
+      <div class="grid-2">
+        <label class="field"><span>Name *</span><input name="name" required></label>
+        <label class="field"><span>SKU</span><input name="sku" placeholder="auto"></label>
+        <label class="field"><span>Category *</span><select name="categoryId" id="element-category" required></select></label>
+        <label class="field"><span>Price *</span><input name="price" type="number" min="0" step="0.01" required></label>
+        <label class="field"><span>Quantity in repo *</span><input name="quantity" type="number" min="0" step="1" required></label>
+        <label class="field"><span>Canvas size (px)</span><input name="defaultWidth" type="number" min="20" max="600" step="1" value="90"></label>
+      </div>
+      <label class="field"><span>Description</span><textarea name="description"></textarea></label>
+      <label class="field"><span>Image (PNG/JPG/WEBP/SVG, max 4 MB)</span><input name="image" type="file" accept="image/*"></label>
+      <label class="field"><span>…or an image URL</span><input name="imageUrl" placeholder="/img/samples/charm-star.svg"></label>
+      <label class="field" style="display:flex;gap:8px;align-items:center">
+        <input type="checkbox" name="active" checked style="width:auto"> <span style="margin:0">Show to customers</span>
+      </label>
+      <p class="pill red" id="element-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="element-cancel">Cancel</button>
+      <button type="submit" class="primary">Save piece</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="order-dialog">
+  <header><h2 id="order-dialog-title">Order</h2></header>
+  <div class="content" id="order-dialog-body"></div>
+  <footer><button id="order-dialog-close">Close</button></footer>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+<script src="/js/admin.js"></script>
+</body>
+</html>
