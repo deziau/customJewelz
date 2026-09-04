@@ -369,6 +369,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 }
 @media (max-width: 560px) {
   .masthead, .bill-bar, .bench, .admin-wrap { padding-left: 14px; padding-right: 14px; }
+  .fab { right: 12px; padding: 9px 14px; }
   .bill-bar { gap: 16px; }
   .choices, .pair { grid-template-columns: 1fr; }
 }
@@ -527,6 +528,23 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   padding: 0; display: grid; place-items: center;
 }
 
+/* Sits clear of the masthead at rest, then rides the viewport as the page
+   scrolls, so the way into the design room is never scrolled off. */
+.fab {
+  position: fixed; top: var(--fab-top, 72px); right: 18px; z-index: 55;
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink);
+  font-weight: 600; box-shadow: var(--shadow-md);
+}
+.fab:hover { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.fab .pip {
+  min-width: 21px; height: 21px; padding: 0 6px; border-radius: 999px;
+  background: var(--accent-ink); color: var(--accent);
+  font-family: var(--mono); font-size: 11.5px; display: grid; place-items: center;
+}
+.fab:hover .pip { background: var(--ground); color: var(--ink); }
+
 @media (max-width: 620px) {
   .sheet { grid-template-columns: 1fr; }
   .variant-row { grid-template-columns: 40px 1fr 1fr; }
@@ -674,10 +692,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       </div>
     </div>
   </div>
-  <footer>
-    <button id="item-close">Keep browsing</button>
-    <button id="item-to-design">Go to design room</button>
-  </footer>
+  <footer><button id="item-close">Keep browsing</button></footer>
 </dialog>
 
 <dialog id="dlg-tray">
@@ -812,6 +827,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     </footer>
   </form>
 </dialog>
+
+<button class="fab" id="fab-design" hidden>Go to design<span class="pip" id="fab-pip">0</span></button>
 
 <div class="toasts" id="toasts"></div>
 
@@ -1233,9 +1250,9 @@ function addFromSheet() {
   }
   trayAdd(item.id, v.id, S.sheet.qty);
   toast(`${S.sheet.qty} × ${label(item, v.id)} added to your tray.`, 'good');
-  S.sheet.qty = 1;
+  $('#dlg-item').close();
+  S.sheet = null;
   paint();
-  paintSheet();
 }
 
 /* ------------------------------------------------------------ tray dialog */
@@ -1283,6 +1300,8 @@ function paintTrayDialog() {
 function paintTrayPip() {
   const n = trayTotal();
   $('#tray-pip').textContent = n;
+  $('#fab-pip').textContent = n;
+  $('#fab-pip').hidden = n === 0;
   const left = S.tray.reduce((s, r) => s + Math.max(0, toPlace(r.itemId, r.variantId)), 0);
   $('#tray-left').textContent = n === 0 ? 'nothing picked yet'
     : left === 0 ? 'all of it is on the piece'
@@ -2205,6 +2224,7 @@ function setMode(mode) {
   $('#design').hidden = mode !== 'design' || !S.ready;
   $('#studio').hidden = mode !== 'studio';
   $('#boot').hidden = S.ready || mode === 'studio';
+  $('#fab-design').hidden = mode !== 'browse' || !S.ready;
   paint();
 }
 
@@ -2224,7 +2244,6 @@ function wireBrowse() {
   $('#hide-out').addEventListener('change', (e) => { S.hideOut = e.target.checked; paintCatalogue(); });
 
   $('#item-close').addEventListener('click', () => $('#dlg-item').close());
-  $('#item-to-design').addEventListener('click', () => { $('#dlg-item').close(); setMode('design'); });
   $('#item-add').addEventListener('click', addFromSheet);
   $('#qty-up').addEventListener('click', () => { S.sheet.qty += 1; paintSheet(); });
   $('#qty-down').addEventListener('click', () => { S.sheet.qty -= 1; paintSheet(); });
@@ -2477,6 +2496,14 @@ function wirePieceDialog() {
 function wireShell() {
   $('#mode-browse').addEventListener('click', () => setMode('browse'));
   $('#mode-design').addEventListener('click', () => setMode('design'));
+  $('#fab-design').addEventListener('click', () => setMode('design'));
+
+  // The masthead wraps differently at every width, so measure it rather than
+  // guess where the floating button clears it.
+  const seatFab = () => document.documentElement.style.setProperty(
+    '--fab-top', `${$('.masthead').offsetHeight + 14}px`);
+  seatFab();
+  window.addEventListener('resize', seatFab);
   $('#mode-studio').addEventListener('click', () => {
     if (S.adminOpen) return setMode('studio');
     $('#pin-error').hidden = true;
