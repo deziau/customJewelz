@@ -178,7 +178,11 @@ rush fee set per component in the studio (a component with no fee is not
 offered urgently). Requests land in the studio under two separate displays,
 **Urgent restock requests** and **Restock requests**, each grouped by component
 and colour with the waiting count, the rush fees owed and everyone's contact
-details. Setting an expected-back date there replaces the request with "more
+details, and how many each person asked for. The quantity is optional on the
+customer's side — leaving it blank means "just tell me when it's in", and the
+studio sees that plainly rather than a fabricated number; the group total is
+shown as "12+ wanted" because it only counts the people who named one.
+Setting an expected-back date there replaces the request with "more
 expected around …" for every customer, so nobody asks twice; *Mark done* clears
 the requests and the date once the piece has landed and they have been told.
 

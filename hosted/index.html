@@ -461,6 +461,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .size-line { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .card .size { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+.ask-qty { display: grid; gap: 4px; font-size: 12.5px; }
+.ask-qty em { font-style: normal; color: var(--muted); }
+.ask-qty input { width: 110px; }
 .kind-row { display: grid; gap: 8px; }
 .kind-row button { text-align: left; }
 .fee-tag { font-weight: 700; }
@@ -1466,7 +1469,7 @@ function openSheet(itemId) {
   const item = itemOf(itemId);
   if (!item) return;
   const first = item.variants.find((v) => v.quantity > 0) || item.variants[0];
-  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0, zoom: 1 };
+  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0, zoom: 1, restockQty: '' };
   paintSheet();
   $('#dlg-item').showModal();
 }
@@ -3343,14 +3346,21 @@ function restockHtml(item, v) {
 
   const mine = myRequestFor(item.id, v.id);
   if (mine) {
-    return `<div class="restock-note">You've asked us for
-      ${mine.kind === 'urgent' ? `an <b>urgent</b> restock (${money(mine.fee || 0)} rush fee)` : 'a restock'}.
+    const what = mine.kind === 'urgent'
+      ? `an <b>urgent</b> restock${mine.qty ? ` of <b>${mine.qty}</b>` : ''} (${money(mine.fee || 0)} rush fee)`
+      : `a restock${mine.qty ? ` of <b>${mine.qty}</b>` : ''}`;
+    return `<div class="restock-note">You've asked us for ${what}.
       We'll email you${S.account ? ` at <b>${esc(S.account.email)}</b>` : ''} as soon as it's in.</div>`;
   }
 
   const fee = item.urgentFee || 0;
   return `<div class="restock-note">
     <span>${esc(opening)} Ask us to make more${held && !gone ? ' of it' : ''} and we'll let you know when it lands.</span>
+    <label class="ask-qty">
+      <span>How many would you like? <em>Optional — leave it blank and we'll just tell you when it's in.</em></span>
+      <input type="number" id="ask-qty" min="1" step="1" placeholder="Any"
+        value="${S.sheet && S.sheet.restockQty ? esc(S.sheet.restockQty) : ''}">
+    </label>
     <div class="kind-row">
       <button class="solid" data-ask="simple">Request a restock</button>
       ${fee > 0 ? `<button data-ask="urgent">Urgent restock —
@@ -3367,18 +3377,23 @@ async function requestRestock(kind) {
   if (!item || !v) return;
   if (!S.account) { openAuth('Sign in so we can tell you when it is back'); return; }
   const fee = kind === 'urgent' ? (item.urgentFee || 0) : 0;
+  // Blank is a real answer here — "just tell me when it's in".
+  const asked = parseInt(($('#ask-qty') || {}).value, 10);
+  const qty = Number.isInteger(asked) && asked > 0 ? asked : 0;
   const id = `r-${item.id}-${v.id}-${S.account.id}`.replace(/[^A-Za-z0-9_.~:@+-]/g, '-');
   await S.db.doc(`restock/${id}`).set({
     itemId: item.id, variantId: v.id,
     itemName: item.name, colour: v.name, sku: v.sku,
-    kind, fee,
+    kind, fee, qty,
     customerId: S.account.id, name: S.account.name,
     email: S.account.email, phone: S.account.phone,
     status: 'open', createdAt: new Date().toISOString(),
   });
+  S.sheet.restockQty = '';
+  const many = qty ? `${qty} × ` : '';
   toast(kind === 'urgent'
-    ? `Urgent request logged for ${label(item, v.id)} — ${money(fee)} rush fee.`
-    : `We'll email you when ${label(item, v.id)} is back.`, 'good');
+    ? `Urgent request logged for ${many}${label(item, v.id)} — ${money(fee)} rush fee.`
+    : `We'll email you when ${many}${label(item, v.id)} is back.`, 'good');
   paintSheet();
 }
 
@@ -3398,6 +3413,8 @@ function restockGroups() {
       ...g, item, variant: v, inRepo: v ? v.quantity : 0, eta: etaOf(v),
       urgent: g.requests.some((r) => r.kind === 'urgent'),
       feeTotal: g.requests.reduce((t, r) => t + (Number(r.fee) || 0), 0),
+      // Only the people who named a number; the rest just want to hear back.
+      qtyTotal: g.requests.reduce((t, r) => t + (Number(r.qty) || 0), 0),
     };
   }).sort((a, b) => b.requests.length - a.requests.length);
 }
@@ -3416,6 +3433,7 @@ function restockPanel(groups, title, urgent) {
             ${g.item && hasSize(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
           </div>
           <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${g.requests.length} waiting</span>
+          ${g.qtyTotal ? `<span class="tag flat">${g.qtyTotal}+ wanted</span>` : ''}
           ${urgent ? `<span class="tag on">${money(g.feeTotal)} in rush fees</span>` : ''}
           ${g.inRepo > 0 ? `<span class="tag ok">${g.inRepo} in the repo</span>` : ''}
           <span class="spacer" style="flex:1"></span>
@@ -3429,7 +3447,8 @@ function restockPanel(groups, title, urgent) {
           </div>
         </div>
         <div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
-          esc(r.name)} — ${esc(r.email)}${r.fee ? ` · ${money(r.fee)}` : ''}</span>`).join('')}</div>
+          esc(r.name)}${r.qty ? ` — wants ${r.qty}` : ' — no number given'}${
+          r.fee ? ` · ${money(r.fee)}` : ''} · ${esc(r.email)}</span>`).join('')}</div>
       </div>`).join('')}</div>`
       : `<p class="blank">${urgent
         ? 'No one has paid to jump the queue.'
@@ -3595,6 +3614,9 @@ function wireExtras() {
     const b = e.target.closest('button[data-ask]');
     if (b) await requestRestock(b.dataset.ask);
   }));
+  $('#item-restock').addEventListener('input', (e) => {
+    if (e.target.id === 'ask-qty' && S.sheet) S.sheet.restockQty = e.target.value;
+  });
 
   $('#acct-btn').addEventListener('click', () => {
     if (!S.account) return openAuth('Sign in');
