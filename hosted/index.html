@@ -431,6 +431,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   box-shadow: inset 0 0 0 2px var(--surface);
 }
 .dot.more { font-size: 10px; color: var(--muted); border: none; box-shadow: none; width: auto; }
+.dots-label { font-size: 11.5px; color: var(--muted); margin-right: 1px; }
 
 /* ---------------------------------------------------------- product sheet */
 
@@ -575,6 +576,39 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .order-card .body { display: grid; gap: 7px; align-content: start; }
 .order-card .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 
+#dlg-order { max-width: 1080px; }
+#dlg-order .body { max-height: 76vh; }
+/* Keep the whole record on one screen: the piece scales, the facts stay put. */
+.detail .stagepane .snapshot { max-height: 62vh; width: auto; max-width: 100%; margin: 0 auto; }
+.detail { display: grid; grid-template-columns: 7fr 3fr; gap: 20px; align-items: start; }
+.detail .stagepane { min-width: 0; }
+.detail .side { min-width: 0; display: grid; gap: 13px; align-content: start; }
+.note-card {
+  border-left: 3px solid var(--gold); background: var(--ochre-soft);
+  padding: 11px 13px; border-radius: 0 9px 9px 0; font-size: 13.5px;
+}
+.note-card .eyebrow { color: var(--ochre); margin-bottom: 3px; }
+.facts { display: grid; gap: 3px; font-size: 13px; }
+.facts .k { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; }
+
+.timeline { display: grid; gap: 0; }
+.tl {
+  display: grid; grid-template-columns: 13px 1fr; gap: 10px;
+  padding: 0 0 13px; position: relative; font-size: 13px;
+}
+.tl:not(:last-child)::before {
+  content: ""; position: absolute; left: 6px; top: 15px; bottom: 0; width: 1px; background: var(--line);
+}
+.tl i { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); margin-top: 4px; }
+.tl.is-cancelled i { background: var(--crimson); }
+.tl .when { color: var(--muted); font-size: 11.5px; }
+.tl .what { font-weight: 600; }
+
+.act-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+.window-note { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 900px) { .detail { grid-template-columns: 1fr; } }
+
 .restock-note {
   display: grid; gap: 8px; padding: 11px 13px; border-radius: 9px;
   background: var(--ochre-soft); color: var(--ochre); font-size: 13px;
@@ -651,6 +685,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 <!-- ======================================================== design -->
 <div id="design" hidden>
+  <div class="bill-bar" id="amend-bar" hidden style="background:var(--ochre-soft)">
+    <div class="stat"><span class="eyebrow">Changing an order</span><b id="amend-no">—</b></div>
+    <span class="muted" style="font-size:13px">Rearrange the piece, then place it again to save your
+      changes to this same order.</span>
+    <div class="spacer"></div>
+    <button id="amend-drop">Keep it as it was</button>
+  </div>
   <div class="bill-bar">
     <div class="stat"><span class="eyebrow">On the piece</span><b class="num" id="s-count">0</b></div>
     <div class="stat"><span class="eyebrow">Piece subtotal</span><b id="s-items">—</b></div>
@@ -923,6 +964,21 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </footer>
 </dialog>
 
+<dialog id="dlg-reason">
+  <header><h2 id="reason-title">Why is this order being cancelled?</h2></header>
+  <form id="form-reason">
+    <div class="body">
+      <label class="f"><span id="reason-label">Reason — the customer will see this</span>
+        <textarea name="reason" rows="3" placeholder="A charm turned out to be damaged and we cannot source another in time."></textarea></label>
+      <p class="notice" id="reason-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="reason-back">Keep the order</button>
+      <button type="submit" class="solid warnbtn" id="reason-go">Cancel the order</button>
+    </footer>
+  </form>
+</dialog>
+
 <dialog id="dlg-snapshot">
   <header><h2 id="snapshot-title">Finalised design</h2></header>
   <div class="body" id="snapshot-body"></div>
@@ -986,6 +1042,7 @@ const S = {
   customers: [],
   restock: [],         // open restock requests
   ctaSeated: true,     // is the in-page "go to design" button still on screen?
+  amending: null,      // { id, no, createdAt } while a customer reworks an order
 };
 
 /* ------------------------------------------------------------------ basics */
@@ -1306,8 +1363,9 @@ function paintCatalogue() {
     const inTray = S.tray.filter((r) => r.itemId === i.id).reduce((s, r) => s + r.qty, 0);
     const flag = i.stock <= 0 ? '<span class="flag out">Sold out</span>'
       : i.stock < t ? `<span class="flag low">Only ${i.stock} left</span>` : '';
-    const dots = i.hasColours ? `<span class="dots">${i.variants.slice(0, 5).map((v) =>
-      `<i class="dot" style="background:${esc(v.swatch || '#c9bfc4')}" title="${esc(v.name)}"></i>`).join('')}
+    const dots = i.hasColours ? `<span class="dots"><span class="dots-label">Colours:</span>${
+      i.variants.slice(0, 5).map((v) =>
+        `<i class="dot" style="background:${esc(v.swatch || '#c9bfc4')}" title="${esc(v.name)}"></i>`).join('')}
       ${i.variants.length > 5 ? `<span class="dot more">+${i.variants.length - 5}</span>` : ''}</span>` : '';
     return `<button class="card" data-id="${esc(i.id)}">
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
@@ -1347,8 +1405,12 @@ function paintSheet() {
   $('#item-main').innerHTML = shotHtml(item, S.sheet.image);
 
   $('#item-thumbs').innerHTML = item.images.length > 1
-    ? item.images.map((src, k) => `<button data-shot="${k}" aria-pressed="${k === S.sheet.image}"
-        aria-label="Photo ${k + 1}"><img src="${esc(src)}" alt=""></button>`).join('')
+    ? item.images.map((src, k) => {
+      const paired = item.images.length === item.variants.length ? item.variants[k] : null;
+      const name = paired && paired.name ? paired.name : `Photo ${k + 1}`;
+      return `<button data-shot="${k}" aria-pressed="${k === S.sheet.image}"
+        aria-label="${esc(name)}" title="${esc(name)}"><img src="${esc(src)}" alt=""></button>`;
+    }).join('')
     : '';
 
   $('#item-colours').innerHTML = item.hasColours ? `
@@ -1679,6 +1741,7 @@ function paintBill() {
 function paint() {
   paintTrayPip();
   paintAccount();
+  paintAmendBar();
   if (S.mode === 'browse') { paintShopCats(); paintCatalogue(); }
   else if (S.mode === 'design') { paintPlaceRail(); paintStage(); paintBill(); }
   else if (S.mode === 'mine') paintMine();
@@ -1803,9 +1866,11 @@ async function submitOrder(form) {
   const snapshot = await renderSnapshot();
 
   const itemsTotal = lines.reduce((s, l) => s + l.total, 0);
-  const id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const amend = S.amending;
+  const previous = amend ? S.orders.find((o) => o.id === amend.id) : null;
+  const id = amend ? amend.id : 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const order = {
-    no: orderNumber(),
+    no: amend ? amend.no : orderNumber(),
     customerId: S.account ? S.account.id : '',
     snapshot,
     name: String(form.get('name')).trim(),
@@ -1824,7 +1889,11 @@ async function submitOrder(form) {
     },
     itemsTotal, shipping: ship, total: itemsTotal + ship,
     status: 'new',
-    createdAt: new Date().toISOString(),
+    createdAt: amend ? amend.createdAt : new Date().toISOString(),
+    history: [
+      ...(previous ? previous.history || [] : []),
+      historyEntry('new', amend ? 'Customer updated the design.' : 'Order placed.', 'customer'),
+    ],
   };
 
   await S.db.doc(`orders/${id}`).set(order);
@@ -1837,6 +1906,7 @@ async function submitOrder(form) {
   S.base = null;
   S.charms = [];
   S.picked = null;
+  S.amending = null;
   leftoverChoice = 'none';
 
   await Promise.all(itemIds.map((itemId) => {
@@ -1877,9 +1947,45 @@ function showDone(order) {
 <script>
 'use strict';
 
-const STATUS = { new: 'New', making: 'Being made', ready: 'Ready', done: 'Completed', cancelled: 'Cancelled' };
-const STATUS_TAG = { new: 'low', making: 'low', ready: 'ok', done: 'flat', cancelled: 'out' };
+const STATUS = {
+  new: 'New', amending: 'Being changed', making: 'Being made', ready: 'Ready',
+  dispatched: 'Dispatched', done: 'Completed', cancelled: 'Cancelled',
+};
+const STATUS_TAG = {
+  new: 'low', amending: 'low', making: 'low', ready: 'ok',
+  dispatched: 'ok', done: 'flat', cancelled: 'out',
+};
+/** What the studio may set by hand — 'amending' belongs to the customer. */
+const STUDIO_STATUS = ['new', 'making', 'ready', 'dispatched', 'done', 'cancelled'];
 const OPEN_STATUS = ['new', 'making'];
+
+/** Every move is recorded; these three carry a standing note, cancelling asks. */
+const DEFAULT_COMMENT = {
+  new: 'Order received.',
+  making: 'We have started making your piece.',
+  ready: 'Your piece is ready.',
+  dispatched: 'Your piece is on its way.',
+  done: 'Order completed — thank you.',
+};
+
+/* Both of these hand the order's components back to the repo: a cancelled order
+   never gets made, and an amending one has its pieces sitting in the customer's
+   tray instead. Moving out of either claims them again. */
+const FREES_STOCK = ['cancelled', 'amending'];
+
+const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
+const AMEND_WINDOW_MS = 60 * 60 * 1000;
+
+const msSince = (order) => Date.now() - new Date(order.createdAt).getTime();
+const canCustomerCancel = (o) => ['new', 'amending'].includes(o.status) && msSince(o) < CANCEL_WINDOW_MS;
+const canCustomerAmend = (o) => o.status === 'new' && msSince(o) < AMEND_WINDOW_MS;
+
+function windowLeft(order, span) {
+  const left = span - msSince(order);
+  if (left <= 0) return '';
+  const mins = Math.ceil(left / 60000);
+  return mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min left` : `${mins} min left`;
+}
 
 const threshold = () => Number(S.settings.threshold) || 10;
 
@@ -2054,8 +2160,9 @@ function viewOrders() {
         <td><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span></td>
         <td><div class="acts">
           <select data-act="status" style="width:auto">
-            ${Object.entries(STATUS).map(([k, v]) =>
-              `<option value="${k}" ${k === o.status ? 'selected' : ''}>${v}</option>`).join('')}
+            ${o.status === 'amending' ? '<option value="amending" selected>Being changed</option>' : ''}
+            ${STUDIO_STATUS.map((k) =>
+              `<option value="${k}" ${k === o.status ? 'selected' : ''}>${STATUS[k]}</option>`).join('')}
           </select>
           <button class="tiny" data-act="open">Details</button>
         </div></td></tr>`).join('')
@@ -2280,7 +2387,10 @@ function wireAdmin() {
   });
   $('#ord-table')?.addEventListener('change', guard(async (e) => {
     const sel = e.target.closest('select[data-act="status"]');
-    if (sel) await setOrderStatus(sel.closest('tr').dataset.id, sel.value);
+    if (!sel) return;
+    const id = sel.closest('tr').dataset.id;
+    if (sel.value === 'cancelled') { askCancelReason(id, 'studio'); paintAdmin(); return; }
+    await moveOrder(id, sel.value, DEFAULT_COMMENT[sel.value] || '', 'studio');
   }));
   $('#ord-table')?.addEventListener('click', (e) => {
     if (!e.target.closest('button[data-act="open"]')) return;
@@ -2339,26 +2449,125 @@ function wireAdmin() {
   }));
 }
 
-/** Cancelling frees the components; reopening claims them again. */
-async function setOrderStatus(id, status) {
+/** One detail view, shared by the studio and the customer: the piece large on
+ *  the left, everything else — the customer's note first — down the right. */
+function orderDetailHtml(o, asStudio) {
+  const hist = [...(o.history || [])].reverse();
+  return `<div class="detail">
+    <div class="stagepane">
+      ${o.snapshot
+        ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="The finalised design">`
+        : '<p class="blank">No picture was saved with this order.</p>'}
+    </div>
+    <div class="side">
+      ${o.notes ? `<div class="note-card"><div class="eyebrow">Note from the customer</div>
+        ${esc(o.notes).replace(/\n/g, '<br>')}</div>` : ''}
+
+      <div><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span>
+        <span class="muted" style="font-size:12px;margin-left:6px">${
+          esc(new Date(o.createdAt).toLocaleString())}</span></div>
+
+      ${asStudio ? `<div class="facts">
+        <span class="k">Customer</span>
+        <span><b>${esc(o.name)}</b><br><span class="mono">${esc(o.phone)}</span><br>${esc(o.email || '')}</span>
+      </div>` : ''}
+
+      <div class="facts">
+        <span class="k">${o.fulfilment === 'ship' ? 'Delivery' : 'Collection'}</span>
+        <span>${o.fulfilment === 'ship'
+          ? `${esc(o.area || '')}<br>${esc(o.address || '').replace(/\n/g, '<br>')}`
+          : 'From the studio when ready'}</span>
+      </div>
+
+      <div>
+        <div class="k facts" style="margin-bottom:5px">Pieces</div>
+        <ul class="bill">${(o.items || []).map((i) => `<li>
+          <span>${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''}</span>
+          <span class="q">×${i.qty}</span><span class="amt">${money(i.total)}</span></li>`).join('')}</ul>
+      </div>
+
+      <div class="sum" style="margin-top:0">
+        <div><span>Pieces</span><span class="num">${money(o.itemsTotal)}</span></div>
+        <div><span>Delivery</span><span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
+        <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
+      </div>
+
+      ${hist.length ? `<div>
+        <div class="k facts" style="margin-bottom:7px">History</div>
+        <div class="timeline">${hist.map((h) => `<div class="tl ${h.status === 'cancelled' ? 'is-cancelled' : ''}">
+          <i></i><div><div class="what">${STATUS[h.status] || h.status}</div>
+          ${h.comment ? `<div>${esc(h.comment)}</div>` : ''}
+          <div class="when">${esc(new Date(h.at).toLocaleString())} · ${h.by === 'customer' ? 'customer' : 'studio'}</div>
+        </div></div>`).join('')}</div>
+      </div>` : ''}
+
+      ${asStudio ? `<div>
+        <label class="f"><span>Add an update the customer will see</span>
+          <textarea id="note-text" rows="2" placeholder="Pearl setting done, polishing tomorrow…"></textarea></label>
+        <button class="tiny" id="note-add">Post update</button>
+      </div>` : customerActions(o)}
+    </div>
+  </div>`;
+}
+
+/** The customer's own controls, live only inside their change windows. */
+function customerActions(o) {
+  const bits = [];
+  if (canCustomerAmend(o)) {
+    bits.push(`<button class="tiny" data-cust="amend">Change this design</button>
+      <span class="window-note">${windowLeft(o, AMEND_WINDOW_MS)} to change</span>`);
+  }
+  if (canCustomerCancel(o)) {
+    bits.push(`<button class="tiny warnbtn" data-cust="cancel">Cancel this order</button>
+      <span class="window-note">${windowLeft(o, CANCEL_WINDOW_MS)} to cancel</span>`);
+  }
+  if (!bits.length) {
+    if (o.status === 'cancelled') return '<p class="window-note" style="margin:0">This order was cancelled.</p>';
+    return `<p class="window-note" style="margin:0">Changes close 1 hour after ordering and cancelling
+      2 hours after. Call the studio if you need something changed now.</p>`;
+  }
+  return `<div class="act-strip">${bits.join('')}</div>`;
+}
+
+function showOrder(o, asStudio = true) {
+  if (!o) return;
+  $('#order-title').textContent = `Order ${o.no}`;
+  $('#order-body').innerHTML = orderDetailHtml(o, asStudio);
+  $('#order-body').dataset.order = o.id;
+  $('#order-body').dataset.studio = String(asStudio);
+  $('#dlg-order').showModal();
+}
+
+/* ------------------------------------------------- status moves & history */
+
+function historyEntry(status, comment, by) {
+  return { status, comment: comment || '', at: new Date().toISOString(), by };
+}
+
+/**
+ * Moves an order and records why. Cancelling hands the components back to the
+ * repo; reopening a cancelled order claims them again.
+ */
+async function moveOrder(id, status, comment, by = 'studio') {
   const order = S.orders.find((o) => o.id === id);
   if (!order || order.status === status) return;
   const lines = (order.items || []).map((i) => ({ ...i, itemId: i.itemId || i.id, variantId: i.variantId || 'v0' }));
   const itemIds = [...new Set(lines.map((l) => l.itemId))];
-  const move = (sign) => Promise.all(itemIds.map(async (itemId) => {
+
+  const shift = (sign) => Promise.all(itemIds.map(async (itemId) => {
     const snap = await S.db.doc(`catalog/${itemId}`).get();
     if (!snap.exists) return;
     const fresh = normalize(itemId, snap.data());
     const variants = fresh.variants.map((v) => {
-      const n = lines.filter((l) => l.itemId === itemId && l.variantId === v.id).reduce((s, l) => s + l.qty, 0);
+      const n = lines.filter((l) => l.itemId === itemId && l.variantId === v.id).reduce((t, l) => t + l.qty, 0);
       return n ? { ...v, quantity: Math.max(0, v.quantity + sign * n) } : v;
     });
     await S.db.doc(`catalog/${itemId}`).update({ variants });
   }));
 
-  if (status === 'cancelled') {
-    await move(1);
-  } else if (order.status === 'cancelled') {
+  if (FREES_STOCK.includes(status) && !FREES_STOCK.includes(order.status)) {
+    await shift(1);
+  } else if (FREES_STOCK.includes(order.status) && !FREES_STOCK.includes(status)) {
     const snaps = await Promise.all(itemIds.map((i) => S.db.doc(`catalog/${i}`).get()));
     const fresh = new Map(itemIds.map((i, k) => [i, snaps[k].exists ? normalize(i, snaps[k].data()) : null]));
     const short = lines.filter((l) => {
@@ -2366,40 +2575,28 @@ async function setOrderStatus(id, status) {
       return !v || v.quantity < l.qty;
     });
     if (short.length) {
-      toast(`Cannot reopen — not enough ${short.map((s) => s.name).join(', ')} in the repo.`, 'bad');
+      toast(`Cannot reopen — not enough ${short.map((x) => x.name).join(', ')} in the repo.`, 'bad');
       paintAdmin();
       return;
     }
-    await move(-1);
+    await shift(-1);
   }
 
-  await S.db.doc(`orders/${id}`).update({ status });
+  await S.db.doc(`orders/${id}`).update({
+    status,
+    history: [...(order.history || []), historyEntry(status, comment, by)],
+  });
   toast('Order updated.', 'good');
 }
 
-function showOrder(o) {
-  if (!o) return;
-  $('#order-title').textContent = `Order ${o.no}`;
-  $('#order-body').innerHTML = `
-    ${o.snapshot ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="The finalised design"
-      style="margin-bottom:14px">` : ''}
-    <p><b>${esc(o.name)}</b> · <span class="mono">${esc(o.phone)}</span>${o.email ? ` · ${esc(o.email)}` : ''}</p>
-    <p>${o.fulfilment === 'ship'
-      ? `<b>Ship to ${esc(o.area)}</b><br>${esc(o.address || '').replace(/\n/g, '<br>')}`
-      : '<b>Collect from the studio when ready</b>'}</p>
-    ${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}
-    <h3 style="margin:16px 0 6px">Components to pull</h3>
-    <table><thead><tr><th>Component</th><th>SKU</th><th class="r">Qty</th><th class="r">Line</th></tr></thead>
-      <tbody>${(o.items || []).map((i) => `<tr>
-        <td>${esc(i.name)}${i.colour ? ` <span class="tag flat">${esc(i.colour)}</span>` : ''}</td>
-        <td class="mono muted">${esc(i.sku)}</td><td class="r">${i.qty}</td>
-        <td class="r">${money(i.total)}</td></tr>`).join('')}</tbody></table>
-    <div class="sum">
-      <div><span>Pieces used</span><span class="num">${money(o.itemsTotal)}</span></div>
-      <div><span>Delivery</span><span class="num">${money(o.shipping)}</span></div>
-      <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
-    </div>`;
-  $('#dlg-order').showModal();
+/** A free-text update from the studio, without changing the status. */
+async function postUpdate(id, text) {
+  const order = S.orders.find((o) => o.id === id);
+  if (!order || !text.trim()) return;
+  await S.db.doc(`orders/${id}`).update({
+    history: [...(order.history || []), historyEntry(order.status, text.trim(), 'studio')],
+  });
+  toast('Update posted.', 'good');
 }
 
 /* -------------------------------------------------------------------- boot */
@@ -2454,7 +2651,15 @@ function wireBrowse() {
   $('#item-thumbs').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-shot]');
     if (!b) return;
-    S.sheet.image = Number(b.dataset.shot);
+    const k = Number(b.dataset.shot);
+    S.sheet.image = k;
+    // With one photo per colour, looking at a photo IS choosing that colour —
+    // otherwise a customer views rose gold and adds gold.
+    const item = itemOf(S.sheet.itemId);
+    if (item && item.images.length === item.variants.length && item.variants[k]) {
+      S.sheet.variantId = item.variants[k].id;
+      S.sheet.qty = 1;
+    }
     paintSheet();
   });
 }
@@ -2950,13 +3155,18 @@ function paintMine() {
         <p class="muted" style="margin:6px 0 0">Everything you've ordered, newest first.
           We'll email ${esc(S.account.email)} as each one moves along.</p></div>
     </div>
-    ${mine.length ? mine.map((o) => `<article class="order-card">
+    ${mine.length ? mine.map((o) => `<article class="order-card" data-order="${esc(o.id)}"
+      role="button" tabindex="0" style="cursor:pointer">
       ${o.snapshot ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="Your design for ${esc(o.no)}">`
         : '<div class="mini" style="width:100%;aspect-ratio:1">no image</div>'}
       <div class="body">
         <div class="row"><b class="mono">${esc(o.no)}</b>
           <span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span>
-          <span class="muted" style="font-size:12.5px">${esc(new Date(o.createdAt).toLocaleDateString())}</span></div>
+          <span class="muted" style="font-size:12.5px">${esc(new Date(o.createdAt).toLocaleDateString())}</span>
+          ${canCustomerAmend(o) || canCustomerCancel(o)
+            ? '<span class="tag on">changes still open</span>' : ''}</div>
+        ${o.notes ? `<div class="note-card" style="font-size:12.5px">
+          <div class="eyebrow">Your note</div>${esc(o.notes)}</div>` : ''}
         <div style="font-size:13px">${(o.items || []).map((i) =>
           `${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''} ×${i.qty}`).join('<br>')}</div>
         <div class="sum" style="margin-top:4px">
@@ -2968,6 +3178,17 @@ function paintMine() {
       </div>
     </article>`).join('')
     : '<section class="panel"><p class="blank">No orders yet — design something you love.</p></section>'}`;
+
+  const open = (el) => {
+    const o = S.orders.find((x) => x.id === el.dataset.order);
+    if (o) showOrder(o, false);
+  };
+  $$('#mine-body .order-card').forEach((card) => {
+    card.addEventListener('click', () => open(card));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(card); }
+    });
+  });
 }
 
 /* -------------------------------------------------------- restock requests */
@@ -3096,9 +3317,115 @@ function wireRestock() {
   }));
 }
 
+
+/* ------------------------------------------ cancelling and changing orders */
+
+let pendingCancel = null;   // { id, by }
+
+function askCancelReason(id, by) {
+  const order = S.orders.find((o) => o.id === id);
+  if (!order) return;
+  pendingCancel = { id, by };
+  $('#reason-title').textContent = by === 'studio'
+    ? `Why is ${order.no} being cancelled?`
+    : `Cancel order ${order.no}?`;
+  $('#reason-label').textContent = by === 'studio'
+    ? 'Reason — the customer will see this'
+    : 'Reason (optional) — it helps the studio';
+  $('#form-reason').reset();
+  $('#reason-error').hidden = true;
+  $('#dlg-reason').showModal();
+}
+
+/**
+ * Hands the order's pieces back to the customer's tray and reopens its design,
+ * so a change lands on the same order rather than becoming a second one.
+ */
+async function startAmend(order) {
+  if (!canCustomerAmend(order)) { toast('The hour to change this order has passed.', 'bad'); return; }
+  if (S.base || S.charms.length) {
+    if (!confirm('Your current design will be cleared so this order can be opened. Continue?')) return;
+  }
+  await moveOrder(order.id, 'amending', 'Customer is changing the design.', 'customer');
+
+  for (const i of order.items || []) trayAdd(i.itemId || i.id, i.variantId || 'v0', i.qty);
+  const d = order.design || {};
+  S.base = d.base ? { uid: 'b' + Date.now().toString(36), itemId: d.base.itemId, variantId: d.base.variantId } : null;
+  S.charms = (d.charms || []).map((c, k) => ({
+    uid: `c${Date.now().toString(36)}${k}`,
+    itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w, rot: c.rot, z: c.z || k + 1,
+  }));
+  S.zTop = S.charms.length + 1;
+  S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };
+  $('#dlg-order').close();
+  setMode('design');
+  toast(`Order ${order.no} is open for changes.`, 'good');
+}
+
+/** Puts an abandoned change back exactly as it was. */
+async function dropAmend() {
+  if (!S.amending) return;
+  const order = S.orders.find((o) => o.id === S.amending.id);
+  if (!order) { S.amending = null; paint(); return; }
+  for (const i of order.items || []) trayTake(i.itemId || i.id, i.variantId || 'v0', i.qty);
+  S.base = null;
+  S.charms = [];
+  S.picked = null;
+  S.amending = null;
+  await moveOrder(order.id, 'new', 'Customer kept the original design.', 'customer');
+  setMode('mine');
+}
+
+function paintAmendBar() {
+  const bar = $('#amend-bar');
+  bar.hidden = !S.amending;
+  if (S.amending) $('#amend-no').textContent = S.amending.no;
+}
+
+function wireOrderActions() {
+  $('#reason-back').addEventListener('click', () => { pendingCancel = null; $('#dlg-reason').close(); });
+  $('#form-reason').addEventListener('submit', guard(async (e) => {
+    e.preventDefault();
+    if (!pendingCancel) return;
+    const reason = String(new FormData(e.target).get('reason') || '').trim();
+    if (pendingCancel.by === 'studio' && !reason) {
+      $('#reason-error').hidden = false;
+      $('#reason-error').textContent = 'Give a reason — the customer sees it.';
+      return;
+    }
+    const { id, by } = pendingCancel;
+    pendingCancel = null;
+    $('#dlg-reason').close();
+    $('#dlg-order').close();
+    await moveOrder(id, 'cancelled', reason || 'Cancelled by the customer.', by);
+  }));
+
+  // Studio note box and the customer's own controls both live in the detail view.
+  $('#order-body').addEventListener('click', guard(async (e) => {
+    const id = $('#order-body').dataset.order;
+    const order = S.orders.find((o) => o.id === id);
+    if (!order) return;
+
+    if (e.target.closest('#note-add')) {
+      const box = $('#note-text');
+      if (!box.value.trim()) return toast('Write the update first.');
+      await postUpdate(id, box.value);
+      showOrder(S.orders.find((o) => o.id === id), true);
+      return;
+    }
+    const act = e.target.closest('[data-cust]');
+    if (!act) return;
+    if (act.dataset.cust === 'cancel') askCancelReason(id, 'customer');
+    if (act.dataset.cust === 'amend') await startAmend(order);
+  }));
+
+  $('#amend-drop').addEventListener('click', guard(dropAmend));
+}
+
 /* ----------------------------------------------------------------- wiring */
 
 function wireExtras() {
+  wireOrderActions();
   // Sold-out request button lives inside the product sheet, which re-renders.
   $('#item-restock').addEventListener('click', guard(async (e) => {
     if (e.target.closest('#ask-restock')) await requestRestock();

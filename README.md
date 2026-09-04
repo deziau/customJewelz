@@ -152,7 +152,24 @@ order they have placed, its status, and a picture of the piece they designed.
 
 A picture of the finished piece is rendered when the order is placed and
 travels with it: on the customer's confirmation and order list, as a thumbnail
-in the studio's order book, and full size in the order's details.
+in the studio's order book, and full size in the order's details. Opening an
+order — from either side — gives the same record: the piece large on the left
+at 70% of the width, and everything else down the right, with the customer's
+note at the top where it cannot be missed.
+
+**Order status carries a comment.** Every move is recorded with who made it and
+why. *Being made*, *Ready* and *Dispatched* apply a standing note automatically;
+cancelling asks the studio for a reason, and refuses to proceed without one,
+because the customer reads it. The studio can also post a free-text update
+without changing the status. The whole history shows as a timeline on both
+sides.
+
+**Customers can change their mind, briefly.** Within one hour of ordering they
+can reopen the design: the order's components return to their tray, the design
+loads back onto the canvas, and placing it again saves onto the *same* order
+number rather than making a second one. Within two hours they can cancel
+outright. Both windows show the time remaining. An order held open for changes
+releases its components back to the repo, so nothing is claimed twice.
 
 **Restock requests.** A sold-out piece offers customers a *Request a restock*
 button. Requests land in the studio's **Restock requests** section, grouped by
