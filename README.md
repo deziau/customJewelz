@@ -224,6 +224,23 @@ True size assumes the browser convention of 96 pixels to the inch. That is what
 every "actual size" feature relies on and it is close on most screens, but it
 is an approximation of the real display — hence the rule.
 
+**Components sold by length.** A component can be sold by the piece or by
+length — chain, cord, ribbon. A length component is priced **per metre**,
+stocked in centimetres, and bought by the metre rather than by the count: the
+product page asks *how much*, not *how many*, and prices it live.
+
+In the design room a length becomes **hangings**. Dropping chain onto a piece
+asks how long that hanging should be, and each one draws to its true length
+against everything else — so five tassels of 8, 12, 18, 25 and 15 cm come off
+one 2 m reel and look like what they are. The tray tracks the metres left, and
+a hanging longer than what remains is refused with how much is left.
+
+**Two ways to see the piece.** *Round* for a necklace or bracelet, where
+hangings fall away from the hoop; *straight* for a kaleera, a keychain or any
+hanging piece, where they drop from a rail. The switch sits under the canvas,
+a faint guide shows which you are in, and the choice travels with the order and
+its picture.
+
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
 hearts running out does not hide the silver ones. Every count a customer sees
 is about one colour: a browse card warns per colour with just the count —

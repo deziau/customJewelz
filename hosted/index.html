@@ -237,6 +237,33 @@ h3 { font-size: 15px; }
   gap: 7px; text-align: center; padding: 40px; pointer-events: none; max-width: 44ch; margin: auto;
 }
 .charm { position: absolute; transform-origin: center; cursor: grab; user-select: none; }
+/* A strand hangs from where it is pinned, so it turns about its top end. */
+.charm.strand { transform-origin: 50% 0; }
+.charm.strand .run {
+  width: 100%; height: 100%; background-repeat: repeat-y; background-position: top center;
+  background-size: 100% auto; border-radius: 2px;
+}
+.charm.strand .run.plain {
+  background: linear-gradient(180deg, var(--gold), #00000022 60%, var(--gold));
+  opacity: .85;
+}
+.charm.strand .lift { top: -11px; right: -13px; }
+.charm .len {
+  position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; display: none;
+}
+.charm.on .len { display: block; }
+
+/* The guide behind the piece: a hoop to hang things round, or a rail to hang
+   them from. It is a drawing aid, never part of the order. */
+.stage-guide { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
+
+.viewswitch { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; }
+.viewswitch button {
+  border: none; background: none; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--muted); padding: 5px 13px; border-radius: 999px; cursor: pointer;
+}
+.viewswitch button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
 .charm img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 .charm .glyph { display: grid; place-items: center; width: 100%; height: 100%; line-height: 1; }
 .charm.on { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 5px; }
@@ -787,6 +814,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         </div>
       </div>
       <div class="tools">
+        <span class="viewswitch" role="group" aria-label="How the piece hangs">
+          <button type="button" data-view="round" aria-pressed="true">Round</button>
+          <button type="button" data-view="straight" aria-pressed="false">Straight</button>
+        </span>
         <button class="tiny" data-tool="ccw">⟲</button>
         <button class="tiny" data-tool="cw">⟳</button>
         <button class="tiny" data-tool="front">Bring forward</button>
@@ -858,13 +889,14 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <p class="desc" id="item-desc"></p>
         <div id="item-colours"></div>
         <div>
-          <div class="eyebrow" style="margin-bottom:5px">How many</div>
+          <div class="eyebrow" style="margin-bottom:5px" id="qty-label">How many</div>
           <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
             <div class="stepper">
               <button type="button" id="qty-down" aria-label="One fewer">−</button>
               <output id="qty-out">1</output>
               <button type="button" id="qty-up" aria-label="One more">+</button>
             </div>
+            <b id="qty-cost" style="font-variant-numeric:tabular-nums"></b>
             <span class="muted" style="font-size:12.5px" id="item-stock"></span>
           </div>
         </div>
@@ -951,7 +983,12 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <label class="f"><span>Name *</span><input name="name" required></label>
         <label class="f"><span>Base SKU</span><input name="sku" placeholder="auto"></label>
         <label class="f"><span>Section *</span><select name="category" id="piece-cat" required></select></label>
-        <label class="f"><span>Price *</span><input name="price" type="number" min="0" step="0.01" required></label>
+        <label class="f"><span>Sold by *</span><select name="soldBy" id="piece-soldby">
+          <option value="piece">The piece — charms, bangles, frames</option>
+          <option value="length">Length — chain, cord, ribbon</option>
+        </select></label>
+        <label class="f"><span id="price-label">Price *</span>
+          <input name="price" type="number" min="0" step="0.01" required></label>
         <label class="f"><span>Width (mm)</span><input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f"><span>Height (mm)</span><input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f"><span>Urgent restock fee — 0 to not offer it</span>
@@ -980,8 +1017,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <div class="variant-rows" id="piece-variants"></div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
           <button type="button" id="variant-add">Add a colour</button>
-          <span class="muted" style="font-size:12.5px">Stock is counted per colour. One unnamed row means
-            this item has no colour choice.</span>
+          <span class="muted" style="font-size:12.5px" id="variant-hint">Stock is counted per colour.
+            One unnamed row means this item has no colour choice.</span>
         </div>
       </fieldset>
       <p class="notice" id="piece-error" hidden></p>
@@ -1052,6 +1089,29 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <footer>
       <button type="button" id="reason-back">Keep the order</button>
       <button type="submit" class="solid warnbtn" id="reason-go">Cancel the order</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-strand">
+  <header><h2 id="strand-title">How long should this hang?</h2></header>
+  <form id="form-strand">
+    <div class="body">
+      <p class="muted" style="margin-top:0" id="strand-have"></p>
+      <div class="kind-row" style="grid-auto-flow:column;justify-content:start;gap:7px;margin-bottom:12px">
+        <button type="button" class="tiny" data-len="8">8 cm</button>
+        <button type="button" class="tiny" data-len="12">12 cm</button>
+        <button type="button" class="tiny" data-len="18">18 cm</button>
+        <button type="button" class="tiny" data-len="25">25 cm</button>
+      </div>
+      <label class="f"><span>Length in centimetres</span>
+        <input name="len" type="number" min="1" step="1" value="12" required></label>
+      <p class="muted" style="font-size:12.5px;margin:0" id="strand-cost"></p>
+      <p class="notice" id="strand-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="strand-cancel">Cancel</button>
+      <button type="submit" class="solid">Hang it</button>
     </footer>
   </form>
 </dialog>
@@ -1133,6 +1193,8 @@ const S = {
   charms: [],          // [{ uid, itemId, variantId, x, y, w, rot, z }]
   picked: null,
   baseOn: false,       // is the base piece itself selected on the canvas?
+  view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
+  strandAsk: null,     // { itemId, variantId, x, y } while the length is being chosen
   zTop: 1,
   mode: 'browse',
   section: null,
@@ -1209,6 +1271,9 @@ function normalize(id, d) {
     widthMm: Number(d.widthMm) || 0,
     heightMm: Number(d.heightMm) || 0,
     urgentFee: Number(d.urgentFee) || 0,
+    // 'piece' components are counted; 'length' ones (chain, cord, ribbon) are
+    // priced per metre and stocked in centimetres.
+    soldBy: d.soldBy === 'length' ? 'length' : 'piece',
     active: d.active !== false,
     order: Number(d.order) || 0,
     variants,
@@ -1266,6 +1331,24 @@ const hasSize = (item) => Boolean(item && item.widthMm && item.heightMm);
 const longestMm = (item) => Math.max(item.widthMm || 0, item.heightMm || 0);
 
 const cm = (mm) => (mm / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+/* ---- components sold by length ---- */
+const isLength = (item) => Boolean(item && item.soldBy === 'length');
+
+/** Chain reads in centimetres up close and metres in bulk. */
+function fmtLen(cmValue) {
+  const v = Number(cmValue) || 0;
+  return v >= 100
+    ? `${(v / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })} m`
+    : `${Math.round(v)} cm`;
+}
+
+/** Price is per metre, so a length costs what fraction of a metre it is. */
+const lenPrice = (item, cmValue) => (item.price * (Number(cmValue) || 0)) / 100;
+
+/** What one unit of this component costs and is measured in. */
+const priceLabel = (item) => (isLength(item) ? `${money(item.price)} per metre` : money(item.price));
+const amountLabel = (item, n) => (isLength(item) ? fmtLen(n) : `${n}`);
 const inches = (mm) => (mm / 25.4).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 /** "3.2 × 1.8 cm · 1.26 × 0.71 in" — both units, always. */
@@ -1312,7 +1395,10 @@ function trayTake(itemId, variantId, n) {
 
 /** Placed on the piece right now, base included. */
 function placedQty(itemId, variantId) {
-  let n = S.charms.filter((c) => c.itemId === itemId && c.variantId === variantId).length;
+  let n = 0;
+  for (const c of S.charms) {
+    if (c.itemId === itemId && c.variantId === variantId) n += c.lenCm || 1;
+  }
   if (S.base && S.base.itemId === itemId && S.base.variantId === variantId) n += 1;
   return n;
 }
@@ -1505,7 +1591,7 @@ function colourStrip(item, low) {
 
     if (v.quantity <= 0) return chip('sold out', 'out');
     if (free <= 0) return chip('all in your tray');
-    if (free < low) return chip(`${free} left`);
+    if (free < (isLength(item) ? 100 : low)) return chip(`${amountLabel(item, free)} left`);
     return item.hasColours
       ? `<i class="dot" style="background:${esc(swatch)}" title="${esc(v.name)}"></i>`
       : '';
@@ -1537,7 +1623,7 @@ function paintCatalogue() {
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
         ${hasSize(i) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
-        <span class="price">${money(i.price)}</span>
+        <span class="price">${priceLabel(i)}</span>
         <span class="foot">${dots}</span>
       </span>
     </button>`;
@@ -1580,7 +1666,8 @@ function openSheet(itemId) {
   const item = itemOf(itemId);
   if (!item) return;
   const first = item.variants.find((v) => v.quantity > 0) || item.variants[0];
-  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0, zoom: 1, restockQty: '' };
+  S.sheet = { itemId, variantId: first.id, qty: isLength(item) ? 50 : 1,
+    image: 0, zoom: 1, restockQty: '' };
   paintSheet();
   $('#dlg-item').showModal();
 }
@@ -1592,11 +1679,10 @@ function paintSheet() {
   const v = variantOf(item, S.sheet.variantId) || item.variants[0];
   S.sheet.variantId = v.id;
   const free = addable(item, v.id);
-  S.sheet.qty = clamp(S.sheet.qty, 1, Math.max(1, free));
 
   $('#item-title').textContent = item.name;
   $('#item-section').textContent = sectionOf(item.category).name;
-  $('#item-price').textContent = money(item.price);
+  $('#item-price').textContent = priceLabel(item);
   $('#item-size').textContent = hasSize(item)
     ? sizeLabel(item)
     : 'Measurements coming soon.';
@@ -1620,9 +1706,14 @@ function paintSheet() {
       title="${x.quantity <= 0 ? 'Sold out' : `${x.quantity} in stock`}"><i style="background:${
         esc(x.swatch || '#c9bfc4')}"></i>${esc(x.name || 'Standard')}</button>`).join('')}</div>` : '';
 
-  $('#qty-out').textContent = S.sheet.qty;
-  $('#qty-down').disabled = S.sheet.qty <= 1;
-  $('#qty-up').disabled = S.sheet.qty >= free;
+  const step = isLength(item) ? 10 : 1;               // chain moves in 10 cm nudges
+  S.sheet.qty = clamp(S.sheet.qty, step, Math.max(step, free));
+  $('#qty-label').textContent = isLength(item) ? 'How much' : 'How many';
+  $('#qty-out').textContent = isLength(item) ? fmtLen(S.sheet.qty) : S.sheet.qty;
+  $('#qty-down').disabled = S.sheet.qty <= step;
+  $('#qty-up').disabled = S.sheet.qty + step > free;
+  $('#qty-cost').textContent = isLength(item) && S.sheet.qty > 0
+    ? `= ${money(lenPrice(item, S.sheet.qty))}` : '';
   $('#item-add').disabled = free <= 0;
   $('#item-add').textContent = free <= 0 ? 'Sold out' : 'Add to tray';
 
@@ -1635,16 +1726,20 @@ function paintSheet() {
 
   if (v.quantity <= 0) parts.push(v.name ? `None left in ${v.name}` : 'None left');
   else if (freeHere <= 0) {
-    parts.push(`All ${v.quantity} ${named} ${v.quantity === 1 ? 'is' : 'are'} in your tray`);
+    parts.push(isLength(item)
+      ? `All ${fmtLen(v.quantity)} of ${named} is in your tray`
+      : `All ${v.quantity} ${named} ${v.quantity === 1 ? 'is' : 'are'} in your tray`);
     trayCovered = true;
-  } else parts.push(`${freeHere} ${v.name ? `in ${v.name}` : 'available'}`);
+  } else {
+    parts.push(`${amountLabel(item, freeHere)} ${v.name ? `in ${v.name}` : 'available'}`);
+  }
 
   // Deliberately no all-colours total: every count the customer meets — here and
   // on the cards — is now about the one colour in front of them.
   if (item.hasColours && freeHere <= 0 && freeAll > 0) {
     parts.push(`${freeAll} available in other colours`);
   }
-  if (inTray && !trayCovered) parts.push(`${inTray} already in your tray`);
+  if (inTray && !trayCovered) parts.push(`${amountLabel(item, inTray)} already in your tray`);
   $('#item-stock').textContent = parts.join(' · ');
   $('#item-restock').innerHTML = addable(item, v.id) <= 0 ? restockHtml(item, v) : '';
   $('#item-error').hidden = true;
@@ -1693,22 +1788,23 @@ function paintTrayDialog() {
       <span class="shot">${shotHtml(r.item, r.variantId)}</span>
       <span>
         <span class="nm">${esc(r.item.name)}</span>
-        <span class="sub">${r.variant && r.variant.name ? `${esc(r.variant.name)} · ` : ''}${money(r.item.price)} each${
-          placed ? ` · ${placed} on your piece` : ''}</span>
+        <span class="sub">${r.variant && r.variant.name ? `${esc(r.variant.name)} · ` : ''}${
+          isLength(r.item) ? priceLabel(r.item) : `${money(r.item.price)} each`}${
+          placed ? ` · ${amountLabel(r.item, placed)} on your piece` : ''}</span>
       </span>
       <span class="acts" style="display:flex;gap:6px;align-items:center">
         <span class="stepper">
           <button type="button" data-act="less" aria-label="One fewer">−</button>
-          <output>${r.qty}</output>
+          <output>${amountLabel(r.item, r.qty)}</output>
           <button type="button" data-act="more" aria-label="One more">+</button>
         </span>
         <button class="tiny warnbtn" data-act="drop">Remove</button>
       </span>
     </div>`;
   }).join('') + `<div class="sum">
-      <div><span>Pieces picked</span><span class="num">${trayTotal()}</span></div>
-      <div><span>If you use them all</span><span class="num">${money(
-        rows.reduce((s, r) => s + r.item.price * r.qty, 0))}</span></div>
+      <div><span>Things picked</span><span class="num">${S.tray.length}</span></div>
+      <div><span>If you use it all</span><span class="num">${money(
+        rows.reduce((s, r) => s + (isLength(r.item) ? lenPrice(r.item, r.qty) : r.item.price * r.qty), 0))}</span></div>
     </div>
     <p class="muted" style="font-size:12.5px;margin:12px 0 0">You're only charged for what you place on
       the piece. Anything left in the tray stays here for next time.</p>`
@@ -1719,16 +1815,16 @@ function paintTrayDialog() {
 }
 
 function paintTrayPip() {
-  const n = trayTotal();
+  const n = S.tray.length;
   $('#tray-pip').textContent = n;
   for (const pip of [$('#fab-pip'), $('#cta-pip')]) {
     pip.textContent = n;
     pip.hidden = n === 0;
   }
-  const left = S.tray.reduce((s, r) => s + Math.max(0, toPlace(r.itemId, r.variantId)), 0);
+  const waiting = S.tray.filter((r) => toPlace(r.itemId, r.variantId) > 0).length;
   $('#tray-left').textContent = n === 0 ? 'nothing picked yet'
-    : left === 0 ? 'all of it is on the piece'
-      : `${left} still to place`;
+    : waiting === 0 ? 'all of it is on the piece'
+      : `${waiting} of ${n} still to place`;
 }
 </script>
 
@@ -1758,8 +1854,9 @@ function paintPlaceRail() {
       <span>
         <span class="nm">${esc(r.item.name)}${r.variant && r.variant.name
           ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
-        <span class="sub">${left > 0 ? `${left} of ${r.qty} to place` : 'all placed'}${
-          base ? ' · base' : ''}</span>
+        <span class="sub">${left > 0
+          ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
+          : 'all placed'}${base ? ' · base' : ''}</span>
       </span>
     </div>`;
   }).join('')}</div>`;
@@ -1774,7 +1871,20 @@ function paintPlaceRail() {
  */
 function stageMm() {
   const base = S.base ? itemOf(S.base.itemId) : null;
-  return base && hasSize(base) ? longestMm(base) / 0.66 : 0;
+  let span = base && hasSize(base) ? longestMm(base) / 0.66 : 0;
+  // A kaleera's hangings are longer than its frame, so the stage has to grow to
+  // hold the longest thing on it — otherwise 18 cm and 25 cm draw the same.
+  for (const c of S.charms) {
+    const item = itemOf(c.itemId);
+    if (!item) continue;
+    if (c.lenCm) {
+      // Room left below the pin (straight) or out to the rim (round).
+      const room = S.view === 'straight' ? Math.max(0.12, (100 - c.y) / 100) * 0.95 : 0.45;
+      span = Math.max(span, (c.lenCm * 10) / room);
+    }
+    else if (hasSize(item)) span = Math.max(span, longestMm(item) / 0.35);
+  }
+  return span;
 }
 
 function charmWidthPct(item) {
@@ -1812,6 +1922,8 @@ function place(itemId, variantId, x, y) {
   }
   if (!S.base) { toast('Place a base piece first — a band, frame or kaleera.', 'bad'); return; }
 
+  if (isLength(item)) { askStrand(itemId, variantId, x, y); return; }
+
   const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -1839,6 +1951,50 @@ function clearAll() {
   paint();
 }
 
+/**
+ * A strand is cut to order, so placing one asks how long — that is how five
+ * hangings of five different lengths come off one reel of chain.
+ */
+function askStrand(itemId, variantId, x, y) {
+  const item = itemOf(itemId);
+  const left = toPlace(itemId, variantId);
+  S.strandAsk = { itemId, variantId, x, y };
+  $('#strand-title').textContent = `How long should this ${item.name.toLowerCase()} hang?`;
+  $('#strand-have').textContent = `You have ${fmtLen(left)} of it left to place.`;
+  $('#strand-error').hidden = true;
+  const f = $('#form-strand');
+  f.reset();
+  f.len.value = Math.min(12, left);
+  paintStrandCost();
+  $('#dlg-strand').showModal();
+}
+
+function paintStrandCost() {
+  if (!S.strandAsk) return;
+  const item = itemOf(S.strandAsk.itemId);
+  const len = Number($('#form-strand').len.value) || 0;
+  $('#strand-cost').textContent = len > 0
+    ? `${fmtLen(len)} at ${priceLabel(item)} — ${money(lenPrice(item, len))}`
+    : '';
+}
+
+function addStrand(lenCm) {
+  const { itemId, variantId, x, y } = S.strandAsk;
+  // On a straight piece a hanging is pinned to the rail unless it was dropped
+  // deliberately lower down.
+  const pinned = S.view === 'straight' && y < 40 ? 20 : y;
+  const spot = fanOut(clamp(x, 3, 97), clamp(pinned, 3, 97));
+  S.charms.push({
+    uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    itemId, variantId, x: spot.x, y: spot.y,
+    w: charmWidthPct(itemOf(itemId)),
+    lenCm, rot: 0, z: ++S.zTop,
+  });
+  S.picked = S.charms[S.charms.length - 1].uid;
+  S.strandAsk = null;
+  paint();
+}
+
 /** Taking the base off leaves the charms in place, so a band can be swapped. */
 function removeBase() {
   S.base = null;
@@ -1856,6 +2012,7 @@ function clearCharms() {
 function paintStage() {
   const stage = $('#stage');
   $$('.charm, .stage-base', stage).forEach((n) => n.remove());
+  paintGuide();
   const baseItem = S.base ? itemOf(S.base.itemId) : null;
   $('#hint').hidden = Boolean(baseItem);
 
@@ -1886,18 +2043,65 @@ function paintStage() {
     const item = itemOf(c.itemId);
     if (!item) continue;
     const node = document.createElement('div');
-    node.className = 'charm' + (S.picked === c.uid ? ' on' : '');
+    const strand = isLength(item) && c.lenCm;
+    node.className = 'charm' + (strand ? ' strand' : '') + (S.picked === c.uid ? ' on' : '');
     node.dataset.uid = c.uid;
-    node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${c.w}%;aspect-ratio:1;z-index:${c.z};` +
-      `transform:translate(-50%,-50%) rotate(${c.rot}deg)`;
-    node.innerHTML = shotHtml(item, c.variantId) +
-      `<button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
-    const glyph = node.querySelector('.glyph');
-    if (glyph) glyph.style.fontSize = `calc(${c.w}vw * 0.5)`;
+
+    if (strand) {
+      // A strand is drawn to the same scale as everything else, hanging from
+      // its pin: straight down on a kaleera, outward from the hoop on a necklace.
+      const span = stageMm() || 400;
+      const lenPct = clamp((c.lenCm * 10 / span) * 100, 2, 96);
+      const wide = clamp(((item.widthMm || 4) / span) * 100 * 2.5, 1.2, 8);
+      const src = item.images[imageIndexFor(item, c.variantId)] || item.images[0];
+      node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wide}%;height:${lenPct}%;z-index:${c.z};` +
+        `transform:translate(-50%,0) rotate(${hangAngle(c)}deg)`;
+      node.innerHTML = `<div class="run ${src ? '' : 'plain'}"${
+        src ? ` style="background-image:url('${esc(src)}')"` : ''}></div>
+        <span class="len">${fmtLen(c.lenCm)}</span>
+        <button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
+    } else {
+      const wPct = charmWidthPct(item) || c.w;
+      node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wPct}%;aspect-ratio:1;z-index:${c.z};` +
+        `transform:translate(-50%,-50%) rotate(${c.rot}deg)`;
+      node.innerHTML = shotHtml(item, c.variantId) +
+        `<button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
+      const glyph = node.querySelector('.glyph');
+      if (glyph) glyph.style.fontSize = `calc(${wPct}vw * 0.5)`;
+    }
+
     node.querySelector('.lift').addEventListener('pointerdown', (e) => { e.stopPropagation(); unplace(c.uid); });
     node.addEventListener('pointerdown', (e) => startMove(e, c, node));
     stage.append(node);
   }
+}
+
+/**
+ * Straight pieces hang everything downward; round ones let a strand fall away
+ * from the centre, which is how a hoop of tassels actually sits.
+ */
+function hangAngle(c) {
+  if (S.view === 'straight') return c.rot || 0;
+  const angle = (Math.atan2(c.y - 50, c.x - 50) * 180) / Math.PI - 90;
+  return angle + (c.rot || 0);
+}
+
+function paintGuide() {
+  const stage = $('#stage');
+  $$('.stage-guide', stage).forEach((n) => n.remove());
+  const guide = document.createElement('div');
+  guide.className = 'stage-guide';
+  guide.innerHTML = S.view === 'round'
+    ? `<svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
+         <circle cx="50" cy="50" r="33" fill="none" stroke="currentColor" stroke-width="0.3"
+           stroke-dasharray="1.6 1.6" vector-effect="non-scaling-stroke"></circle>
+       </svg>`
+    : `<svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
+         <line x1="14" y1="18" x2="86" y2="18" stroke="currentColor" stroke-width="0.3"
+           stroke-dasharray="1.6 1.6" vector-effect="non-scaling-stroke"></line>
+       </svg>`;
+  guide.style.color = 'var(--line-strong)';
+  stage.prepend(guide);
 }
 
 function startMove(ev, charm, node) {
@@ -1934,14 +2138,14 @@ function startMove(ev, charm, node) {
 /** The bill counts what is on the piece — tray picks are not charged. */
 function billLines() {
   const counts = new Map();
-  const add = (itemId, variantId) => {
+  const add = (itemId, variantId, n) => {
     const k = `${itemId}::${variantId}`;
     const row = counts.get(k) || { itemId, variantId, qty: 0 };
-    row.qty += 1;
+    row.qty += n;
     counts.set(k, row);
   };
-  if (S.base) add(S.base.itemId, S.base.variantId);
-  for (const c of S.charms) add(c.itemId, c.variantId);
+  if (S.base) add(S.base.itemId, S.base.variantId, 1);
+  for (const c of S.charms) add(c.itemId, c.variantId, c.lenCm || 1);
 
   const lines = [];
   for (const row of counts.values()) {
@@ -1953,11 +2157,16 @@ function billLines() {
       sku: (v && v.sku) || item.sku,
       name: item.name,
       colour: (v && v.name) || '',
-      unit: item.price, qty: row.qty, total: item.price * row.qty,
+      soldBy: item.soldBy,
+      unit: item.price, qty: row.qty,
+      total: isLength(item) ? lenPrice(item, row.qty) : item.price * row.qty,
     });
   }
   return lines.sort((a, b) => b.total - a.total);
 }
+
+/** "×3" for pieces, "45 cm" for a length. */
+const lineAmount = (l) => (l.soldBy === 'length' ? fmtLen(l.qty) : `×${l.qty}`);
 
 function shippingNow() {
   if (!$('#dlg-checkout').open) return 0;
@@ -1971,7 +2180,9 @@ function paintBill() {
   const lines = billLines();
   const items = lines.reduce((s, l) => s + l.total, 0);
   const ship = shippingNow();
-  const count = lines.reduce((s, l) => s + l.qty, 0);
+  // Count what is on the piece, not its centimetres — a 78 cm strand is one
+  // hanging, not seventy-eight of anything.
+  const count = S.charms.length + (S.base ? 1 : 0);
 
   $('#s-count').textContent = count;
   $('#s-items').textContent = count ? money(items) : '—';
@@ -1980,7 +2191,7 @@ function paintBill() {
 
   $('#bill').innerHTML = lines.length
     ? lines.map((l) => `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
-        <span class="q">×${l.qty}</span><span class="amt">${money(l.total)}</span></li>`).join('')
+        <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')
     : '<li class="blank" style="display:block">Nothing on the piece yet.</li>';
 
   $('#sum').innerHTML = `
@@ -2051,7 +2262,7 @@ function openCheckout() {
   const { lines, items } = paintBill();
   $('#ck-lines').innerHTML = `<ul class="bill">${lines.map((l) =>
     `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
-     <span class="q">×${l.qty}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
+     <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
     <div class="sum" id="ck-sum"></div>`;
   $('#ck-area').innerHTML = S.zones.length
     ? S.zones.map((z) => `<option value="${esc(z.id)}">${esc(z.area)} — ${money(z.cost)}${
@@ -2139,11 +2350,14 @@ async function submitOrder(form) {
     address: fulfilment === 'ship' ? String(form.get('address')).trim() : '',
     items: lines.map((l) => ({
       itemId: l.itemId, variantId: l.variantId, sku: l.sku,
-      name: l.name, colour: l.colour, unit: l.unit, qty: l.qty, total: l.total,
+      name: l.name, colour: l.colour, soldBy: l.soldBy,
+      unit: l.unit, qty: l.qty, total: l.total,
     })),
     design: {
       base: S.base ? { itemId: S.base.itemId, variantId: S.base.variantId } : null,
-      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z }) => ({ itemId, variantId, x, y, w, rot, z })),
+      view: S.view,
+      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm }) =>
+        ({ itemId, variantId, x, y, w, rot, z, lenCm })),
     },
     itemsTotal, shipping: ship, total: itemsTotal + ship,
     status: 'new',
@@ -2181,7 +2395,7 @@ async function submitOrder(form) {
 }
 
 function showDone(order) {
-  const left = trayTotal();
+  const left = S.tray.length;
   $('#done-body').innerHTML = `
     <p>Thank you — order <b class="mono">${esc(order.no)}</b> is on the book.</p>
     ${order.snapshot ? `<img class="snapshot" src="${esc(order.snapshot)}"
@@ -2196,7 +2410,7 @@ function showDone(order) {
       ? 'We’ll post it to your address as soon as it’s made and message you the tracking details.'
       : 'We’ll message you the moment it’s ready to collect from the studio.'}</p>
     <p class="muted" style="margin-bottom:0">${left
-      ? `${left} piece${left === 1 ? '' : 's'} stayed in your tray for next time.`
+      ? `${left} thing${left === 1 ? '' : 's'} stayed in your tray for next time.`
       : 'Your tray is empty again.'}</p>`;
   $('#dlg-done').showModal();
 }
@@ -2256,11 +2470,13 @@ function stockRows() {
 
 function buckets() {
   const t = threshold();
+  // Chain runs low by the metre, not by the piece.
+  const bar = (item) => (isLength(item) ? 100 : t);
   const rows = stockRows();
   return {
     out: rows.filter((r) => r.v.quantity <= 0),
-    low: rows.filter((r) => r.v.quantity > 0 && r.v.quantity < t),
-    ok: rows.filter((r) => r.v.quantity >= t),
+    low: rows.filter((r) => r.v.quantity > 0 && r.v.quantity < bar(r.item)),
+    ok: rows.filter((r) => r.v.quantity >= bar(r.item)),
   };
 }
 
@@ -2270,7 +2486,8 @@ function pickList() {
     if (!OPEN_STATUS.includes(o.status)) continue;
     for (const it of o.items || []) {
       const k = `${it.itemId || it.id}::${it.variantId || 'v0'}`;
-      const row = need.get(k) || { name: it.name, colour: it.colour || '', sku: it.sku, needed: 0, itemId: it.itemId || it.id, variantId: it.variantId || 'v0' };
+      const row = need.get(k) || { name: it.name, colour: it.colour || '', sku: it.sku, needed: 0,
+        soldBy: it.soldBy || 'piece', itemId: it.itemId || it.id, variantId: it.variantId || 'v0' };
       row.needed += it.qty;
       need.set(k, row);
     }
@@ -2302,10 +2519,12 @@ function stockRow({ item, v }) {
   const t = threshold();
   const committed = committedOf(item.id, v.id);
   const inHand = v.quantity + committed;
+  const low = isLength(item) ? 100 : t;          // a metre left is the chain warning
+  const show = (n) => amountLabel(item, n);
   const tag = v.quantity <= 0 ? '<span class="tag out">out of stock</span>'
-    : v.quantity < t ? `<span class="tag low">low · ${v.quantity}</span>`
-      : `<span class="tag ok">${v.quantity}</span>`;
-  return `<tr class="stripe ${v.quantity <= 0 ? 'out' : v.quantity < t ? 'low' : ''}"
+    : v.quantity < low ? `<span class="tag low">low · ${show(v.quantity)}</span>`
+      : `<span class="tag ok">${show(v.quantity)}</span>`;
+  return `<tr class="stripe ${v.quantity <= 0 ? 'out' : v.quantity < low ? 'low' : ''}"
       data-id="${esc(item.id)}" data-variant="${esc(v.id)}">
     <td><div class="mini">${shotHtml(item, v.id)}</div></td>
     <td><b>${esc(item.name)}</b>${v.name ? ` <span class="tag flat">${esc(v.name)}</span>` : ''}
@@ -2313,11 +2532,11 @@ function stockRow({ item, v }) {
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
       hasSize(item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
-    <td class="r">${money(item.price)}${
+    <td class="r">${priceLabel(item)}${
       item.urgentFee ? `<br><span class="muted" style="font-size:11.5px">rush ${money(item.urgentFee)}</span>` : ''}</td>
-    <td class="r">${inHand}</td>
+    <td class="r">${show(inHand)}</td>
     <td class="r">${committed
-      ? `<span class="tag low">${committed}</span>`
+      ? `<span class="tag low">${show(committed)}</span>`
       : '<span class="muted">—</span>'}</td>
     <td class="r">${tag}</td>
     <td><div class="acts">
@@ -2368,9 +2587,11 @@ function viewOverview() {
         <tbody>${pick.length ? pick.map((r) => `<tr class="stripe ${r.inRepo < r.needed ? 'out' : ''}">
           <td>${esc(r.name)}${r.colour ? ` <span class="tag flat">${esc(r.colour)}</span>` : ''}</td>
           <td class="mono muted">${esc(r.sku)}</td>
-          <td class="r">${r.needed}</td><td class="r">${r.inRepo}</td>
+          <td class="r">${r.soldBy === 'length' ? fmtLen(r.needed) : r.needed}</td>
+          <td class="r">${r.soldBy === 'length' ? fmtLen(r.inRepo) : r.inRepo}</td>
           <td class="r">${r.inRepo < r.needed
-            ? `<span class="tag out">short ${r.needed - r.inRepo}</span>`
+            ? `<span class="tag out">short ${r.soldBy === 'length'
+                ? fmtLen(r.needed - r.inRepo) : r.needed - r.inRepo}</span>`
             : '<span class="tag ok">covered</span>'}</td></tr>`).join('')
           : '<tr><td colspan="5" class="blank">No orders waiting to be made.</td></tr>'}</tbody>
       </table></div>
@@ -2447,7 +2668,7 @@ function viewOrders() {
           ? `Ship — ${esc(o.area || '')}<br><span class="muted num">${money(o.shipping)}</span>`
           : 'Collect in studio'}</td>
         <td style="font-size:12.5px">${(o.items || []).map((i) =>
-          `${esc(i.name)}${i.colour ? ` (${esc(i.colour)})` : ''} ×${i.qty}`).join('<br>')}</td>
+          `${esc(i.name)}${i.colour ? ` (${esc(i.colour)})` : ''} ${lineAmount(i)}`).join('<br>')}</td>
         <td class="r"><b>${money(o.total)}</b></td>
         <td><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span></td>
         <td><div class="acts">
@@ -2573,13 +2794,26 @@ function paintDraftImages() {
     : '<span class="muted" style="font-size:12.5px">No photos yet — the emoji below is used instead.</span>';
 }
 
+/** The editor's wording follows what the component is sold by. */
+function paintSoldBy() {
+  const byLength = S.draft.soldBy === 'length';
+  $('#price-label').textContent = byLength ? 'Price per metre *' : 'Price *';
+  $('#variant-hint').textContent = byLength
+    ? 'Stock is held in centimetres per colour — 1200 is twelve metres.'
+    : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
+  paintDraftVariants();
+}
+
 function paintDraftVariants() {
   $('#piece-variants').innerHTML = S.draft.variants.map((v, i) => `
     <div class="variant-row" data-i="${i}">
       <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
       <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
       <input value="${esc(v.sku)}" placeholder="SKU" data-f="sku">
-      <input type="number" min="0" step="1" value="${v.quantity}" data-f="quantity" aria-label="Quantity">
+      <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '10' : '1'}"
+        value="${v.quantity}" data-f="quantity"
+        aria-label="${S.draft.soldBy === 'length' ? 'Stock in centimetres' : 'Quantity'}"
+        title="${S.draft.soldBy === 'length' ? 'Stock in centimetres' : 'How many'}">
       <button type="button" class="tiny warnbtn kill" data-kill="${i}"
         ${S.draft.variants.length === 1 ? 'disabled' : ''} aria-label="Remove colour">×</button>
     </div>`).join('');
@@ -2595,8 +2829,10 @@ function openPieceDialog(item) {
     || '<option value="">Add a section first</option>';
 
   S.draft = item
-    ? { images: [...item.images], glyph: item.images.length ? '' : item.glyph, variants: item.variants.map((v) => ({ ...v })) }
-    : { images: [], glyph: '', variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
+    ? { images: [...item.images], glyph: item.images.length ? '' : item.glyph,
+        soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })) }
+    : { images: [], glyph: '', soldBy: 'piece',
+        variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
     f.id.value = item.id;
@@ -2610,9 +2846,12 @@ function openPieceDialog(item) {
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
     f.active.checked = item.active;
+    f.soldBy.value = item.soldBy;
   } else {
     f.id.value = '';
+    f.soldBy.value = 'piece';
   }
+  paintSoldBy();
   paintDraftImages();
   paintDraftVariants();
   $('#dlg-piece').showModal();
@@ -2778,7 +3017,7 @@ function orderDetailHtml(o, asStudio) {
         <div class="k facts" style="margin-bottom:5px">Pieces</div>
         <ul class="bill">${(o.items || []).map((i) => `<li>
           <span>${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''}</span>
-          <span class="q">×${i.qty}</span><span class="amt">${money(i.total)}</span></li>`).join('')}</ul>
+          <span class="q">${lineAmount(i)}</span><span class="amt">${money(i.total)}</span></li>`).join('')}</ul>
       </div>
 
       <div class="sum" style="margin-top:0">
@@ -2933,8 +3172,13 @@ function wireBrowse() {
 
   $('#item-close').addEventListener('click', () => $('#dlg-item').close());
   $('#item-add').addEventListener('click', addFromSheet);
-  $('#qty-up').addEventListener('click', () => { S.sheet.qty += 1; paintSheet(); });
-  $('#qty-down').addEventListener('click', () => { S.sheet.qty -= 1; paintSheet(); });
+  const nudge = (dir) => {
+    const item = itemOf(S.sheet.itemId);
+    S.sheet.qty += dir * (isLength(item) ? 10 : 1);
+    paintSheet();
+  };
+  $('#qty-up').addEventListener('click', () => nudge(1));
+  $('#qty-down').addEventListener('click', () => nudge(-1));
   $('#item-colours').addEventListener('click', (e) => {
     const b = e.target.closest('.swatch');
     if (!b || b.disabled) return;
@@ -2993,13 +3237,16 @@ function wireTray() {
     const item = itemOf(itemId);
     const placed = placedQty(itemId, variantId);
 
+    const step = isLength(item) ? 10 : 1;
     if (btn.dataset.act === 'more') {
-      if (addable(item, variantId) <= 0) return toast(`Only ${variantOf(item, variantId).quantity} available.`, 'bad');
-      trayAdd(itemId, variantId, 1);
+      if (addable(item, variantId) < step) {
+        return toast(`Only ${amountLabel(item, addable(item, variantId))} more available.`, 'bad');
+      }
+      trayAdd(itemId, variantId, step);
     }
     if (btn.dataset.act === 'less') {
-      if (trayQty(itemId, variantId) - 1 < placed) return toast('Take it off the piece first.', 'bad');
-      trayTake(itemId, variantId, 1);
+      if (trayQty(itemId, variantId) - step < placed) return toast('Take it off the piece first.', 'bad');
+      trayTake(itemId, variantId, step);
     }
     if (btn.dataset.act === 'drop') {
       if (placed) return toast('Take it off the piece first.', 'bad');
@@ -3050,7 +3297,35 @@ function wireDesign() {
   });
   $('#hint-browse').addEventListener('click', () => setMode('browse'));
 
-  $$('.tools button').forEach((b) => b.addEventListener('click', () => {
+  $$('.viewswitch button').forEach((b) => b.addEventListener('click', () => {
+    S.view = b.dataset.view;
+    $$('.viewswitch button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    paintStage();
+  }));
+
+  $('#strand-cancel').addEventListener('click', () => { S.strandAsk = null; $('#dlg-strand').close(); });
+  $('#form-strand').len.addEventListener('input', paintStrandCost);
+  $$('#form-strand button[data-len]').forEach((b) => b.addEventListener('click', () => {
+    $('#form-strand').len.value = b.dataset.len;
+    paintStrandCost();
+  }));
+  $('#form-strand').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!S.strandAsk) return;
+    const len = Math.round(Number(new FormData(e.target).get('len')) || 0);
+    const left = toPlace(S.strandAsk.itemId, S.strandAsk.variantId);
+    const err = $('#strand-error');
+    if (len < 1) { err.hidden = false; err.textContent = 'Give it a length in centimetres.'; return; }
+    if (len > left) {
+      err.hidden = false;
+      err.textContent = `You only have ${fmtLen(left)} left — add more in Browse, or make it shorter.`;
+      return;
+    }
+    $('#dlg-strand').close();
+    addStrand(len);
+  });
+
+  $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
     const c = S.charms.find((x) => x.uid === S.picked);
     if (!c) return toast('Tap a charm on the piece first.');
     if (b.dataset.tool === 'ccw') c.rot -= 15;
@@ -3141,6 +3416,11 @@ function wirePieceDialog() {
     paintDraftImages();
   });
 
+  $('#piece-soldby').addEventListener('change', (e) => {
+    S.draft.soldBy = e.target.value;
+    paintSoldBy();
+  });
+
   $('#variant-add').addEventListener('click', () => {
     S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: '', swatch: '#c9a227', sku: '', quantity: 0 });
     paintDraftVariants();
@@ -3184,6 +3464,7 @@ function wirePieceDialog() {
         sku: baseSku,
         category: data.get('category'),
         price,
+        soldBy: data.get('soldBy') === 'length' ? 'length' : 'piece',
         width: (id && itemOf(id) ? itemOf(id).width : 86),
         widthMm: Number(data.get('widthMm')) || 0,
         heightMm: Number(data.get('heightMm')) || 0,
@@ -3309,11 +3590,37 @@ async function renderSnapshot(size = 560) {
       ctx.restore();
     };
 
+    const strand = async (item, c) => {
+      const span = stageMm() || 400;
+      const len = size * clamp((c.lenCm * 10 / span), 0.02, 0.96);
+      const wide = size * clamp(((item.widthMm || 4) / span) * 2.5, 0.012, 0.08);
+      const src = item.images[imageIndexFor(item, c.variantId)] || item.images[0];
+      ctx.save();
+      ctx.translate(size * c.x / 100, size * c.y / 100);
+      ctx.rotate((hangAngle(c) * Math.PI) / 180);
+      if (src) {
+        const img = await loadImage(src);
+        const tile = wide * (img.height / img.width || 1);
+        for (let y = 0; y < len; y += tile) {
+          ctx.drawImage(img, -wide / 2, y, wide, Math.min(tile, len - y));
+        }
+      } else {
+        ctx.fillStyle = '#c9a227';
+        ctx.fillRect(-wide / 2, 0, wide, len);
+      }
+      ctx.restore();
+    };
+
     const baseItem = itemOf(S.base.itemId);
     if (baseItem) await draw(baseItem, S.base.variantId, size / 2, size / 2, size * 0.66, 0);
     for (const c of [...S.charms].sort((a, b) => a.z - b.z)) {
       const item = itemOf(c.itemId);
-      if (item) await draw(item, c.variantId, size * c.x / 100, size * c.y / 100, size * c.w / 100, c.rot);
+      if (!item) continue;
+      if (isLength(item) && c.lenCm) await strand(item, c);
+      else {
+        const wPct = charmWidthPct(item) || c.w;
+        await draw(item, c.variantId, size * c.x / 100, size * c.y / 100, size * wPct / 100, c.rot);
+      }
     }
 
     // Documents cap at 256 KiB, so step the quality down until it comfortably fits.
@@ -3493,7 +3800,7 @@ function paintMine() {
         ${o.notes ? `<div class="note-card" style="font-size:12.5px">
           <div class="eyebrow">Your note</div>${esc(o.notes)}</div>` : ''}
         <div style="font-size:13px">${(o.items || []).map((i) =>
-          `${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''} ×${i.qty}`).join('<br>')}</div>
+          `${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''} ${lineAmount(i)}`).join('<br>')}</div>
         <div class="sum" style="margin-top:4px">
           <div><span>Pieces</span><span class="num">${money(o.itemsTotal)}</span></div>
           <div><span>${o.fulfilment === 'ship' ? `Delivery — ${esc(o.area || '')}` : 'Collecting from the studio'}</span>
@@ -3921,9 +4228,11 @@ async function startAmend(order) {
   for (const i of order.items || []) trayAdd(i.itemId || i.id, i.variantId || 'v0', i.qty);
   const d = order.design || {};
   S.base = d.base ? { uid: 'b' + Date.now().toString(36), itemId: d.base.itemId, variantId: d.base.variantId } : null;
+  S.view = d.view === 'straight' ? 'straight' : 'round';
   S.charms = (d.charms || []).map((c, k) => ({
     uid: `c${Date.now().toString(36)}${k}`,
-    itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w, rot: c.rot, z: c.z || k + 1,
+    itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w,
+    rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm,
   }));
   S.zTop = S.charms.length + 1;
   S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };
