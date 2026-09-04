@@ -276,8 +276,6 @@ function setupTools() {
     const p = state.placements.find((x) => x.uid === state.selected);
     if (!p) return toast('Select a charm on the piece first.');
     switch (btn.dataset.tool) {
-      case 'bigger': p.w = clamp(p.w * 1.15, 3, 60); break;
-      case 'smaller': p.w = clamp(p.w / 1.15, 3, 60); break;
       case 'rotate-left': p.rot -= 15; break;
       case 'rotate-right': p.rot += 15; break;
       case 'front': p.z = ++state.zCounter; break;

@@ -419,8 +419,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         </div>
       </div>
       <div class="tools">
-        <button class="tiny" data-tool="bigger">Larger</button>
-        <button class="tiny" data-tool="smaller">Smaller</button>
         <button class="tiny" data-tool="ccw">⟲</button>
         <button class="tiny" data-tool="cw">⟳</button>
         <button class="tiny" data-tool="front">Bring forward</button>
@@ -428,7 +426,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
         Drag a charm from the tray onto the piece, then drag it again to position it.
-        Tap a charm to select it — resize, rotate or take it off with the controls above,
+        Tap a charm to select it — rotate or take it off with the controls above,
         or press Delete.
       </p>
     </div>
@@ -1547,8 +1545,6 @@ function wireShop() {
   $$('.tools button').forEach((b) => b.addEventListener('click', () => {
     const c = S.charms.find((x) => x.uid === S.picked);
     if (!c) return toast('Tap a charm on the piece first.');
-    if (b.dataset.tool === 'bigger') c.w = clamp(c.w * 1.15, 3, 60);
-    if (b.dataset.tool === 'smaller') c.w = clamp(c.w / 1.15, 3, 60);
     if (b.dataset.tool === 'ccw') c.rot -= 15;
     if (b.dataset.tool === 'cw') c.rot += 15;
     if (b.dataset.tool === 'front') c.z = ++S.zTop;
