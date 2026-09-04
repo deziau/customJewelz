@@ -352,6 +352,14 @@ td.r { font-variant-numeric: tabular-nums; }
 .mini .glyph { font-size: 20px; line-height: 1; }
 .acts { display: flex; gap: 5px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
 .acts input[type="number"] { width: 62px; padding: 4px 7px; font-size: 12.5px; }
+/* Edit the two numbers that change most without opening anything. */
+.cell-num {
+  width: 84px; padding: 5px 8px; font-size: 13px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cell-num.low { border-color: var(--ochre); }
+.cell-num.out { border-color: var(--crimson); }
+td .unit { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 .stripe { border-left: 3px solid transparent; }
 .stripe.out { border-left-color: var(--crimson); }
 .stripe.low { border-left-color: var(--ochre); }
@@ -564,7 +572,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 .place-list { display: grid; gap: 9px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
 .placeable {
-  display: grid; grid-template-columns: 46px 1fr; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center;
   border: 1px solid var(--line); border-radius: 9px; padding: 8px; cursor: grab;
   background: var(--surface); transition: border-color .14s, transform .1s;
 }
@@ -578,6 +586,14 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .placeable .nm { font-size: 12.5px; line-height: 1.25; }
 .placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .placeable.on { border-color: var(--accent); background: var(--accent-soft); }
+/* Changing your mind happens here, beside the thing you changed it about. */
+.tray-ctl { display: flex; gap: 3px; align-items: center; }
+.tray-ctl button {
+  width: 24px; height: 24px; padding: 0; border-radius: 6px; font-size: 14px; line-height: 1;
+  display: grid; place-items: center; color: var(--muted);
+}
+.tray-ctl button:hover { color: var(--ink); }
+.tray-ctl .drop:hover { color: var(--crimson); border-color: var(--crimson); }
 
 .empty-rail { padding: 20px 14px; display: grid; gap: 10px; justify-items: start; }
 
@@ -730,7 +746,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <button id="mode-studio" aria-pressed="false">Studio</button>
   </div>
   <div class="spacer"></div>
-  <button id="open-tray">Tray <span class="tag on" id="tray-pip">0</span></button>
   <span class="acct">
     <button id="acct-btn"><span class="who" id="acct-who">Sign in</span></button>
   </span>
@@ -786,7 +801,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <div class="rail">
       <section class="panel">
         <header><h2>Your tray</h2><span class="spacer"></span>
-          <span class="eyebrow" id="tray-left">nothing picked yet</span></header>
+          <span class="eyebrow" id="tray-left">nothing picked yet</span>
+          <button class="tiny warnbtn" id="tray-empty" hidden>Empty</button></header>
         <div id="place-rail"></div>
       </section>
     </div>
@@ -894,17 +910,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     </div>
   </div>
   <footer><button id="item-close">Keep browsing</button></footer>
-</dialog>
-
-<dialog id="dlg-tray">
-  <header><h2>Your tray</h2></header>
-  <div class="body" id="tray-body"></div>
-  <footer>
-    <button class="warnbtn" id="tray-empty">Empty the tray</button>
-    <span style="flex:1"></span>
-    <button id="tray-close">Keep browsing</button>
-    <button class="solid" id="tray-design">Design with these</button>
-  </footer>
 </dialog>
 
 <dialog id="dlg-leftover">
@@ -1764,43 +1769,9 @@ function trayRows() {
   }).filter(Boolean);
 }
 
-function paintTrayDialog() {
-  const rows = trayRows();
-  $('#tray-body').innerHTML = rows.length ? rows.map((r) => {
-    const placed = placedQty(r.itemId, r.variantId);
-    return `<div class="tray-line ${placed >= r.qty ? 'spent' : ''}" data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}">
-      <span class="shot">${shotHtml(r.item, r.variantId)}</span>
-      <span>
-        <span class="nm">${esc(r.item.name)}</span>
-        <span class="sub">${r.variant && r.variant.name ? `${esc(r.variant.name)} · ` : ''}${
-          isLength(r.item) ? priceLabel(r.item) : `${money(r.item.price)} each`}${
-          placed ? ` · ${amountLabel(r.item, placed)} on your piece` : ''}</span>
-      </span>
-      <span class="acts" style="display:flex;gap:6px;align-items:center">
-        <span class="stepper">
-          <button type="button" data-act="less" aria-label="One fewer">−</button>
-          <output>${amountLabel(r.item, r.qty)}</output>
-          <button type="button" data-act="more" aria-label="One more">+</button>
-        </span>
-        <button class="tiny warnbtn" data-act="drop">Remove</button>
-      </span>
-    </div>`;
-  }).join('') + `<div class="sum">
-      <div><span>Things picked</span><span class="num">${S.tray.length}</span></div>
-      <div><span>If you use it all</span><span class="num">${money(
-        rows.reduce((s, r) => s + (isLength(r.item) ? lenPrice(r.item, r.qty) : r.item.price * r.qty), 0))}</span></div>
-    </div>
-    <p class="muted" style="font-size:12.5px;margin:12px 0 0">You're only charged for what you place on
-      the piece. Anything left in the tray stays here for next time.</p>`
-    : '<p class="blank">Your tray is empty. Browse the collection and add what you like.</p>';
-
-  $('#tray-empty').disabled = !rows.length;
-  $('#tray-design').disabled = !rows.length;
-}
-
 function paintTrayPip() {
   const n = S.tray.length;
-  $('#tray-pip').textContent = n;
+  $('#tray-empty').hidden = n === 0;
   for (const pip of [$('#fab-pip'), $('#cta-pip')]) {
     pip.textContent = n;
     pip.hidden = n === 0;
@@ -1840,6 +1811,15 @@ function paintPlaceRail() {
         <span class="sub">${left > 0
           ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
           : 'all placed'}</span>
+      </span>
+      <span class="tray-ctl">
+        <button type="button" data-tray="less" aria-label="Fewer ${esc(r.item.name)}"
+          title="${isLength(r.item) ? '10 cm less' : 'One fewer'}">−</button>
+        <button type="button" data-tray="more" aria-label="More ${esc(r.item.name)}"
+          title="${isLength(r.item) ? '10 cm more' : 'One more'}">+</button>
+        <button type="button" data-tray="drop" class="drop"
+          aria-label="Take ${esc(r.item.name)} out of your tray"
+          title="Take out of your tray">×</button>
       </span>
     </div>`;
   }).join('')}</div>`;
@@ -2149,7 +2129,6 @@ function paint() {
   else if (S.mode === 'design') { paintPlaceRail(); paintStage(); paintBill(); }
   else if (S.mode === 'mine') paintMine();
   else if (S.mode === 'studio') paintAdmin();
-  if ($('#dlg-tray').open) paintTrayDialog();
 }
 </script>
 
@@ -2453,9 +2432,6 @@ function stockRow({ item, v }) {
   const inHand = v.quantity + committed;
   const low = isLength(item) ? 100 : t;          // a metre left is the chain warning
   const show = (n) => amountLabel(item, n);
-  const tag = v.quantity <= 0 ? '<span class="tag out">out of stock</span>'
-    : v.quantity < low ? `<span class="tag low">low · ${show(v.quantity)}</span>`
-      : `<span class="tag ok">${show(v.quantity)}</span>`;
   return `<tr class="stripe ${v.quantity <= 0 ? 'out' : v.quantity < low ? 'low' : ''}"
       data-id="${esc(item.id)}" data-variant="${esc(v.id)}">
     <td><div class="mini">${shotHtml(item, v.id)}</div></td>
@@ -2464,16 +2440,19 @@ function stockRow({ item, v }) {
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
       hasSize(item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
-    <td class="r">${priceLabel(item)}${
-      item.urgentFee ? `<br><span class="muted" style="font-size:11.5px">rush ${money(item.urgentFee)}</span>` : ''}</td>
+    <td class="r"><input class="cell-num" type="number" min="0" step="0.01" value="${item.price}"
+        data-f="price" aria-label="Price for ${esc(item.name)}">
+      <div class="unit">${isLength(item) ? 'per metre' : 'each'}${
+        item.urgentFee ? ` · rush ${money(item.urgentFee)}` : ''}</div></td>
     <td class="r">${show(inHand)}</td>
     <td class="r">${committed
       ? `<span class="tag low">${show(committed)}</span>`
       : '<span class="muted">—</span>'}</td>
-    <td class="r">${tag}</td>
+    <td class="r"><input class="cell-num ${v.quantity <= 0 ? 'out' : v.quantity < low ? 'low' : ''}"
+        type="number" min="0" step="${isLength(item) ? 10 : 1}" value="${v.quantity}"
+        data-f="qty" aria-label="Stock of ${esc(item.name)}${v.name ? ` in ${esc(v.name)}` : ''}">
+      <div class="unit">${isLength(item) ? 'cm' : (v.quantity <= 0 ? 'none left' : 'in stock')}</div></td>
     <td><div class="acts">
-      <input type="number" value="10" step="1" aria-label="How many arrived">
-      <button class="tiny" data-act="add">Add stock</button>
       <button class="tiny" data-act="edit">Edit</button>
       <button class="tiny warnbtn" data-act="del">Delete</button>
     </div></td>
@@ -2538,7 +2517,8 @@ function viewRepo() {
         <button class="solid" id="repo-add">Add component</button></header>
       ${stockTable(stockRows(), 'Nothing in the repo yet — add your first component.')}
       <div class="pad" style="border-top:1px solid var(--line)">
-        <p class="muted" style="font-size:12.5px;margin:0"><b>In hand</b> is what should be in the
+        <p class="muted" style="font-size:12.5px;margin:0">Price and stock are typed straight into the
+          table — no need to open anything. <b>In hand</b> is what should be in the
           drawer right now. <b>For orders</b> is what the orders you still have to make will take out
           of it. <b>Free to sell</b> is the difference — the number customers see while browsing, and
           the one the stock alerts watch.</p>
@@ -2799,6 +2779,34 @@ function wireAdmin() {
     openPieceDialog(null);
   });
 
+  $$('.repo', body).forEach((table) => table.addEventListener('change', guard(async (e) => {
+    const field = e.target.dataset.f;
+    if (!field) return;
+    const tr = e.target.closest('tr');
+    const item = itemOf(tr.dataset.id);
+    const v = item && variantOf(item, tr.dataset.variant);
+    if (!item || !v) return;
+
+    if (field === 'price') {
+      const price = Number(e.target.value);
+      if (!Number.isFinite(price) || price < 0) { paintAdmin(); return toast('Price must be zero or more.', 'bad'); }
+      await S.db.doc(`catalog/${item.id}`).update({ price });
+      toast(`${item.name} is now ${priceLabel({ ...item, price })}.`, 'good');
+    }
+
+    if (field === 'qty') {
+      const qty = Math.round(Number(e.target.value));
+      if (!Number.isInteger(qty) || qty < 0) { paintAdmin(); return toast('Stock must be zero or more.', 'bad'); }
+      const delta = qty - v.quantity;
+      if (!delta) return;
+      await S.db.doc(`catalog/${item.id}`).update({
+        variants: item.variants.map((x) => (x.id === v.id ? { ...x, quantity: qty } : x)),
+      });
+      toast(`${item.name}${v.name ? ` · ${v.name}` : ''} set to ${amountLabel(item, qty)}.`, 'good');
+      await settleOpenRequests(item.id, v.id, delta);
+    }
+  })));
+
   $$('.repo', body).forEach((table) => table.addEventListener('click', guard(async (e) => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
@@ -2808,16 +2816,6 @@ function wireAdmin() {
     const v = variantOf(item, tr.dataset.variant);
 
     if (btn.dataset.act === 'edit') return openPieceDialog(item);
-
-    if (btn.dataset.act === 'add') {
-      const delta = parseInt(tr.querySelector('input[type=number]').value, 10);
-      if (!Number.isInteger(delta) || delta === 0) return toast('Enter how many arrived.', 'bad');
-      if (v.quantity + delta < 0) return toast(`Only ${v.quantity} in the repo.`, 'bad');
-      const variants = item.variants.map((x) => (x.id === v.id ? { ...x, quantity: x.quantity + delta } : x));
-      await S.db.doc(`catalog/${item.id}`).update({ variants });
-      toast('Stock updated.', 'good');
-      await settleOpenRequests(item.id, v.id, delta);
-    }
 
     if (btn.dataset.act === 'del') {
       const onOrder = S.orders.some((o) => (o.items || []).some((i) => (i.itemId || i.id) === item.id));
@@ -3141,47 +3139,49 @@ function wireBrowse() {
   });
 }
 
+/** Quantities are changed where the tray is shown: in the design rail. */
 function wireTray() {
-  const dlg = $('#dlg-tray');
-  $('#open-tray').addEventListener('click', () => { paintTrayDialog(); dlg.showModal(); });
-  $('#tray-close').addEventListener('click', () => dlg.close());
-  $('#tray-design').addEventListener('click', () => { dlg.close(); setMode('design'); });
   $('#tray-empty').addEventListener('click', () => {
+    if (!S.tray.length) return;
     if (!confirm('Empty your tray? Nothing is ordered — the pieces simply go back to the shop.')) return;
     S.tray = [];
     saveTray();
     S.charms = [];
+    S.picked = null;
     paint();
-    paintTrayDialog();
+    toast('Tray emptied.', 'good');
   });
+}
 
-  $('#tray-body').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-act]');
-    if (!btn) return;
-    const line = btn.closest('.tray-line');
-    const itemId = line.dataset.item;
-    const variantId = line.dataset.variant;
-    const item = itemOf(itemId);
-    const placed = placedQty(itemId, variantId);
+/** Returns true when the click was a tray control rather than a placement. */
+function handleTrayControl(e) {
+  const btn = e.target.closest('button[data-tray]');
+  if (!btn) return false;
+  e.stopPropagation();
+  const row = btn.closest('.placeable');
+  const itemId = row.dataset.item;
+  const variantId = row.dataset.variant;
+  const item = itemOf(itemId);
+  if (!item) return true;
+  const placed = placedQty(itemId, variantId);
+  const step = isLength(item) ? 10 : 1;
 
-    const step = isLength(item) ? 10 : 1;
-    if (btn.dataset.act === 'more') {
-      if (addable(item, variantId) < step) {
-        return toast(`Only ${amountLabel(item, addable(item, variantId))} more available.`, 'bad');
-      }
-      trayAdd(itemId, variantId, step);
-    }
-    if (btn.dataset.act === 'less') {
-      if (trayQty(itemId, variantId) - step < placed) return toast('Take it off the piece first.', 'bad');
-      trayTake(itemId, variantId, step);
-    }
-    if (btn.dataset.act === 'drop') {
-      if (placed) return toast('Take it off the piece first.', 'bad');
-      trayTake(itemId, variantId, trayQty(itemId, variantId));
-    }
-    paint();
-    paintTrayDialog();
-  });
+  if (btn.dataset.tray === 'more') {
+    if (addable(item, variantId) < step) {
+      toast(`Only ${amountLabel(item, addable(item, variantId))} more available.`, 'bad');
+    } else trayAdd(itemId, variantId, step);
+  }
+  if (btn.dataset.tray === 'less') {
+    if (trayQty(itemId, variantId) - step < placed) {
+      toast('Take it off the piece first, then you can drop it from the tray.', 'bad');
+    } else trayTake(itemId, variantId, step);
+  }
+  if (btn.dataset.tray === 'drop') {
+    if (placed) toast('Take it off the piece first, then you can drop it from the tray.', 'bad');
+    else trayTake(itemId, variantId, trayQty(itemId, variantId));
+  }
+  paint();
+  return true;
 }
 
 function wireDesign() {
@@ -3192,6 +3192,7 @@ function wireDesign() {
   };
   $('#place-rail').addEventListener('click', (e) => {
     if (e.target.id === 'rail-browse') return setMode('browse');
+    if (handleTrayControl(e)) return;
     railAct(e);
   });
   $('#place-rail').addEventListener('keydown', (e) => {
@@ -3199,7 +3200,7 @@ function wireDesign() {
   });
   $('#place-rail').addEventListener('dragstart', (e) => {
     const node = e.target.closest('.placeable');
-    if (!node || node.classList.contains('done')) return e.preventDefault();
+    if (!node || node.classList.contains('done') || e.target.closest('[data-tray]')) return e.preventDefault();
     e.dataTransfer.setData('text/plain', `${node.dataset.item}::${node.dataset.variant}`);
     e.dataTransfer.effectAllowed = 'copy';
   });
