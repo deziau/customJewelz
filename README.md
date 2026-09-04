@@ -201,7 +201,12 @@ every "actual size" feature relies on and it is close on most screens, but it
 is an approximation of the real display — hence the rule.
 
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
-hearts running out does not hide the silver ones. Where a component has one
+hearts running out does not hide the silver ones. Every count a customer sees
+is about one colour: a browse card warns per colour, tinted with that colour
+("Gold · 5 left", "Antique · all in your tray"), and shows a plain dot for a
+colour with plenty in hand. Only a piece with nothing left in any colour gets
+the corner "Sold out" banner. All of these subtract what is already in the
+shopper's own tray, so no two numbers in the shop can disagree. Where a component has one
 photo per colour, in the same order, the picture follows the colour the customer
 picks, in the shop and on the piece.
 

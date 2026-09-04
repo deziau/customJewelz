@@ -396,7 +396,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   max-width: 1500px; margin: 0 auto; padding: 18px 22px 64px;
 }
 .card {
-  display: grid; grid-template-rows: auto 1fr; background: var(--surface);
+  display: grid; grid-template-rows: auto 1fr; min-width: 0; align-content: start;
+  background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
   cursor: pointer; text-align: left; padding: 0; font: inherit; color: inherit;
   transition: border-color .14s, transform .12s, box-shadow .14s;
@@ -412,7 +413,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .card .meta { display: grid; gap: 4px; padding: 11px 12px 13px; align-content: start; }
 .card .title { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
 .card .price { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.card .foot { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 2px; }
+.card .foot { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; min-width: 0; }
 .flag {
   position: absolute; top: 9px; left: 9px; padding: 2px 8px; border-radius: 999px;
   font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
@@ -425,13 +426,34 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   font-family: var(--mono); font-size: 11px; display: grid; place-items: center;
 }
 
-.dots { display: flex; gap: 4px; align-items: center; }
+.dots { display: flex; gap: 4px 5px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .dot {
   width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line-strong);
   box-shadow: inset 0 0 0 2px var(--surface);
 }
 .dot.more { font-size: 10px; color: var(--muted); border: none; box-shadow: none; width: auto; }
 .dots-label { font-size: 11.5px; color: var(--muted); margin-right: 1px; }
+
+/* A low colour warns in its own colour. The plain rule reads on either theme;
+   where color-mix is available the chip takes a tint of the actual swatch. */
+.clr-warn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 5px;
+  border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap;
+  background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+}
+.clr-warn i {
+  width: 11px; height: 11px; border-radius: 50%; flex: none;
+  background: var(--c, var(--muted)); border: 1px solid rgba(36, 27, 38, .25);
+}
+.clr-warn.out { background: var(--crimson-soft); color: var(--crimson); border-color: transparent; }
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .clr-warn {
+    background: color-mix(in srgb, var(--c, var(--muted)) 15%, var(--surface));
+    color: color-mix(in srgb, var(--c, var(--muted)) 55%, var(--ink));
+    border-color: color-mix(in srgb, var(--c, var(--muted)) 38%, var(--surface));
+  }
+}
+.card .foot { gap: 5px; }
 
 /* ---------------------------------------------------------- product sheet */
 
@@ -1414,6 +1436,37 @@ function visibleItems() {
         || i.variants.some((v) => v.name.toLowerCase().includes(q))));
 }
 
+/**
+ * The colour row: a plain dot for a colour with plenty left, and a chip in that
+ * colour's own tint for one that is low, spoken for, or gone.
+ */
+function colourStrip(item, low) {
+  // A piece with nothing left anywhere already says so in the corner.
+  if (item.stock <= 0) return '';
+
+  const bits = item.variants.map((v) => {
+    const free = addable(item, v.id);
+    const swatch = v.swatch || '#c9bfc4';
+    // Named colours lead with the name; a piece sold in one colour just states
+    // the count, so an unnamed variant never reads "Only sold out".
+    const lead = v.name ? `${esc(v.name)} · ` : '';
+    const chip = (text, cls = '') =>
+      `<span class="clr-warn ${cls}" style="--c:${esc(swatch)}"><i></i>${lead}${text}</span>`;
+
+    if (v.quantity <= 0) return chip('sold out', 'out');
+    if (free <= 0) return chip('all in your tray');
+    if (free < low) return chip(`${free} left`);
+    return item.hasColours
+      ? `<i class="dot" style="background:${esc(swatch)}" title="${esc(v.name)}"></i>`
+      : '';
+  }).filter(Boolean);
+
+  if (!bits.length) return '';
+  const plainOnly = bits.every((x) => x.startsWith('<i'));
+  return `<span class="dots">${
+    item.hasColours && plainOnly ? '<span class="dots-label">Colours:</span>' : ''}${bits.join('')}</span>`;
+}
+
 function paintCatalogue() {
   const items = visibleItems();
   if (!items.length) {
@@ -1424,15 +1477,11 @@ function paintCatalogue() {
   const t = Number(S.settings.threshold) || 10;
   $('#catalogue').innerHTML = items.map((i) => {
     const inTray = S.tray.filter((r) => r.itemId === i.id).reduce((s, r) => s + r.qty, 0);
-    const free = itemAddable(i);
-    const scope = i.hasColours ? ` · ${i.variants.length} colours` : '';
-    const flag = i.stock <= 0 ? '<span class="flag out">Sold out</span>'
-      : free <= 0 ? '<span class="flag low">All in your tray</span>'
-        : free < t ? `<span class="flag low">Only ${free} left${scope}</span>` : '';
-    const dots = i.hasColours ? `<span class="dots"><span class="dots-label">Colours:</span>${
-      i.variants.slice(0, 5).map((v) =>
-        `<i class="dot" style="background:${esc(v.swatch || '#c9bfc4')}" title="${esc(v.name)}"></i>`).join('')}
-      ${i.variants.length > 5 ? `<span class="dot more">+${i.variants.length - 5}</span>` : ''}</span>` : '';
+    // Only the whole piece being gone earns the corner banner; anything else is
+    // said per colour, so no number on this card ever covers a different scope
+    // from the one on the product page.
+    const flag = i.stock <= 0 ? '<span class="flag out">Sold out</span>' : '';
+    const dots = colourStrip(i, t);
     return `<button class="card" data-id="${esc(i.id)}">
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
       <span class="meta">
@@ -1530,7 +1579,6 @@ function paintSheet() {
   const inTray = trayQty(item.id, v.id);
   const freeHere = addable(item, v.id);
   const freeAll = itemAddable(item);
-  const n = item.variants.length;
   const named = v.name || 'this piece';
   const parts = [];
   let trayCovered = false;
@@ -1541,7 +1589,11 @@ function paintSheet() {
     trayCovered = true;
   } else parts.push(`${freeHere} ${v.name ? `in ${v.name}` : 'available'}`);
 
-  if (item.hasColours) parts.push(`${freeAll} across ${n === 2 ? 'both colours' : `all ${n} colours`}`);
+  // Deliberately no all-colours total: every count the customer meets — here and
+  // on the cards — is now about the one colour in front of them.
+  if (item.hasColours && freeHere <= 0 && freeAll > 0) {
+    parts.push(`${freeAll} available in other colours`);
+  }
   if (inTray && !trayCovered) parts.push(`${inTray} already in your tray`);
   $('#item-stock').textContent = parts.join(' · ');
   $('#item-restock').innerHTML = addable(item, v.id) <= 0 ? restockHtml(item, v) : '';
