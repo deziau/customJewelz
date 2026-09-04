@@ -2282,8 +2282,26 @@ function pickList() {
   }).sort((a, b) => b.needed - a.needed);
 }
 
+/**
+ * Pieces spoken for by orders still to be made. Placing an order already takes
+ * them out of the sellable count, but they are physically still in the drawer
+ * until the piece is built — so the studio needs both figures, not one.
+ */
+function committedOf(itemId, variantId) {
+  let n = 0;
+  for (const o of S.orders) {
+    if (!OPEN_STATUS.includes(o.status)) continue;
+    for (const i of o.items || []) {
+      if ((i.itemId || i.id) === itemId && (i.variantId || 'v0') === variantId) n += i.qty;
+    }
+  }
+  return n;
+}
+
 function stockRow({ item, v }) {
   const t = threshold();
+  const committed = committedOf(item.id, v.id);
+  const inHand = v.quantity + committed;
   const tag = v.quantity <= 0 ? '<span class="tag out">out of stock</span>'
     : v.quantity < t ? `<span class="tag low">low · ${v.quantity}</span>`
       : `<span class="tag ok">${v.quantity}</span>`;
@@ -2297,6 +2315,10 @@ function stockRow({ item, v }) {
       hasSize(item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
     <td class="r">${money(item.price)}${
       item.urgentFee ? `<br><span class="muted" style="font-size:11.5px">rush ${money(item.urgentFee)}</span>` : ''}</td>
+    <td class="r">${inHand}</td>
+    <td class="r">${committed
+      ? `<span class="tag low">${committed}</span>`
+      : '<span class="muted">—</span>'}</td>
     <td class="r">${tag}</td>
     <td><div class="acts">
       <input type="number" value="10" step="1" aria-label="How many arrived">
@@ -2310,8 +2332,9 @@ function stockRow({ item, v }) {
 function stockTable(rows, blank) {
   return `<div class="scroll"><table class="repo">
     <thead><tr><th></th><th>Component &amp; colour</th><th>Section</th>
-      <th class="r">Price</th><th class="r">In repo</th><th></th></tr></thead>
-    <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="6" class="blank">${blank}</td></tr>`}</tbody>
+      <th class="r">Price</th><th class="r">In hand</th><th class="r">For orders</th>
+      <th class="r">Free to sell</th><th></th></tr></thead>
+    <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="8" class="blank">${blank}</td></tr>`}</tbody>
   </table></div>`;
 }
 
@@ -2361,6 +2384,12 @@ function viewRepo() {
         <input id="repo-find" placeholder="Search name, colour or SKU" style="width:220px">
         <button class="solid" id="repo-add">Add component</button></header>
       ${stockTable(stockRows(), 'Nothing in the repo yet — add your first component.')}
+      <div class="pad" style="border-top:1px solid var(--line)">
+        <p class="muted" style="font-size:12.5px;margin:0"><b>In hand</b> is what should be in the
+          drawer right now. <b>For orders</b> is what the orders you still have to make will take out
+          of it. <b>Free to sell</b> is the difference — the number customers see while browsing, and
+          the one the stock alerts watch.</p>
+      </div>
     </section>
     <section class="panel">
       <header><h2>Sections</h2><span class="spacer"></span>

@@ -74,7 +74,7 @@ orders are never served stale.
 | Section | What it does |
 | --- | --- |
 | **Dashboard** | Open/ready order counts, stock alerts, order value, and a pick list of every component the open orders need — with a *short* flag when the repo cannot cover them. |
-| **Repo** | The whole component list: add, edit, retire or delete pieces, upload artwork (or point at a URL), and add stock as new deliveries arrive. Categories are editable too. |
+| **Repo** | The whole component list: add, edit, retire or delete pieces, upload artwork (or point at a URL), and add stock as new deliveries arrive. Categories are editable too. Each colour shows three figures: **In hand** (what should be in the drawer), **For orders** (what the orders still to be made will take out of it), and **Free to sell** (the difference — what customers see, and what the stock alerts watch). |
 | **Stock alerts** | *Out of stock*, *Low quantity* (below the threshold, default 10) and *Healthy stock*, each with the same inline restock controls. |
 | **Orders** | Every order with its customer, fulfilment choice, the exact pieces it needs, total and status. Filter by status; open **Details** for the full pick list and delivery address. |
 | **Shipping** | Delivery areas with their cost and ETA. These are what the customer picks from at checkout. |
