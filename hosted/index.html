@@ -587,6 +587,15 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .placeable.on { border-color: var(--accent); background: var(--accent-soft); }
 /* Changing your mind happens here, beside the thing you changed it about. */
+.in-tray {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 8px 8px 13px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600;
+}
+.in-tray b { font-variant-numeric: tabular-nums; }
+.in-tray .tray-ctl { margin-left: auto; }
+.in-tray .tray-ctl button { background: var(--surface); border-color: var(--line); }
+
 .tray-ctl { display: flex; gap: 4px; align-items: center; padding: 4px 2px 4px 6px; }
 .tray-ctl button {
   width: 32px; height: 32px; padding: 0; border-radius: 7px; font-size: 16px; line-height: 1;
@@ -903,6 +912,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             <span class="muted" style="font-size:12.5px" id="item-stock"></span>
           </div>
         </div>
+        <div id="item-intray"></div>
         <div id="item-restock"></div>
         <p class="notice" id="item-error" hidden></p>
         <button class="solid" id="item-add">Add to tray</button>
@@ -1750,14 +1760,11 @@ function paintSheet() {
   const freeAll = itemAddable(item);
   const named = v.name || 'this piece';
   const parts = [];
-  let trayCovered = false;
-
   if (v.quantity <= 0) parts.push(v.name ? `None left in ${v.name}` : 'None left');
   else if (freeHere <= 0) {
     parts.push(isLength(item)
       ? `All ${fmtLen(v.quantity)} of ${named} is in your tray`
       : `All ${v.quantity} ${named} ${v.quantity === 1 ? 'is' : 'are'} in your tray`);
-    trayCovered = true;
   } else {
     parts.push(`${amountLabel(item, freeHere)} ${v.name ? `in ${v.name}` : 'available'}`);
   }
@@ -1767,8 +1774,9 @@ function paintSheet() {
   if (item.hasColours && freeHere <= 0 && freeAll > 0) {
     parts.push(`${freeAll} available in other colours`);
   }
-  if (inTray && !trayCovered) parts.push(`${amountLabel(item, inTray)} already in your tray`);
   $('#item-stock').textContent = parts.join(' · ');
+  $('#item-intray').innerHTML = inTray ? `<div class="in-tray">
+      <span>In your tray <b>${amountLabel(item, inTray)}</b></span>${trayControls(item)}</div>` : '';
   $('#item-restock').innerHTML = addable(item, v.id) <= 0 ? restockHtml(item, v) : '';
   $('#item-error').hidden = true;
 }
@@ -1851,15 +1859,7 @@ function paintPlaceRail() {
           ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
           : 'all placed'}</span>
       </span>
-      <span class="tray-ctl">
-        <button type="button" data-tray="less" aria-label="Fewer ${esc(r.item.name)}"
-          title="${isLength(r.item) ? '10 cm less' : 'One fewer'}">−</button>
-        <button type="button" data-tray="more" aria-label="More ${esc(r.item.name)}"
-          title="${isLength(r.item) ? '10 cm more' : 'One more'}">+</button>
-        <button type="button" data-tray="drop" class="drop"
-          aria-label="Take ${esc(r.item.name)} out of your tray"
-          title="Take out of your tray">×</button>
-      </span>
+      ${trayControls(r.item)}
     </div>`;
   }).join('')}</div>`;
 }
@@ -3149,6 +3149,13 @@ function wireBrowse() {
   };
   $('#qty-up').addEventListener('click', () => nudge(1));
   $('#qty-down').addEventListener('click', () => nudge(-1));
+  $('#item-intray').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tray]');
+    if (!btn || !S.sheet) return;
+    adjustTray(S.sheet.itemId, S.sheet.variantId, btn.dataset.tray);
+    paintSheet();
+  });
+
   $('#item-colours').addEventListener('click', (e) => {
     const b = e.target.closest('.swatch');
     if (!b || b.disabled) return;
@@ -3198,34 +3205,52 @@ function wireTray() {
   });
 }
 
+/**
+ * Changing how much of something is in the tray. The same three controls appear
+ * on the item's own page and on the design rail, so the rules live here once.
+ */
+function adjustTray(itemId, variantId, action) {
+  const item = itemOf(itemId);
+  if (!item) return;
+  const placed = placedQty(itemId, variantId);
+  const step = isLength(item) ? 10 : 1;
+  const held = trayQty(itemId, variantId);
+
+  if (action === 'more') {
+    const room = addable(item, variantId);
+    if (room < step) toast(`Only ${amountLabel(item, room)} more available.`, 'bad');
+    else trayAdd(itemId, variantId, step);
+  }
+  if (action === 'less') {
+    if (held - step < placed) {
+      toast(placed ? 'Take it off the piece first.' : `That is already the smallest step.`, 'bad');
+    } else trayTake(itemId, variantId, step);
+  }
+  if (action === 'drop') {
+    if (placed) toast('Take it off the piece first, then you can drop it from the tray.', 'bad');
+    else trayTake(itemId, variantId, held);
+  }
+  paint();
+}
+
+/** The three controls, wherever they are shown. */
+function trayControls(item) {
+  const unit = isLength(item) ? '10 cm' : 'one';
+  return `<span class="tray-ctl">
+    <button type="button" data-tray="less" title="${unit} less" aria-label="${unit} less">−</button>
+    <button type="button" data-tray="more" title="${unit} more" aria-label="${unit} more">+</button>
+    <button type="button" data-tray="drop" class="drop" title="Take out of your tray"
+      aria-label="Take out of your tray">×</button>
+  </span>`;
+}
+
 /** Returns true when the click was a tray control rather than a placement. */
 function handleTrayControl(e) {
   const btn = e.target.closest('button[data-tray]');
   if (!btn) return false;
   e.stopPropagation();
   const row = btn.closest('.placeable');
-  const itemId = row.dataset.item;
-  const variantId = row.dataset.variant;
-  const item = itemOf(itemId);
-  if (!item) return true;
-  const placed = placedQty(itemId, variantId);
-  const step = isLength(item) ? 10 : 1;
-
-  if (btn.dataset.tray === 'more') {
-    if (addable(item, variantId) < step) {
-      toast(`Only ${amountLabel(item, addable(item, variantId))} more available.`, 'bad');
-    } else trayAdd(itemId, variantId, step);
-  }
-  if (btn.dataset.tray === 'less') {
-    if (trayQty(itemId, variantId) - step < placed) {
-      toast('Take it off the piece first, then you can drop it from the tray.', 'bad');
-    } else trayTake(itemId, variantId, step);
-  }
-  if (btn.dataset.tray === 'drop') {
-    if (placed) toast('Take it off the piece first, then you can drop it from the tray.', 'bad');
-    else trayTake(itemId, variantId, trayQty(itemId, variantId));
-  }
-  paint();
+  adjustTray(row.dataset.item, row.dataset.variant, btn.dataset.tray);
   return true;
 }
 

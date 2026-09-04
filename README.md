@@ -135,9 +135,12 @@ the stepper stops at what the repo actually holds. Adding puts the item in the
 customer's **tray**.
 
 **Tray** — the customer's own picks, held in their browser, so it survives
-closing the app. It has no page of its own: it *is* the rail in the design room,
-where each row carries − / + / × to change or drop a pick, and the panel header
-empties it. Nothing in the tray is charged or taken out of the repo.
+closing the app. It has no page of its own. The same − / + / × controls appear
+in the two places you would reach for them: on an item's own page, showing how
+much of it you already hold, and on the design rail beside each row. The rail's
+panel header empties the lot. Nothing in the tray is charged or taken out of
+the repo, and neither control will take something below what is already on the
+design — it says to take it off the piece first.
 
 **Design** — the tray becomes the rail beside the canvas, largest piece first:
 only what they picked can be placed, and each row counts down ("8 of 10 to
