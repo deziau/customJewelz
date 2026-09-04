@@ -1134,6 +1134,15 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </form>
 </dialog>
 
+<dialog id="dlg-ask">
+  <header><h2 id="ask-title">Are you sure?</h2></header>
+  <div class="body"><p id="ask-body" style="margin:0"></p></div>
+  <footer>
+    <button id="ask-no">Keep it</button>
+    <button class="solid" id="ask-yes">Yes</button>
+  </footer>
+</dialog>
+
 <dialog id="dlg-snapshot">
   <header><h2 id="snapshot-title">Finalised design</h2></header>
   <div class="body" id="snapshot-body"></div>
@@ -1530,6 +1539,36 @@ function dbFail(err) {
   if (code === 'resource_exhausted') return 'Too many changes at once. Give it a moment and try again.';
   if (code === 'not_granted' || code === 'revoked') return 'This view can only read the shop.';
   return (err && err.message) || 'That did not save.';
+}
+
+/**
+ * The page runs in a sandboxed frame where window.confirm is blocked and simply
+ * returns false — which silently turned every "are you sure?" into "no". This
+ * asks in the page instead.
+ */
+let askSettle = null;
+
+function ask(title, body, yesLabel = 'Yes', danger = false) {
+  return new Promise((resolve) => {
+    askSettle = (answer) => {
+      askSettle = null;
+      resolve(answer);
+    };
+    $('#ask-title').textContent = title;
+    $('#ask-body').textContent = body;
+    const yes = $('#ask-yes');
+    yes.textContent = yesLabel;
+    yes.classList.toggle('warnbtn', Boolean(danger));
+    $('#dlg-ask').showModal();
+  });
+}
+
+function wireAsk() {
+  const dlg = $('#dlg-ask');
+  $('#ask-yes').addEventListener('click', () => { dlg.close(); if (askSettle) askSettle(true); });
+  $('#ask-no').addEventListener('click', () => dlg.close());
+  // Covers Escape and the backdrop as well as the Cancel button.
+  dlg.addEventListener('close', () => { if (askSettle) askSettle(false); });
 }
 
 const guard = (fn) => async (...args) => {
@@ -2819,9 +2858,13 @@ function wireAdmin() {
 
     if (btn.dataset.act === 'del') {
       const onOrder = S.orders.some((o) => (o.items || []).some((i) => (i.itemId || i.id) === item.id));
-      if (!confirm(onOrder
-        ? `${item.name} appears on past orders, so it will be hidden from customers rather than deleted. Continue?`
-        : `Delete ${item.name} from the repo?`)) return;
+      const okToGo = onOrder
+        ? await ask(`Hide ${item.name}?`,
+            `${item.name} appears on past orders, so it will be hidden from customers rather than deleted.`,
+            'Hide it', true)
+        : await ask(`Delete ${item.name}?`,
+            'It goes out of the repo for good. Nothing else is affected.', 'Delete', true);
+      if (!okToGo) return;
       if (onOrder) { await S.db.doc(`catalog/${item.id}`).update({ active: false }); toast('Hidden from customers.', 'good'); }
       else { await S.db.doc(`catalog/${item.id}`).delete(); toast('Deleted.', 'good'); }
     }
@@ -2872,7 +2915,8 @@ function wireAdmin() {
     if (!btn) return;
     const tr = btn.closest('tr');
     if (btn.dataset.act === 'del') {
-      if (!confirm('Delete this delivery area?')) return;
+      if (!await ask('Delete this delivery area?',
+        'Customers will no longer be offered it at checkout.', 'Delete', true)) return;
       await S.db.doc(`zones/${tr.dataset.id}`).delete();
     } else {
       const cost = Number(tr.querySelector('[data-f=cost]').value);
@@ -3141,9 +3185,10 @@ function wireBrowse() {
 
 /** Quantities are changed where the tray is shown: in the design rail. */
 function wireTray() {
-  $('#tray-empty').addEventListener('click', () => {
+  $('#tray-empty').addEventListener('click', async () => {
     if (!S.tray.length) return;
-    if (!confirm('Empty your tray? Nothing is ordered — the pieces simply go back to the shop.')) return;
+    if (!await ask('Empty your tray?',
+      'Nothing is ordered either way — the pieces simply go back to the shop.', 'Empty it', true)) return;
     S.tray = [];
     saveTray();
     S.charms = [];
@@ -3273,9 +3318,11 @@ function wireDesign() {
     if (S.picked) { e.preventDefault(); unplace(S.picked); }
   });
 
-  $('#s-clear').addEventListener('click', () => {
+  $('#s-clear').addEventListener('click', async () => {
     if (!S.charms.length) return;
-    if (!confirm('Clear the piece? Everything goes back to your tray.')) return;
+    if (!await ask('Clear the piece?',
+      'Everything on it goes straight back to your tray, so nothing is lost but the arrangement.',
+      'Clear it', true)) return;
     clearAll();
   });
   $('#s-order').addEventListener('click', startOrder);
@@ -4071,7 +4118,8 @@ function wireRestock() {
     }
 
     if (btn.dataset.act === 'close') {
-      if (!confirm('Clear these requests? Do this once the piece is back and you have told them.')) return;
+      if (!await ask('Clear these requests?',
+        'Do this once the piece is back and you have told the people waiting.', 'Clear them', true)) return;
       const waiting = S.restock.filter((r) => r.itemId === item.id && r.variantId === variantId);
       await Promise.all(waiting.map((r) => S.db.doc(`restock/${r.id}`).update({ status: 'done' })));
       const variants = item.variants.map((v) => (v.id === variantId ? { ...v, restockEta: '' } : v));
@@ -4143,7 +4191,8 @@ function askCancelReason(id, by) {
 async function startAmend(order) {
   if (!canCustomerAmend(order)) { toast('The hour to change this order has passed.', 'bad'); return; }
   if (S.charms.length) {
-    if (!confirm('Your current design will be cleared so this order can be opened. Continue?')) return;
+    if (!await ask('Open this order for changes?',
+      'What is on the canvas now will be cleared so the order can be loaded.', 'Open it')) return;
   }
   await moveOrder(order.id, 'amending', 'Customer is changing the design.', 'customer');
 
@@ -4227,6 +4276,7 @@ function wireOrderActions() {
 
 function wireExtras() {
   wireOrderActions();
+  wireAsk();
   // Sold-out request button lives inside the product sheet, which re-renders.
   $('#item-restock').addEventListener('click', guard(async (e) => {
     const b = e.target.closest('button[data-ask]');
