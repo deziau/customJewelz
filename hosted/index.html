@@ -1175,7 +1175,7 @@ const TRAY_KEY = 'cj.tray.v2';
 const S = {
   db: null,
   ready: false,
-  settings: { businessName: 'CustomJewelz', currency: '₹', threshold: 10, pin: '2468', sections: [] },
+  settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, pin: '2468', sections: [] },
   items: [],
   byId: new Map(),
   zones: [],
@@ -2901,7 +2901,7 @@ function wireAdmin() {
     if (!Number.isInteger(thr) || thr < 1) return toast('The threshold must be a whole number above zero.', 'bad');
     await saveSettings({
       businessName: $('#set-name').value.trim() || 'CustomJewelz',
-      currency: $('#set-cur').value.trim() || '₹',
+      currency: $('#set-cur').value.trim() || 'A$',
       threshold: thr,
       pin: $('#set-pin').value.trim() || S.settings.pin,
     });

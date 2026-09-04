@@ -6,7 +6,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const state = {
-  currency: '₹',
+  currency: 'A$',
   categories: [],
   elements: [],
   byId: new Map(),

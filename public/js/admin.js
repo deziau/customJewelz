@@ -3,7 +3,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-const admin = { currency: '₹', threshold: 10, categories: [], view: 'dashboard' };
+const admin = { currency: 'A$', threshold: 10, categories: [], view: 'dashboard' };
 
 const money = (n) => `${admin.currency}${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>

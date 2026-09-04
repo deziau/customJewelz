@@ -39,7 +39,7 @@ app.use((err, _req, res, _next) => {
 });
 
 const initialPassword = auth.ensureAdminPassword();
-if (!getSetting('currency')) setSetting('currency', process.env.CURRENCY || '₹');
+if (!getSetting('currency')) setSetting('currency', process.env.CURRENCY || 'A$');
 if (!getSetting('low_stock_threshold')) setSetting('low_stock_threshold', '10');
 if (!getSetting('business_name')) setSetting('business_name', process.env.BUSINESS_NAME || 'CustomJewelz');
 

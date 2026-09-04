@@ -9,7 +9,7 @@ function lowStockThreshold() {
 }
 
 function currency() {
-  return getSetting('currency', '₹');
+  return getSetting('currency', 'A$');
 }
 
 function round2(n) {

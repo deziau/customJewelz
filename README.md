@@ -118,7 +118,7 @@ data/               SQLite database + uploaded images (git-ignored)
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP port |
 | `ADMIN_PASSWORD` | `admin123` | Initial admin password (first run only) |
-| `CURRENCY` | `₹` | Initial currency symbol |
+| `CURRENCY` | `A$` | Initial currency symbol |
 | `BUSINESS_NAME` | `CustomJewelz` | Initial shop name |
 | `DB_PATH` | `data/customjewelz.db` | Database file |
 | `NODE_ENV` | — | Set to `production` to mark the session cookie `secure` |
