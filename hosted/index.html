@@ -381,6 +381,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   max-width: 1500px; margin: 0 auto; padding: 22px 22px 0;
 }
 .shop-head .lede { max-width: 46ch; }
+.shop-head .cta { margin-left: auto; }
 .shop-head h1 { font-size: 26px; }
 .shop-head .spacer { flex: 1; }
 
@@ -528,8 +529,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   padding: 0; display: grid; place-items: center;
 }
 
-/* Sits clear of the masthead at rest, then rides the viewport as the page
-   scrolls, so the way into the design room is never scrolled off. */
+/* The same control twice: seated beside the intro at rest, and floating once
+   that seat has scrolled away. */
 .fab {
   position: fixed; top: var(--fab-top, 72px); right: 18px; z-index: 55;
   display: flex; align-items: center; gap: 9px;
@@ -545,7 +546,61 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 }
 .fab:hover .pip { background: var(--ground); color: var(--ink); }
 
+/* --------------------------------------------------------- accounts & misc */
+
+.acct { display: flex; align-items: center; gap: 7px; }
+.acct .who { font-size: 12.5px; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.seg { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; margin-bottom: 14px; }
+.seg button {
+  flex: 1; border: none; background: none; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--muted); padding: 7px 12px; border-radius: 999px;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+.snapshot {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; display: block;
+  background: var(--velvet-1);
+}
+.snap-thumb {
+  width: 54px; height: 54px; object-fit: cover; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--velvet-1); cursor: zoom-in;
+}
+
+.orders-mine { max-width: 940px; margin: 0 auto; padding: 22px 22px 64px; display: grid; gap: 16px; }
+.order-card {
+  display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+}
+.order-card .body { display: grid; gap: 7px; align-content: start; }
+.order-card .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+
+.restock-note {
+  display: grid; gap: 8px; padding: 11px 13px; border-radius: 9px;
+  background: var(--ochre-soft); color: var(--ochre); font-size: 13px;
+}
+.restock-note b { color: var(--ink); }
+.req-group { border-bottom: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 9px; }
+.req-group:last-child { border-bottom: none; }
+.req-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.req-who { display: flex; gap: 7px; flex-wrap: wrap; font-size: 12.5px; }
+.req-who span { background: var(--surface-2); border-radius: 999px; padding: 2px 9px; }
+.eta-set { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.eta-set input[type="date"] { width: auto; }
+
+.summary button.tile {
+  background: var(--surface); padding: 14px 16px; display: grid; gap: 3px; text-align: left;
+  border: none; border-radius: 0; cursor: pointer; font: inherit; color: inherit; width: 100%;
+}
+.summary button.tile:hover { background: var(--accent-soft); }
+.summary button.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.summary b { font-family: var(--display); font-size: 27px; font-weight: 400; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.summary .sev-out b { color: var(--crimson); }
+.summary .sev-low b { color: var(--ochre); }
+.summary .go { font-size: 11px; color: var(--accent); font-weight: 600; }
+
 @media (max-width: 620px) {
+  .order-card { grid-template-columns: 1fr; }
   .sheet { grid-template-columns: 1fr; }
   .variant-row { grid-template-columns: 40px 1fr 1fr; }
   .variant-row .kill { grid-column: 3; justify-self: end; }
@@ -557,10 +612,14 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   <div class="modes" role="group" aria-label="Choose view">
     <button id="mode-browse" aria-pressed="true">Browse</button>
     <button id="mode-design" aria-pressed="false">Design</button>
+    <button id="mode-mine" aria-pressed="false" hidden>My orders</button>
     <button id="mode-studio" aria-pressed="false">Studio</button>
   </div>
   <div class="spacer"></div>
   <button id="open-tray">Tray <span class="tag on" id="tray-pip">0</span></button>
+  <span class="acct">
+    <button id="acct-btn"><span class="who" id="acct-who">Sign in</span></button>
+  </span>
   <span class="eyebrow" id="conn">connecting…</span>
 </div>
 
@@ -577,6 +636,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <p class="muted" style="margin:6px 0 0">Pick the charms, bangles and chains you like — then arrange
         them on a base in the design room.</p>
     </div>
+    <button class="fab cta" id="cta-design" style="position:static">Go to design<span class="pip" id="cta-pip">0</span></button>
   </div>
   <div class="shop-bar">
     <input type="search" id="find" placeholder="Search the collection" aria-label="Search the collection">
@@ -645,6 +705,11 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </div>
 </div>
 
+<!-- ==================================================== customer orders -->
+<div id="myorders" hidden>
+  <div class="orders-mine" id="mine-body"></div>
+</div>
+
 <!-- ======================================================== studio -->
 <div id="studio" hidden>
   <div class="admin-wrap">
@@ -653,6 +718,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <button class="cat" data-view="repo" aria-pressed="false">Component repo</button>
       <button class="cat" data-view="stock" aria-pressed="false">Stock alerts</button>
       <button class="cat" data-view="orders" aria-pressed="false">Orders</button>
+      <button class="cat" data-view="restock" aria-pressed="false">Restock requests</button>
       <button class="cat" data-view="delivery" aria-pressed="false">Delivery areas</button>
       <button class="cat" data-view="setup" aria-pressed="false">Setup</button>
     </div>
@@ -687,6 +753,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             <span class="muted" style="font-size:12.5px" id="item-stock"></span>
           </div>
         </div>
+        <div id="item-restock"></div>
         <p class="notice" id="item-error" hidden></p>
         <button class="solid" id="item-add">Add to tray</button>
       </div>
@@ -742,7 +809,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <label class="f"><span>Your name *</span><input name="name" required autocomplete="name"></label>
         <label class="f"><span>Phone *</span><input name="phone" required inputmode="tel" autocomplete="tel"></label>
       </div>
-      <label class="f"><span>Email</span><input name="email" type="email" autocomplete="email"></label>
+      <label class="f"><span>Email * — we'll email you as your order moves along</span>
+        <input name="email" type="email" required autocomplete="email"></label>
       <label class="f"><span>Notes for the maker</span><textarea name="notes" placeholder="Initial letters, wrist size, engraving, the date you need it by…"></textarea></label>
       <p class="notice" id="ck-error" hidden></p>
     </div>
@@ -807,6 +875,60 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </form>
 </dialog>
 
+<dialog id="dlg-auth">
+  <header><h2 id="auth-title">Sign in to order</h2></header>
+  <form id="form-auth">
+    <div class="body">
+      <div class="seg" role="group" aria-label="Sign in or create an account">
+        <button type="button" id="auth-in" aria-pressed="true">I have an account</button>
+        <button type="button" id="auth-up" aria-pressed="false">Create an account</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:0" id="auth-lede"></p>
+
+      <div id="auth-signin">
+        <label class="f"><span>Email or phone</span>
+          <input name="handle" autocomplete="username" placeholder="you@example.com or 98765 43210"></label>
+        <label class="f"><span>PIN</span>
+          <input name="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
+      </div>
+
+      <div id="auth-signup" hidden>
+        <label class="f"><span>Your name *</span><input name="upName" autocomplete="name"></label>
+        <div class="pair">
+          <label class="f"><span>Email *</span><input name="upEmail" type="email" autocomplete="email"></label>
+          <label class="f"><span>Phone *</span><input name="upPhone" inputmode="tel" autocomplete="tel"></label>
+        </div>
+        <label class="f"><span>Choose a PIN — at least 4 characters</span>
+          <input name="upPin" type="password" inputmode="numeric" autocomplete="new-password"></label>
+        <p class="muted" style="font-size:12.5px;margin:0">You can sign in later with either your email
+          or your phone. We use the email to tell you when your order moves along.</p>
+      </div>
+      <p class="notice" id="auth-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="auth-cancel">Cancel</button>
+      <button type="submit" class="solid" id="auth-submit">Sign in</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-account">
+  <header><h2>Your account</h2></header>
+  <div class="body" id="account-body"></div>
+  <footer>
+    <button class="warnbtn" id="account-out">Sign out</button>
+    <span style="flex:1"></span>
+    <button id="account-orders">My orders</button>
+    <button class="solid" id="account-close">Close</button>
+  </footer>
+</dialog>
+
+<dialog id="dlg-snapshot">
+  <header><h2 id="snapshot-title">Finalised design</h2></header>
+  <div class="body" id="snapshot-body"></div>
+  <footer><button class="solid" id="snapshot-close">Close</button></footer>
+</dialog>
+
 <dialog id="dlg-order">
   <header><h2 id="order-title">Order</h2></header>
   <div class="body" id="order-body"></div>
@@ -860,6 +982,10 @@ const S = {
   adminOpen: false,
   sheet: null,         // { itemId, variantId, qty, image }
   draft: null,         // studio: component being edited
+  account: null,       // the signed-in customer, or null
+  customers: [],
+  restock: [],         // open restock requests
+  ctaSeated: true,     // is the in-page "go to design" button still on screen?
 };
 
 /* ------------------------------------------------------------------ basics */
@@ -905,6 +1031,9 @@ function normalize(id, d) {
     swatch: String(v.swatch || ''),
     sku: String(v.sku || d.sku || ''),
     quantity: Math.max(0, Number(v.quantity) || 0),
+    // The date the seller expects more; shown to customers instead of a
+    // restock button, so it has to survive every read and write.
+    restockEta: String(v.restockEta || ''),
   }));
   return {
     id,
@@ -1095,6 +1224,20 @@ async function connect() {
     S.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     if (S.mode === 'studio') paintAdmin();
+    if (S.mode === 'mine') paintMine();
+  }, onDbError);
+
+  db.collection('restock').onSnapshot((snap) => {
+    S.restock = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((r) => r.status !== 'done')
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    if (S.mode === 'studio') paintAdmin();
+    if ($('#dlg-item').open) paintSheet();
+  }, onDbError);
+
+  db.collection('customers').onSnapshot((snap) => {
+    S.customers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    restoreAccount();
   }, onDbError);
 
   setTimeout(() => {
@@ -1226,6 +1369,7 @@ function paintSheet() {
   $('#item-stock').textContent = v.quantity <= 0
     ? 'None left in the repo.'
     : `${v.quantity} in stock${inTray ? ` · ${inTray} already in your tray` : ''}`;
+  $('#item-restock').innerHTML = v.quantity <= 0 ? restockHtml(item, v) : '';
   $('#item-error').hidden = true;
 }
 
@@ -1300,8 +1444,10 @@ function paintTrayDialog() {
 function paintTrayPip() {
   const n = trayTotal();
   $('#tray-pip').textContent = n;
-  $('#fab-pip').textContent = n;
-  $('#fab-pip').hidden = n === 0;
+  for (const pip of [$('#fab-pip'), $('#cta-pip')]) {
+    pip.textContent = n;
+    pip.hidden = n === 0;
+  }
   const left = S.tray.reduce((s, r) => s + Math.max(0, toPlace(r.itemId, r.variantId)), 0);
   $('#tray-left').textContent = n === 0 ? 'nothing picked yet'
     : left === 0 ? 'all of it is on the piece'
@@ -1532,9 +1678,11 @@ function paintBill() {
 
 function paint() {
   paintTrayPip();
+  paintAccount();
   if (S.mode === 'browse') { paintShopCats(); paintCatalogue(); }
   else if (S.mode === 'design') { paintPlaceRail(); paintStage(); paintBill(); }
-  else paintAdmin();
+  else if (S.mode === 'mine') paintMine();
+  else if (S.mode === 'studio') paintAdmin();
   if ($('#dlg-tray').open) paintTrayDialog();
 }
 </script>
@@ -1559,6 +1707,7 @@ function leftovers() {
 
 function startOrder() {
   if (!S.base) { toast('Place a base piece first.', 'bad'); return; }
+  if (!S.account) { openAuth('Sign in to place your order'); return; }
   const rest = leftovers();
   if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
 
@@ -1588,6 +1737,12 @@ function openCheckout() {
         z.eta ? ` · ${esc(z.eta)} days` : ''}</option>`).join('')
     : '<option value="">No delivery areas set up</option>';
   $('#ck-error').hidden = true;
+  const f = $('#form-checkout');
+  if (S.account) {
+    f.name.value = f.name.value || S.account.name || '';
+    f.phone.value = f.phone.value || S.account.phone || '';
+    f.email.value = f.email.value || S.account.email || '';
+  }
   paintCheckoutSum(items);
   $('#dlg-checkout').showModal();
 }
@@ -1640,13 +1795,22 @@ async function submitOrder(form) {
     areaName = zone.area;
   }
 
+  const email = String(form.get('email') || '').trim();
+  if (!email) throw new Error('Enter an email so we can keep you posted.');
+
+  // A picture of the finished piece travels with the order, so the bench can
+  // build exactly what the customer arranged.
+  const snapshot = await renderSnapshot();
+
   const itemsTotal = lines.reduce((s, l) => s + l.total, 0);
   const id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const order = {
     no: orderNumber(),
+    customerId: S.account ? S.account.id : '',
+    snapshot,
     name: String(form.get('name')).trim(),
     phone: String(form.get('phone')).trim(),
-    email: String(form.get('email') || '').trim(),
+    email,
     notes: String(form.get('notes') || '').trim(),
     fulfilment, area: areaName,
     address: fulfilment === 'ship' ? String(form.get('address')).trim() : '',
@@ -1692,6 +1856,8 @@ function showDone(order) {
   const left = trayTotal();
   $('#done-body').innerHTML = `
     <p>Thank you — order <b class="mono">${esc(order.no)}</b> is on the book.</p>
+    ${order.snapshot ? `<img class="snapshot" src="${esc(order.snapshot)}"
+      alt="The piece you designed" style="margin-bottom:14px">` : ''}
     <div class="sum">
       <div><span>Pieces used</span><span class="num">${money(order.itemsTotal)}</span></div>
       <div><span>Delivery${order.area ? ` — ${esc(order.area)}` : ''}</span>
@@ -1791,11 +1957,16 @@ function viewOverview() {
   const value = S.orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + (o.total || 0), 0);
   return `
     <div class="summary">
-      <div><span class="eyebrow">Orders to make</span><b>${open}</b></div>
-      <div><span class="eyebrow">Ready to hand over</span><b>${ready}</b></div>
-      <div class="sev-out"><span class="eyebrow">Out of stock</span><b>${b.out.length}</b></div>
-      <div class="sev-low"><span class="eyebrow">Low · under ${threshold()}</span><b>${b.low.length}</b></div>
-      <div><span class="eyebrow">Order value</span><b>${money(value)}</b></div>
+      <button class="tile" data-go="orders" data-filter="new"><span class="eyebrow">Orders to make</span>
+        <b>${open}</b><span class="go">Open the order book →</span></button>
+      <button class="tile" data-go="orders" data-filter="ready"><span class="eyebrow">Ready to hand over</span>
+        <b>${ready}</b><span class="go">See what's waiting →</span></button>
+      <button class="tile sev-out" data-go="stock"><span class="eyebrow">Out of stock</span>
+        <b>${b.out.length}</b><span class="go">Restock these →</span></button>
+      <button class="tile sev-low" data-go="stock"><span class="eyebrow">Low · under ${threshold()}</span>
+        <b>${b.low.length}</b><span class="go">Check stock alerts →</span></button>
+      <button class="tile" data-go="restock"><span class="eyebrow">Restock requests</span>
+        <b>${S.restock.length}</b><span class="go">Customers waiting →</span></button>
     </div>
     <section class="panel">
       <header><h2>What the open orders need</h2><span class="spacer"></span>
@@ -1866,9 +2037,11 @@ function viewOrders() {
         ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
       </select></header>
     <div class="scroll"><table id="ord-table">
-      <thead><tr><th>Order</th><th>Customer</th><th>Receiving</th><th>Components needed</th>
+      <thead><tr><th>Design</th><th>Order</th><th>Customer</th><th>Receiving</th><th>Components needed</th>
         <th class="r">Total</th><th>Status</th><th></th></tr></thead>
       <tbody>${S.orders.length ? S.orders.map((o) => `<tr data-id="${esc(o.id)}" data-status="${esc(o.status)}">
+        <td>${o.snapshot ? `<img class="snap-thumb" src="${esc(o.snapshot)}" alt="Design for ${esc(o.no)}"
+          data-snap="${esc(o.id)}">` : '<span class="muted" style="font-size:12px">—</span>'}</td>
         <td><b class="mono">${esc(o.no)}</b><br><span class="muted" style="font-size:12px">${
           esc(new Date(o.createdAt).toLocaleString())}</span></td>
         <td>${esc(o.name)}<br><span class="muted mono">${esc(o.phone)}</span></td>
@@ -1886,7 +2059,7 @@ function viewOrders() {
           </select>
           <button class="tiny" data-act="open">Details</button>
         </div></td></tr>`).join('')
-        : '<tr><td colspan="7" class="blank">No orders yet.</td></tr>'}</tbody>
+        : '<tr><td colspan="8" class="blank">No orders yet.</td></tr>'}</tbody>
     </table></div>
   </section>`;
 }
@@ -1947,7 +2120,11 @@ function viewSetup() {
   </div>`;
 }
 
-const ADMIN_VIEWS = { overview: viewOverview, repo: viewRepo, stock: viewStock, orders: viewOrders, delivery: viewDelivery, setup: viewSetup };
+const ADMIN_VIEWS = {
+  overview: () => viewOverview(), repo: () => viewRepo(), stock: () => viewStock(),
+  orders: () => viewOrders(), restock: () => viewRestock(),
+  delivery: () => viewDelivery(), setup: () => viewSetup(),
+};
 
 function paintAdmin() {
   $$('#admin-tabs .cat').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.adminView)));
@@ -2139,6 +2316,16 @@ function wireAdmin() {
     toast('Saved.', 'good');
   }));
 
+  if (typeof wireRestock === 'function') wireRestock();
+  $$('.summary .tile', body).forEach((tile) => tile.addEventListener('click', () => {
+    S.adminView = tile.dataset.go;
+    paintAdmin();
+    if (tile.dataset.filter) {
+      const sel = $('#ord-filter');
+      if (sel) { sel.value = tile.dataset.filter; sel.dispatchEvent(new Event('change')); }
+    }
+  }));
+
   $('#set-save')?.addEventListener('click', guard(async () => {
     const thr = parseInt($('#set-thr').value, 10);
     if (!Number.isInteger(thr) || thr < 1) return toast('The threshold must be a whole number above zero.', 'bad');
@@ -2194,6 +2381,8 @@ function showOrder(o) {
   if (!o) return;
   $('#order-title').textContent = `Order ${o.no}`;
   $('#order-body').innerHTML = `
+    ${o.snapshot ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="The finalised design"
+      style="margin-bottom:14px">` : ''}
     <p><b>${esc(o.name)}</b> · <span class="mono">${esc(o.phone)}</span>${o.email ? ` · ${esc(o.email)}` : ''}</p>
     <p>${o.fulfilment === 'ship'
       ? `<b>Ship to ${esc(o.area)}</b><br>${esc(o.address || '').replace(/\n/g, '<br>')}`
@@ -2217,15 +2406,22 @@ function showOrder(o) {
 
 function setMode(mode) {
   S.mode = mode;
-  $('#mode-browse').setAttribute('aria-pressed', String(mode === 'browse'));
-  $('#mode-design').setAttribute('aria-pressed', String(mode === 'design'));
-  $('#mode-studio').setAttribute('aria-pressed', String(mode === 'studio'));
+  for (const [id, name] of [['#mode-browse', 'browse'], ['#mode-design', 'design'],
+    ['#mode-mine', 'mine'], ['#mode-studio', 'studio']]) {
+    $(id).setAttribute('aria-pressed', String(mode === name));
+  }
   $('#browse').hidden = mode !== 'browse' || !S.ready;
   $('#design').hidden = mode !== 'design' || !S.ready;
+  $('#myorders').hidden = mode !== 'mine';
   $('#studio').hidden = mode !== 'studio';
-  $('#boot').hidden = S.ready || mode === 'studio';
-  $('#fab-design').hidden = mode !== 'browse' || !S.ready;
+  $('#boot').hidden = S.ready || mode === 'studio' || mode === 'mine';
+  updateFab();
   paint();
+}
+
+/** The floating button only appears once its seated twin has scrolled away. */
+function updateFab() {
+  $('#fab-design').hidden = S.mode !== 'browse' || !S.ready || S.ctaSeated;
 }
 
 function wireBrowse() {
@@ -2479,6 +2675,7 @@ function wirePieceDialog() {
           swatch: v.swatch || '',
           sku: (v.sku || '').trim() || (v.name.trim() ? `${baseSku}-${slug(v.name).toUpperCase()}` : baseSku),
           quantity: v.quantity,
+          restockEta: v.restockEta || '',
         })),
         active: f.active.checked,
         order: id && itemOf(id) ? itemOf(id).order : S.items.length + 1,
@@ -2530,13 +2727,438 @@ function wireShell() {
   });
 }
 
+</script>
+
+<script>
+'use strict';
+
+/* ------------------------------------------------------- design snapshot */
+
+const loadImage = (src) => new Promise((res, rej) => {
+  const im = new Image();
+  im.onload = () => res(im);
+  im.onerror = () => rej(new Error('image'));
+  im.src = src;
+});
+
+/**
+ * Paints the finished piece onto a canvas — the velvet ground, the base, then
+ * every charm at the position, size and rotation the customer left it — and
+ * returns it as a data URL small enough to travel inside the order document.
+ * Returns '' if anything goes wrong; an order must never fail over a picture.
+ */
+async function renderSnapshot(size = 560) {
+  try {
+    if (!S.base) return '';
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const ground = ctx.createRadialGradient(size / 2, size * 0.42, size * 0.05, size / 2, size * 0.42, size * 0.85);
+    ground.addColorStop(0, '#f8f5f2');
+    ground.addColorStop(1, '#e2d8dd');
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, 0, size, size);
+
+    const draw = async (item, variantId, cx, cy, w, rot) => {
+      const src = item.images[imageIndexFor(item, variantId)] || item.images[0];
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((rot || 0) * Math.PI / 180);
+      if (src) {
+        const img = await loadImage(src);
+        ctx.drawImage(img, -w / 2, -w / 2, w, w);
+      } else {
+        ctx.fillStyle = '#241b26';
+        ctx.font = `${Math.round(w * 0.8)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.glyph, 0, 0);
+      }
+      ctx.restore();
+    };
+
+    const baseItem = itemOf(S.base.itemId);
+    if (baseItem) await draw(baseItem, S.base.variantId, size / 2, size / 2, size * 0.66, 0);
+    for (const c of [...S.charms].sort((a, b) => a.z - b.z)) {
+      const item = itemOf(c.itemId);
+      if (item) await draw(item, c.variantId, size * c.x / 100, size * c.y / 100, size * c.w / 100, c.rot);
+    }
+
+    // Documents cap at 256 KiB, so step the quality down until it comfortably fits.
+    for (const q of [0.82, 0.7, 0.55, 0.4]) {
+      let out = canvas.toDataURL('image/webp', q);
+      if (!out.startsWith('data:image/webp')) out = canvas.toDataURL('image/jpeg', q);
+      if (out.length < 150000) return out;
+    }
+    return '';
+  } catch {
+    return '';   // a tainted canvas or a missing image must not block the order
+  }
+}
+
+function showSnapshot(order) {
+  if (!order || !order.snapshot) return;
+  $('#snapshot-title').textContent = `Design for ${order.no}`;
+  $('#snapshot-body').innerHTML = `<img class="snapshot" src="${esc(order.snapshot)}" alt="Finalised design">`;
+  $('#dlg-snapshot').showModal();
+}
+
+/* ---------------------------------------------------------------- accounts */
+
+const ACCOUNT_KEY = 'cj.account.v1';
+
+/** A stable document id for an email or phone, inside the path grammar. */
+function handleId(raw) {
+  const v = String(raw || '').trim().toLowerCase();
+  if (!v) return '';
+  if (v.includes('@')) return 'e-' + v.replace(/[^a-z0-9_.~:@+-]/g, '-');
+  return 'p-' + v.replace(/[^0-9+]/g, '');
+}
+
+async function hashPin(pin, salt) {
+  const data = new TextEncoder().encode(`${salt}::${pin}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function paintAccount() {
+  const who = $('#acct-who');
+  who.textContent = S.account ? (S.account.name || 'Account') : 'Sign in';
+  $('#acct-btn').title = S.account ? 'Your account and orders' : 'Sign in or create an account';
+  $('#mode-mine').hidden = !S.account;
+}
+
+/** Re-attaches the signed-in customer once the customer list has loaded. */
+function restoreAccount() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null'); } catch { saved = null; }
+  if (!saved || !saved.id) { paintAccount(); return; }
+  const rec = S.customers.find((c) => c.id === saved.id || (c.alias || []).includes(saved.id));
+  S.account = rec ? { ...rec } : null;
+  if (!rec) { try { localStorage.removeItem(ACCOUNT_KEY); } catch { /* ignore */ } }
+  paintAccount();
+  if (S.mode === 'mine') paintMine();
+}
+
+function openAuth(title) {
+  $('#auth-title').textContent = title || 'Sign in to order';
+  $('#auth-error').hidden = true;
+  $('#form-auth').reset();
+  setAuthTab('in');
+  $('#dlg-auth').showModal();
+}
+
+function setAuthTab(which) {
+  const signup = which === 'up';
+  $('#auth-in').setAttribute('aria-pressed', String(!signup));
+  $('#auth-up').setAttribute('aria-pressed', String(signup));
+  $('#auth-signin').hidden = signup;
+  $('#auth-signup').hidden = !signup;
+  $('#auth-submit').textContent = signup ? 'Create account' : 'Sign in';
+  $('#auth-lede').textContent = signup
+    ? 'An account keeps your orders together and lets us tell you when yours is ready.'
+    : 'Sign in with the email or phone you used, and your PIN.';
+  $('#auth-error').hidden = true;
+}
+
+function signedIn(rec) {
+  S.account = rec;
+  try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ id: rec.id })); } catch { /* private mode */ }
+  paintAccount();
+  paint();
+}
+
+async function doSignIn(form) {
+  const id = handleId(form.get('handle'));
+  const pin = String(form.get('pin') || '');
+  if (!id || !pin) throw new Error('Enter your email or phone, and your PIN.');
+  const snap = await S.db.doc(`customers/${id}`).get();
+  if (!snap.exists) throw new Error('No account with that email or phone. Create one instead.');
+  const rec = { id, ...snap.data() };
+  if (await hashPin(pin, rec.salt) !== rec.pinHash) throw new Error('That PIN does not match.');
+  signedIn(rec);
+  return rec;
+}
+
+async function doSignUp(form) {
+  const name = String(form.get('upName') || '').trim();
+  const email = String(form.get('upEmail') || '').trim().toLowerCase();
+  const phone = String(form.get('upPhone') || '').trim();
+  const pin = String(form.get('upPin') || '');
+  if (!name) throw new Error('Tell us your name.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Enter a valid email address.');
+  if (phone.replace(/\D/g, '').length < 7) throw new Error('Enter a phone number we can reach you on.');
+  if (pin.length < 4) throw new Error('Your PIN needs at least 4 characters.');
+
+  const emailId = handleId(email);
+  const phoneId = handleId(phone);
+  const existing = await Promise.all([S.db.doc(`customers/${emailId}`).get(), S.db.doc(`customers/${phoneId}`).get()]);
+  if (existing.some((e) => e.exists)) throw new Error('An account already uses that email or phone. Sign in instead.');
+
+  const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const rec = { name, email, phone, salt, pinHash: await hashPin(pin, salt), alias: [emailId, phoneId], createdAt: new Date().toISOString() };
+  await S.db.doc(`customers/${emailId}`).set(rec);
+  // The phone is a pointer at the same account, so either handle signs in.
+  await S.db.doc(`customers/${phoneId}`).set({ ...rec, primary: emailId });
+  signedIn({ id: emailId, ...rec });
+  return rec;
+}
+
+function signOut() {
+  S.account = null;
+  try { localStorage.removeItem(ACCOUNT_KEY); } catch { /* ignore */ }
+  paintAccount();
+  setMode('browse');
+}
+
+function paintAccountDialog() {
+  const a = S.account;
+  if (!a) return;
+  const mine = myOrders();
+  $('#account-body').innerHTML = `
+    <p style="margin-top:0"><b>${esc(a.name)}</b></p>
+    <div class="sum" style="margin-top:0">
+      <div><span>Email</span><span>${esc(a.email)}</span></div>
+      <div><span>Phone</span><span class="mono">${esc(a.phone)}</span></div>
+      <div><span>Orders placed</span><span class="num">${mine.length}</span></div>
+    </div>
+    <p class="muted" style="font-size:12.5px;margin-bottom:0">We email you at ${esc(a.email)} as your
+      order moves from new to ready.</p>`;
+}
+
+/* ------------------------------------------------------------- my orders */
+
+const myOrders = () => (S.account
+  ? S.orders.filter((o) => o.customerId === S.account.id
+      || (o.email || '').toLowerCase() === (S.account.email || '').toLowerCase())
+  : []);
+
+function paintMine() {
+  if (!S.account) {
+    $('#mine-body').innerHTML = `<section class="panel"><div class="blank">
+      <p>Sign in to see your orders.</p>
+      <button class="solid" id="mine-signin">Sign in</button></div></section>`;
+    $('#mine-signin').addEventListener('click', () => openAuth('Sign in to see your orders'));
+    return;
+  }
+  const mine = myOrders();
+  $('#mine-body').innerHTML = `
+    <div class="shop-head" style="padding:0">
+      <div class="lede"><h1>Your orders</h1>
+        <p class="muted" style="margin:6px 0 0">Everything you've ordered, newest first.
+          We'll email ${esc(S.account.email)} as each one moves along.</p></div>
+    </div>
+    ${mine.length ? mine.map((o) => `<article class="order-card">
+      ${o.snapshot ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="Your design for ${esc(o.no)}">`
+        : '<div class="mini" style="width:100%;aspect-ratio:1">no image</div>'}
+      <div class="body">
+        <div class="row"><b class="mono">${esc(o.no)}</b>
+          <span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span>
+          <span class="muted" style="font-size:12.5px">${esc(new Date(o.createdAt).toLocaleDateString())}</span></div>
+        <div style="font-size:13px">${(o.items || []).map((i) =>
+          `${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''} ×${i.qty}`).join('<br>')}</div>
+        <div class="sum" style="margin-top:4px">
+          <div><span>Pieces</span><span class="num">${money(o.itemsTotal)}</span></div>
+          <div><span>${o.fulfilment === 'ship' ? `Delivery — ${esc(o.area || '')}` : 'Collecting from the studio'}</span>
+            <span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
+          <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
+        </div>
+      </div>
+    </article>`).join('')
+    : '<section class="panel"><p class="blank">No orders yet — design something you love.</p></section>'}`;
+}
+
+/* -------------------------------------------------------- restock requests */
+
+const etaOf = (variant) => (variant && variant.restockEta) || '';
+
+function prettyDate(iso) {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+const myRequestFor = (itemId, variantId) => S.restock.find((r) => r.itemId === itemId
+  && r.variantId === variantId && S.account && r.customerId === S.account.id);
+
+/** Sold out: show the expected date if the seller has one, else offer to ask. */
+function restockHtml(item, v) {
+  const eta = etaOf(v);
+  if (eta) {
+    return `<div class="restock-note">Back in stock around <b>${esc(prettyDate(eta))}</b>.
+      We've already ordered more — check back then.</div>`;
+  }
+  if (myRequestFor(item.id, v.id)) {
+    return `<div class="restock-note">You've asked us to restock this. We'll email you
+      ${S.account ? `at <b>${esc(S.account.email)}</b>` : ''} the moment it's back.</div>`;
+  }
+  return `<div class="restock-note">
+    <span>Out of stock, with no date yet. Ask us to make more and we'll let you know when it lands.</span>
+    <button class="solid" id="ask-restock" style="justify-self:start">Request a restock</button></div>`;
+}
+
+async function requestRestock() {
+  const item = itemOf(S.sheet.itemId);
+  const v = variantOf(item, S.sheet.variantId);
+  if (!item || !v) return;
+  if (!S.account) { openAuth('Sign in so we can tell you when it is back'); return; }
+  const id = `r-${item.id}-${v.id}-${S.account.id}`.replace(/[^A-Za-z0-9_.~:@+-]/g, '-');
+  await S.db.doc(`restock/${id}`).set({
+    itemId: item.id, variantId: v.id,
+    itemName: item.name, colour: v.name, sku: v.sku,
+    customerId: S.account.id, name: S.account.name,
+    email: S.account.email, phone: S.account.phone,
+    status: 'open', createdAt: new Date().toISOString(),
+  });
+  toast(`We'll email you when ${label(item, v.id)} is back.`, 'good');
+  paintSheet();
+}
+
+/** Requests grouped by the exact component and colour people are waiting for. */
+function restockGroups() {
+  const groups = new Map();
+  for (const r of S.restock) {
+    const key = `${r.itemId}::${r.variantId}`;
+    const g = groups.get(key) || { ...r, requests: [] };
+    g.requests.push(r);
+    groups.set(key, g);
+  }
+  return [...groups.values()].map((g) => {
+    const item = itemOf(g.itemId);
+    const v = variantOf(item, g.variantId);
+    return { ...g, item, variant: v, inRepo: v ? v.quantity : 0, eta: etaOf(v) };
+  }).sort((a, b) => b.requests.length - a.requests.length);
+}
+
+function viewRestock() {
+  const groups = restockGroups();
+  return `<section class="panel">
+    <header><h2>Restock requests</h2><span class="spacer"></span>
+      <span class="eyebrow">customers waiting on sold-out pieces</span></header>
+    ${groups.length ? `<div id="restock-list">${groups.map((g) => `
+      <div class="req-group" data-item="${esc(g.itemId)}" data-variant="${esc(g.variantId)}">
+        <div class="req-head">
+          <div class="mini">${g.item ? shotHtml(g.item, g.variantId) : ''}</div>
+          <div>
+            <b>${esc(g.itemName)}</b>${g.colour ? ` <span class="tag flat">${esc(g.colour)}</span>` : ''}
+            <br><span class="mono muted">${esc(g.sku || '')}</span>
+          </div>
+          <span class="tag ${g.requests.length > 2 ? 'out' : 'low'}">${g.requests.length} waiting</span>
+          ${g.inRepo > 0 ? `<span class="tag ok">${g.inRepo} back in the repo</span>` : ''}
+          <span class="spacer" style="flex:1"></span>
+          <div class="eta-set">
+            <label class="eyebrow" for="eta-${esc(g.itemId)}-${esc(g.variantId)}">Expected back</label>
+            <input type="date" id="eta-${esc(g.itemId)}-${esc(g.variantId)}" data-f="eta" value="${esc(g.eta)}">
+            <button class="tiny" data-act="eta">Save date</button>
+            ${g.eta ? '<button class="tiny" data-act="clear-eta">Clear</button>' : ''}
+            <button class="tiny warnbtn" data-act="close">Mark done</button>
+          </div>
+        </div>
+        <div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
+          esc(r.name)} — ${esc(r.email)}</span>`).join('')}</div>
+      </div>`).join('')}</div>`
+      : '<p class="blank">Nobody is waiting on a sold-out piece right now.</p>'}
+    <div class="pad" style="border-top:1px solid var(--line)">
+      <p class="muted" style="font-size:12.5px;margin:0">Saving a date shows customers
+        “back in stock around …” on that piece and stops them asking again. Marking done clears the
+        requests — do that once you've restocked and told them.</p>
+    </div>
+  </section>`;
+}
+
+function wireRestock() {
+  $('#restock-list')?.addEventListener('click', guard(async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const row = btn.closest('.req-group');
+    const item = itemOf(row.dataset.item);
+    if (!item) return;
+    const variantId = row.dataset.variant;
+
+    if (btn.dataset.act === 'eta' || btn.dataset.act === 'clear-eta') {
+      const value = btn.dataset.act === 'clear-eta' ? '' : row.querySelector('[data-f=eta]').value;
+      if (btn.dataset.act === 'eta' && !value) return toast('Pick a date first.', 'bad');
+      const variants = item.variants.map((v) => (v.id === variantId ? { ...v, restockEta: value } : v));
+      await S.db.doc(`catalog/${item.id}`).update({ variants });
+      toast(value ? `Customers now see ${prettyDate(value)}.` : 'Date cleared.', 'good');
+    }
+
+    if (btn.dataset.act === 'close') {
+      if (!confirm('Clear these requests? Do this once the piece is back and you have told them.')) return;
+      const waiting = S.restock.filter((r) => r.itemId === item.id && r.variantId === variantId);
+      await Promise.all(waiting.map((r) => S.db.doc(`restock/${r.id}`).update({ status: 'done' })));
+      const variants = item.variants.map((v) => (v.id === variantId ? { ...v, restockEta: '' } : v));
+      await S.db.doc(`catalog/${item.id}`).update({ variants });
+      toast('Requests cleared.', 'good');
+    }
+  }));
+}
+
+/* ----------------------------------------------------------------- wiring */
+
+function wireExtras() {
+  // Sold-out request button lives inside the product sheet, which re-renders.
+  $('#item-restock').addEventListener('click', guard(async (e) => {
+    if (e.target.closest('#ask-restock')) await requestRestock();
+  }));
+
+  $('#acct-btn').addEventListener('click', () => {
+    if (!S.account) return openAuth('Sign in');
+    paintAccountDialog();
+    $('#dlg-account').showModal();
+  });
+  $('#account-close').addEventListener('click', () => $('#dlg-account').close());
+  $('#account-orders').addEventListener('click', () => { $('#dlg-account').close(); setMode('mine'); });
+  $('#account-out').addEventListener('click', () => { $('#dlg-account').close(); signOut(); });
+  $('#mode-mine').addEventListener('click', () => setMode('mine'));
+
+  $('#auth-in').addEventListener('click', () => setAuthTab('in'));
+  $('#auth-up').addEventListener('click', () => setAuthTab('up'));
+  $('#auth-cancel').addEventListener('click', () => $('#dlg-auth').close());
+  $('#form-auth').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#auth-error');
+    const btn = $('#auth-submit');
+    err.hidden = true;
+    btn.disabled = true;
+    try {
+      const form = new FormData(e.target);
+      const rec = $('#auth-signup').hidden ? await doSignIn(form) : await doSignUp(form);
+      $('#dlg-auth').close();
+      toast(`Welcome, ${rec.name}.`, 'good');
+    } catch (ex) {
+      err.hidden = false;
+      err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('#snapshot-close').addEventListener('click', () => $('#dlg-snapshot').close());
+  $('#cta-design').addEventListener('click', () => setMode('design'));
+
+  // The floating twin appears exactly when the seated one leaves the viewport.
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      S.ctaSeated = entry.isIntersecting;
+      updateFab();
+    }, { threshold: 0 }).observe($('#cta-design'));
+  } else {
+    S.ctaSeated = false;
+  }
+}
+
+/* Boot last, so every module above is defined before the first paint. */
 loadTray();
-setMode('browse');
 wireBrowse();
 wireTray();
 wireDesign();
 wireCheckout();
 wirePieceDialog();
 wireShell();
+wireExtras();
+setMode('browse');
 connect();
 </script>

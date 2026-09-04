@@ -145,7 +145,21 @@ the piece, never for what is still in the tray.
 
 At checkout, if anything in the tray was not used, the customer is asked whether
 to **keep it for next time** or **discard it** before the order goes through.
-Use everything and the tray simply empties.
+Use everything and the tray simply empties. Ordering requires an **account** —
+created with a name, email, phone and a PIN, and signed into with either the
+email or the phone. Signed-in customers get a **My orders** room showing every
+order they have placed, its status, and a picture of the piece they designed.
+
+A picture of the finished piece is rendered when the order is placed and
+travels with it: on the customer's confirmation and order list, as a thumbnail
+in the studio's order book, and full size in the order's details.
+
+**Restock requests.** A sold-out piece offers customers a *Request a restock*
+button. Requests land in the studio's **Restock requests** section, grouped by
+component and colour with the count and everyone's contact details. Setting an
+expected-back date there replaces the button with "back in stock around …" for
+every customer, so nobody asks twice; *Mark done* clears the requests and the
+date once the piece has landed and they have been told.
 
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
 hearts running out does not hide the silver ones. Where a component has one
@@ -159,6 +173,13 @@ knowing:
 - The studio is behind a PIN (`2468` by default, changeable under **Setup**).
   That keeps the studio out of the way on a shared screen; it is not a security
   boundary, so treat the link itself as the thing to control.
+- Customer accounts are the same kind of soft gate. PINs are salted and hashed
+  rather than stored in the clear, but the shop's data is readable by everyone
+  the artifact is shared with, so treat an account as a way to keep orders
+  together — not as protection. Don't let customers reuse a real password, and
+  don't put anything sensitive in an order note.
+- Status emails are not sent by the app. The studio has the customer's address
+  on every order and every restock request; sending is still a manual step.
 - Stock is re-checked against the live database at the moment an order is
   placed, so a stale tab cannot claim components that have since gone. Two
   customers ordering the very last charm within the same instant is still
