@@ -3713,7 +3713,8 @@ function restockPanel(groups, title, urgent) {
             <br><span class="mono muted">${esc(g.sku || '')}</span>
             ${g.item && hasSize(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
           </div>
-          <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${g.requests.length} waiting</span>
+          <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${
+            g.requests.length} ${g.requests.length === 1 ? 'customer' : 'customers'} waiting</span>
           ${g.qtyTotal ? `<span class="tag flat">${g.qtyTotal}+ wanted</span>` : ''}
           ${urgent ? `<span class="tag on">${money(g.feeTotal)} in rush fees</span>` : ''}
           ${g.inRepo > 0 ? `<span class="tag ok">${g.inRepo} in the repo</span>` : ''}
@@ -3727,10 +3728,9 @@ function restockPanel(groups, title, urgent) {
             <button class="tiny warnbtn" data-act="close">Mark done</button>
           </div>
         </div>
-        ${urgent
-          ? g.requests.map((r) => urgentRequestLine(r)).join('')
-          : `<div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
-              esc(r.name)}${r.qty ? ` — wants ${r.qty}` : ' — no number given'} · ${esc(r.email)}</span>`).join('')}</div>`}
+        ${/* A plain request is just demand: the count is the useful part. Names
+              belong to the rush queue, where you have to answer each person. */
+          urgent ? g.requests.map((r) => urgentRequestLine(r)).join('') : ''}
       </div>`).join('')}</div>`
       : `<p class="blank">${urgent
         ? 'No one has paid to jump the queue.'

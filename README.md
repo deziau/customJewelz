@@ -182,9 +182,11 @@ empty, or they already hold every one we have in their tray — they are offered
 a restock request in two kinds: a plain one, and an **urgent** one carrying a
 rush fee set per component in the studio (a component with no fee is not
 offered urgently). Requests land in the studio under two separate displays,
-**Urgent restock requests** and **Restock requests**, each grouped by component
-and colour with the waiting count, the rush fees owed and everyone's contact
-details, and how many each person asked for. The quantity is optional on the
+**Urgent restock requests** and **Restock requests**, both grouped by component
+and colour. The plain display is demand, not correspondence: it shows how many
+customers are waiting and how many pieces they asked for between them, and
+names nobody. The rush display names each customer, because each one is owed an
+answer. The quantity is optional on the
 customer's side — leaving it blank means "just tell me when it's in", and the
 studio sees that plainly rather than a fabricated number; the group total is
 shown as "12+ wanted" because it only counts the people who named one.
