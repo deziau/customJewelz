@@ -1494,7 +1494,7 @@ function paintCatalogue() {
         <span class="title">${esc(i.name)}</span>
         ${hasSize(i) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
         <span class="price">${money(i.price)}</span>
-        <span class="foot">${dots}${isBaseItem(i) ? '<span class="tag flat">base piece</span>' : ''}</span>
+        <span class="foot">${dots}</span>
       </span>
     </button>`;
   }).join('');
