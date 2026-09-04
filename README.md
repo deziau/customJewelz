@@ -202,9 +202,11 @@ is an approximation of the real display — hence the rule.
 
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
 hearts running out does not hide the silver ones. Every count a customer sees
-is about one colour: a browse card warns per colour, tinted with that colour
-("Gold · 5 left", "Antique · all in your tray"), and shows a plain dot for a
-colour with plenty in hand. Only a piece with nothing left in any colour gets
+is about one colour: a browse card warns per colour with just the count —
+"5 left", "all in your tray" — tinted in that colour, beside a dot of it, and
+shows a plain dot for a colour with plenty in hand. The colour's name stays on
+hover and for screen readers, so the tint is never the only thing carrying the
+meaning. Only a piece with nothing left in any colour gets
 the corner "Sold out" banner. All of these subtract what is already in the
 shopper's own tray, so no two numbers in the shop can disagree. Where a component has one
 photo per colour, in the same order, the picture follows the colour the customer

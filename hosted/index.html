@@ -441,6 +441,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap;
   background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
 }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .clr-warn i {
   width: 11px; height: 11px; border-radius: 50%; flex: none;
   background: var(--c, var(--muted)); border: 1px solid rgba(36, 27, 38, .25);
@@ -1447,11 +1451,13 @@ function colourStrip(item, low) {
   const bits = item.variants.map((v) => {
     const free = addable(item, v.id);
     const swatch = v.swatch || '#c9bfc4';
-    // Named colours lead with the name; a piece sold in one colour just states
-    // the count, so an unnamed variant never reads "Only sold out".
-    const lead = v.name ? `${esc(v.name)} · ` : '';
+    // The dot and the tint say which colour, so the label is just the count.
+    // The name still rides along for hover and for anyone who cannot see the
+    // tint — colour is never the only thing carrying the meaning.
     const chip = (text, cls = '') =>
-      `<span class="clr-warn ${cls}" style="--c:${esc(swatch)}"><i></i>${lead}${text}</span>`;
+      `<span class="clr-warn ${cls}" style="--c:${esc(swatch)}"
+        title="${esc(v.name ? `${v.name} — ${text}` : text)}"><i></i>${
+        v.name ? `<span class="sr-only">${esc(v.name)}: </span>` : ''}${text}</span>`;
 
     if (v.quantity <= 0) return chip('sold out', 'out');
     if (free <= 0) return chip('all in your tray');
