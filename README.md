@@ -192,8 +192,17 @@ Setting an expected-back date there replaces the request with "more
 expected around …" for every customer, so nobody asks twice; *Mark done* clears
 the requests and the date once the piece has landed and they have been told.
 
-The rush fee is recorded against the request and shown to the studio — the app
-does not take payment, so it is collected with the eventual order.
+**Rushing is a negotiation, not a button.** A customer with a plain request can
+elevate it to urgent, and the request then walks a short path: *waiting for the
+studio* → the studio either confirms it can be done **and gives a date**, or
+declines with a reason the customer reads. Only a confirmed request shows the
+customer a pay control at all; declining leaves their ordinary request standing
+so they still hear when the piece is back, and the studio can reconsider later.
+
+The app takes no card payments, so "pay" here means the customer gives the
+go-ahead and the studio records the money when it arrives. Both steps are
+visible on the request, and the fee never appears as collected until the studio
+says it is.
 
 **Every component carries its real size**, in millimetres, entered once in the
 studio. Customers see it in both units — "1.2 × 1.2 cm · 0.47 × 0.47 in" — on

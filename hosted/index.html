@@ -676,6 +676,15 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .req-who { display: flex; gap: 7px; flex-wrap: wrap; font-size: 12.5px; }
 .req-who span { background: var(--surface-2); border-radius: 999px; padding: 2px 9px; }
 .eta-set { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.stage-line { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.req-line {
+  display: flex; gap: 9px; align-items: center; flex-wrap: wrap;
+  padding: 8px 0; border-top: 1px dashed var(--line); font-size: 12.5px;
+}
+.req-line .who { min-width: 190px; }
+.req-line .who b { display: block; }
+.req-line .acts { margin-left: auto; }
+.req-line input[type="date"] { width: auto; }
 .eta-set input[type="date"] { width: auto; }
 
 .summary button.tile {
@@ -1043,6 +1052,32 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <footer>
       <button type="button" id="reason-back">Keep the order</button>
       <button type="submit" class="solid warnbtn" id="reason-go">Cancel the order</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-pay">
+  <header><h2>Go ahead with the rush</h2></header>
+  <div class="body" id="pay-body"></div>
+  <footer>
+    <button id="pay-cancel">Not now</button>
+    <button class="solid" id="pay-go">Yes, go ahead</button>
+  </footer>
+</dialog>
+
+<dialog id="dlg-decline">
+  <header><h2>Can't rush this one</h2></header>
+  <form id="form-decline">
+    <div class="body">
+      <label class="f"><span>Why not? The customer sees this.</span>
+        <textarea name="why" rows="3" placeholder="Our supplier can't get the enamel blanks before December."></textarea></label>
+      <p class="muted" style="font-size:12.5px;margin:0">Their ordinary restock request stays open, so
+        they'll still hear from you when the piece is back.</p>
+      <p class="notice" id="decline-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="decline-back">Back</button>
+      <button type="submit" class="solid warnbtn">Decline the rush</button>
     </footer>
   </form>
 </dialog>
@@ -2298,8 +2333,9 @@ function viewOverview() {
         <b>${b.low.length}</b><span class="go">Check stock alerts →</span></button>
       <button class="tile" data-go="restock"><span class="eyebrow">Restock requests</span>
         <b>${S.restock.filter((r) => r.kind !== 'urgent').length}</b><span class="go">Customers waiting →</span></button>
-      <button class="tile sev-out" data-go="restock"><span class="eyebrow">Urgent requests</span>
-        <b>${S.restock.filter((r) => r.kind === 'urgent').length}</b><span class="go">Paid to jump the queue →</span></button>
+      <button class="tile sev-out" data-go="restock"><span class="eyebrow">Rush requests</span>
+        <b>${S.restock.filter((r) => r.kind === 'urgent' && (r.urgentStage || 'requested') === 'requested').length}</b>
+        <span class="go">Waiting on your word →</span></button>
     </div>
     <section class="panel">
       <header><h2>What the open orders need</h2><span class="spacer"></span>
@@ -3455,10 +3491,21 @@ function prettyDate(iso) {
 const myRequestFor = (itemId, variantId) => S.restock.find((r) => r.itemId === itemId
   && r.variantId === variantId && S.account && r.customerId === S.account.id);
 
+/* An urgent request is a small negotiation, not a button:
+   requested → the studio confirms it can be done, and by when → only then does
+   the rush fee unlock → the studio confirms the money arrived. */
+const URGENT_STAGE = {
+  requested: 'Waiting for the studio to confirm',
+  declined: 'The studio cannot rush this one',
+  confirmed: 'Confirmed — rush fee due',
+  pledged: 'Rush fee arranged',
+  paid: 'Rush fee received',
+};
+
 /**
  * Shown whenever the customer cannot add another — the repo is empty, or they
- * already hold every one we have. Offers the expected date if the seller has
- * set one, otherwise a plain or a paid-rush request.
+ * already hold every one we have. Leads with their own request when they have
+ * one, since that is what they came back to check.
  */
 function restockHtml(item, v) {
   const held = trayQty(item.id, v.id);
@@ -3466,23 +3513,17 @@ function restockHtml(item, v) {
   const opening = gone
     ? 'Out of stock.'
     : `You have all ${v.quantity} we hold of this colour in your tray.`;
-
   const eta = etaOf(v);
+  const fee = item.urgentFee || 0;
+  const mine = myRequestFor(item.id, v.id);
+
+  if (mine) return myRequestHtml(mine, item, eta, fee);
+
   if (eta) {
     return `<div class="restock-note"><span>${esc(opening)} More expected around
       <b>${esc(prettyDate(eta))}</b> — we've already ordered them.</span></div>`;
   }
 
-  const mine = myRequestFor(item.id, v.id);
-  if (mine) {
-    const what = mine.kind === 'urgent'
-      ? `an <b>urgent</b> restock${mine.qty ? ` of <b>${mine.qty}</b>` : ''} (${money(mine.fee || 0)} rush fee)`
-      : `a restock${mine.qty ? ` of <b>${mine.qty}</b>` : ''}`;
-    return `<div class="restock-note">You've asked us for ${what}.
-      We'll email you${S.account ? ` at <b>${esc(S.account.email)}</b>` : ''} as soon as it's in.</div>`;
-  }
-
-  const fee = item.urgentFee || 0;
   return `<div class="restock-note">
     <span>${esc(opening)} Ask us to make more${held && !gone ? ' of it' : ''} and we'll let you know when it lands.</span>
     <label class="ask-qty">
@@ -3495,9 +3536,57 @@ function restockHtml(item, v) {
       ${fee > 0 ? `<button data-ask="urgent">Urgent restock —
         <span class="fee-tag">${money(fee)}</span> rush fee</button>` : ''}
     </div>
-    ${fee > 0 ? `<span style="font-size:12px">The rush fee is added to the order you place once it
-      arrives; nothing is charged now.</span>` : ''}
+    ${fee > 0 ? `<span style="font-size:12px">A rush request is confirmed by the studio before
+      anything is payable.</span>` : ''}
   </div>`;
+}
+
+function myRequestHtml(mine, item, eta, fee) {
+  const asked = mine.qty ? ` for <b>${mine.qty}</b>` : '';
+  const when = eta ? ` More expected around <b>${esc(prettyDate(eta))}</b>.` : '';
+  const stage = mine.kind === 'urgent' ? (mine.urgentStage || 'requested') : '';
+  const head = (text) => `<div class="restock-note"><span>${text}</span>`;
+
+  if (mine.kind !== 'urgent') {
+    return `${head(`You've asked us for a restock${asked}. We'll email you${
+      S.account ? ` at <b>${esc(S.account.email)}</b>` : ''} as soon as it's in.${when}`)}
+      ${fee > 0 ? `<div class="kind-row">
+        <button data-ask="escalate">Make it urgent — <span class="fee-tag">${money(fee)}</span> rush fee</button>
+      </div>
+      <span style="font-size:12px">We'll confirm whether we can rush it and by when. Nothing is
+        payable until then.</span>` : ''}
+    </div>`;
+  }
+
+  if (stage === 'requested') {
+    return `${head(`You've asked us to rush this${asked}. We're checking whether we can and by when —
+      we'll email you${S.account ? ` at <b>${esc(S.account.email)}</b>` : ''}.${when}`)}
+      <span class="stage-line">${URGENT_STAGE.requested}</span></div>`;
+  }
+
+  if (stage === 'declined') {
+    return `${head(`We can't rush this one${mine.declineReason ? `: ${esc(mine.declineReason)}` : '.'}
+      Your ordinary restock request still stands, so we'll tell you when it's in.${when}`)}</div>`;
+  }
+
+  if (stage === 'confirmed') {
+    return `${head(`Good news — we can rush this${asked}${mine.urgentEta
+      ? ` and have it by <b>${esc(prettyDate(mine.urgentEta))}</b>` : ''}.`)}
+      <div class="kind-row">
+        <button class="solid" data-ask="pay">Pay the ${money(mine.fee || fee)} rush fee</button>
+      </div>
+      <span class="stage-line">${URGENT_STAGE.confirmed}</span></div>`;
+  }
+
+  if (stage === 'pledged') {
+    return `${head(`Thank you — we'll collect the ${money(mine.fee || fee)} rush fee and start straight away${
+      mine.urgentEta ? `, for <b>${esc(prettyDate(mine.urgentEta))}</b>` : ''}.`)}
+      <span class="stage-line">${URGENT_STAGE.pledged}</span></div>`;
+  }
+
+  return `${head(`Rush fee received${mine.urgentEta
+    ? ` — yours by <b>${esc(prettyDate(mine.urgentEta))}</b>` : ''}. We'll email you the moment it's in.`)}
+    <span class="stage-line">${URGENT_STAGE.paid}</span></div>`;
 }
 
 async function requestRestock(kind) {
@@ -3526,6 +3615,43 @@ async function requestRestock(kind) {
   paintSheet();
 }
 
+/** Lift an existing plain request to an urgent one, pending the studio's word. */
+async function escalateRestock() {
+  const item = itemOf(S.sheet.itemId);
+  const v = variantOf(item, S.sheet.variantId);
+  const mine = myRequestFor(item.id, v.id);
+  if (!item || !v || !mine) return;
+  await S.db.doc(`restock/${mine.id}`).update({
+    kind: 'urgent',
+    fee: item.urgentFee || 0,
+    urgentStage: 'requested',
+    escalatedAt: new Date().toISOString(),
+  });
+  toast("Asked to rush it — we'll confirm whether we can, and by when.", 'good');
+  paintSheet();
+}
+
+/**
+ * The rush fee is arranged with the studio rather than taken here, so this
+ * records the customer's go-ahead; the studio marks the money received.
+ */
+async function pledgeRushFee() {
+  const item = itemOf(S.sheet.itemId);
+  const v = variantOf(item, S.sheet.variantId);
+  const mine = myRequestFor(item.id, v.id);
+  if (!mine || mine.urgentStage !== 'confirmed') return;
+  $('#pay-body').innerHTML = `
+    <p style="margin-top:0">Rushing <b>${esc(label(item, v.id))}</b>${mine.urgentEta
+      ? ` for <b>${esc(prettyDate(mine.urgentEta))}</b>` : ''}.</p>
+    <div class="sum" style="margin-top:0">
+      <div><span>Rush fee</span><span class="num">${money(mine.fee || 0)}</span></div>
+    </div>
+    <p class="muted" style="font-size:13px">The studio will send payment details to
+      <b>${esc(S.account.email)}</b>. Confirming here tells them to go ahead and start.</p>`;
+  $('#dlg-pay').dataset.request = mine.id;
+  $('#dlg-pay').showModal();
+}
+
 /** Requests grouped by the exact component and colour people are waiting for. */
 function restockGroups() {
   const groups = new Map();
@@ -3546,6 +3672,32 @@ function restockGroups() {
       qtyTotal: g.requests.reduce((t, r) => t + (Number(r.qty) || 0), 0),
     };
   }).sort((a, b) => b.requests.length - a.requests.length);
+}
+
+/** One rush request, with whatever the studio can do about it right now. */
+function urgentRequestLine(r) {
+  const stage = r.urgentStage || 'requested';
+  const tag = { requested: 'low', declined: 'out', confirmed: 'low', pledged: 'low', paid: 'ok' }[stage];
+  const acts = {
+    requested: `<input type="date" data-f="urgent-eta" value="${esc(r.urgentEta || '')}"
+        aria-label="Date you can have it by">
+      <button class="tiny" data-req="confirm">Yes, by this date</button>
+      <button class="tiny warnbtn" data-req="decline">Can't rush it</button>`,
+    confirmed: `<span class="muted">waiting on payment</span>
+      <button class="tiny" data-req="paid">Payment received</button>`,
+    pledged: `<button class="tiny" data-req="paid">Payment received</button>`,
+    declined: `<button class="tiny" data-req="reopen">Reconsider</button>`,
+    paid: `<span class="muted">${r.paidAt ? esc(new Date(r.paidAt).toLocaleDateString()) : ''}</span>`,
+  }[stage] || '';
+
+  return `<div class="req-line" data-req-id="${esc(r.id)}">
+    <span class="who"><b>${esc(r.name)}</b>${esc(r.email)}${
+      r.qty ? ` · wants ${r.qty}` : ''}</span>
+    <span class="tag ${tag}">${esc(URGENT_STAGE[stage] || stage)}</span>
+    <span class="tag flat">${money(r.fee || 0)}</span>
+    ${r.urgentEta ? `<span class="muted">by ${esc(prettyDate(r.urgentEta))}</span>` : ''}
+    <span class="acts">${acts}</span>
+  </div>`;
 }
 
 function restockPanel(groups, title, urgent) {
@@ -3575,9 +3727,10 @@ function restockPanel(groups, title, urgent) {
             <button class="tiny warnbtn" data-act="close">Mark done</button>
           </div>
         </div>
-        <div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
-          esc(r.name)}${r.qty ? ` — wants ${r.qty}` : ' — no number given'}${
-          r.fee ? ` · ${money(r.fee)}` : ''} · ${esc(r.email)}</span>`).join('')}</div>
+        ${urgent
+          ? g.requests.map((r) => urgentRequestLine(r)).join('')
+          : `<div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
+              esc(r.name)}${r.qty ? ` — wants ${r.qty}` : ' — no number given'} · ${esc(r.email)}</span>`).join('')}</div>`}
       </div>`).join('')}</div>`
       : `<p class="blank">${urgent
         ? 'No one has paid to jump the queue.'
@@ -3627,6 +3780,41 @@ function wireRestock() {
       toast('Requests cleared.', 'good');
     }
   })));
+
+  $$('.req-line').forEach((line) => line.addEventListener('click', guard(async (e) => {
+    const btn = e.target.closest('button[data-req]');
+    if (!btn) return;
+    const id = line.dataset.reqId;
+    const req = S.restock.find((r) => r.id === id);
+    if (!req) return;
+
+    if (btn.dataset.req === 'confirm') {
+      const when = line.querySelector('[data-f="urgent-eta"]').value;
+      if (!when) return toast('Give the date you can have it by — that is what unlocks payment.', 'bad');
+      await S.db.doc(`restock/${id}`).update({
+        urgentStage: 'confirmed', urgentEta: when, declineReason: '',
+        confirmedAt: new Date().toISOString(),
+      });
+      toast(`Confirmed for ${prettyDate(when)} — the rush fee is now payable.`, 'good');
+    }
+    if (btn.dataset.req === 'decline') askDecline(id);
+    if (btn.dataset.req === 'reopen') {
+      await S.db.doc(`restock/${id}`).update({ urgentStage: 'requested', declineReason: '' });
+    }
+    if (btn.dataset.req === 'paid') {
+      await S.db.doc(`restock/${id}`).update({ urgentStage: 'paid', paidAt: new Date().toISOString() });
+      toast('Rush fee recorded.', 'good');
+    }
+  })));
+}
+
+let pendingDecline = null;
+
+function askDecline(id) {
+  pendingDecline = id;
+  $('#form-decline').reset();
+  $('#decline-error').hidden = true;
+  $('#dlg-decline').showModal();
 }
 
 
@@ -3741,7 +3929,10 @@ function wireExtras() {
   // Sold-out request button lives inside the product sheet, which re-renders.
   $('#item-restock').addEventListener('click', guard(async (e) => {
     const b = e.target.closest('button[data-ask]');
-    if (b) await requestRestock(b.dataset.ask);
+    if (!b) return;
+    if (b.dataset.ask === 'escalate') return escalateRestock();
+    if (b.dataset.ask === 'pay') return pledgeRushFee();
+    await requestRestock(b.dataset.ask);
   }));
   $('#item-restock').addEventListener('input', (e) => {
     if (e.target.id === 'ask-qty' && S.sheet) S.sheet.restockQty = e.target.value;
@@ -3780,6 +3971,31 @@ function wireExtras() {
   });
 
   $('#snapshot-close').addEventListener('click', () => $('#dlg-snapshot').close());
+
+  $('#pay-cancel').addEventListener('click', () => $('#dlg-pay').close());
+  $('#pay-go').addEventListener('click', guard(async () => {
+    const id = $('#dlg-pay').dataset.request;
+    await S.db.doc(`restock/${id}`).update({ urgentStage: 'pledged', pledgedAt: new Date().toISOString() });
+    $('#dlg-pay').close();
+    toast("Thank you — the studio will send payment details and start straight away.", 'good');
+    paintSheet();
+  }));
+
+  $('#decline-back').addEventListener('click', () => { pendingDecline = null; $('#dlg-decline').close(); });
+  $('#form-decline').addEventListener('submit', guard(async (e) => {
+    e.preventDefault();
+    const why = String(new FormData(e.target).get('why') || '').trim();
+    if (!why) {
+      $('#decline-error').hidden = false;
+      $('#decline-error').textContent = 'Say why — the customer reads it.';
+      return;
+    }
+    const id = pendingDecline;
+    pendingDecline = null;
+    $('#dlg-decline').close();
+    await S.db.doc(`restock/${id}`).update({ urgentStage: 'declined', declineReason: why, urgentEta: '' });
+    toast('Declined, with your reason.', 'good');
+  }));
   $('#cta-design').addEventListener('click', () => setMode('design'));
 
   // The floating twin appears exactly when the seated one leaves the viewport.
