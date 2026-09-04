@@ -1258,6 +1258,15 @@ function addable(item, variantId) {
 }
 
 /**
+ * The same figure for the whole component, across its colours. Every count a
+ * customer sees comes from one of these two, and both subtract their own tray,
+ * so a card and a product page can never disagree.
+ */
+function itemAddable(item) {
+  return item.variants.reduce((n, v) => n + addable(item, v.id), 0);
+}
+
+/**
  * Keeps the tray honest against the live repo: drops picks whose component or
  * colour has gone, and trims quantities that no longer exist in stock.
  */
@@ -1415,8 +1424,11 @@ function paintCatalogue() {
   const t = Number(S.settings.threshold) || 10;
   $('#catalogue').innerHTML = items.map((i) => {
     const inTray = S.tray.filter((r) => r.itemId === i.id).reduce((s, r) => s + r.qty, 0);
+    const free = itemAddable(i);
+    const scope = i.hasColours ? ` · ${i.variants.length} colours` : '';
     const flag = i.stock <= 0 ? '<span class="flag out">Sold out</span>'
-      : i.stock < t ? `<span class="flag low">Only ${i.stock} left</span>` : '';
+      : free <= 0 ? '<span class="flag low">All in your tray</span>'
+        : free < t ? `<span class="flag low">Only ${free} left${scope}</span>` : '';
     const dots = i.hasColours ? `<span class="dots"><span class="dots-label">Colours:</span>${
       i.variants.slice(0, 5).map((v) =>
         `<i class="dot" style="background:${esc(v.swatch || '#c9bfc4')}" title="${esc(v.name)}"></i>`).join('')}
@@ -1516,9 +1528,22 @@ function paintSheet() {
   $('#item-add').textContent = free <= 0 ? 'Sold out' : 'Add to tray';
 
   const inTray = trayQty(item.id, v.id);
-  $('#item-stock').textContent = v.quantity <= 0
-    ? 'None left in the repo.'
-    : `${v.quantity} in stock${inTray ? ` · ${inTray} already in your tray` : ''}`;
+  const freeHere = addable(item, v.id);
+  const freeAll = itemAddable(item);
+  const n = item.variants.length;
+  const named = v.name || 'this piece';
+  const parts = [];
+  let trayCovered = false;
+
+  if (v.quantity <= 0) parts.push(v.name ? `None left in ${v.name}` : 'None left');
+  else if (freeHere <= 0) {
+    parts.push(`All ${v.quantity} ${named} ${v.quantity === 1 ? 'is' : 'are'} in your tray`);
+    trayCovered = true;
+  } else parts.push(`${freeHere} ${v.name ? `in ${v.name}` : 'available'}`);
+
+  if (item.hasColours) parts.push(`${freeAll} across ${n === 2 ? 'both colours' : `all ${n} colours`}`);
+  if (inTray && !trayCovered) parts.push(`${inTray} already in your tray`);
+  $('#item-stock').textContent = parts.join(' · ');
   $('#item-restock').innerHTML = addable(item, v.id) <= 0 ? restockHtml(item, v) : '';
   $('#item-error').hidden = true;
 }
