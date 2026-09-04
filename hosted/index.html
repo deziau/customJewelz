@@ -587,9 +587,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .placeable.on { border-color: var(--accent); background: var(--accent-soft); }
 /* Changing your mind happens here, beside the thing you changed it about. */
-.tray-ctl { display: flex; gap: 3px; align-items: center; }
+.tray-ctl { display: flex; gap: 4px; align-items: center; padding: 4px 2px 4px 6px; }
 .tray-ctl button {
-  width: 24px; height: 24px; padding: 0; border-radius: 6px; font-size: 14px; line-height: 1;
+  width: 32px; height: 32px; padding: 0; border-radius: 7px; font-size: 16px; line-height: 1;
   display: grid; place-items: center; color: var(--muted);
 }
 .tray-ctl button:hover { color: var(--ink); }
@@ -3192,11 +3192,16 @@ function wireDesign() {
   };
   $('#place-rail').addEventListener('click', (e) => {
     if (e.target.id === 'rail-browse') return setMode('browse');
-    if (handleTrayControl(e)) return;
+    // Everything inside the control cluster is a dead zone for placing, so a
+    // near-miss on a small button never quietly adds a piece to the design.
+    if (e.target.closest('.tray-ctl')) { handleTrayControl(e); return; }
     railAct(e);
   });
   $('#place-rail').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); railAct(e); }
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target.closest('.tray-ctl')) return;   // the button handles its own keys
+    e.preventDefault();
+    railAct(e);
   });
   $('#place-rail').addEventListener('dragstart', (e) => {
     const node = e.target.closest('.placeable');
