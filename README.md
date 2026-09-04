@@ -143,6 +143,12 @@ can be placed, and each row counts down ("8 of 10 to place"). Taking a piece off
 the design puts it straight back in the tray. The bill charges for what is on
 the piece, never for what is still in the tray.
 
+The base piece is selectable like anything else on the canvas, and taking it off
+leaves the charms where they are, so a band can be swapped without rebuilding
+the arrangement. Two clearing actions sit in the top bar: **Remove all but
+base**, and **Remove everything**. Both hand every piece straight back to the
+tray, so nothing is ever lost by clearing.
+
 At checkout, if anything in the tray was not used, the customer is asked whether
 to **keep it for next time** or **discard it** before the order goes through.
 Use everything and the tray simply empties. Ordering requires an **account** —

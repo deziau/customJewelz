@@ -223,8 +223,15 @@ h3 { font-size: 15px; }
 .stage.over { outline: 2px dashed var(--accent); outline-offset: -8px; }
 .stage-base {
   position: absolute; inset: 0; margin: auto; width: 66%; height: 66%;
-  object-fit: contain; pointer-events: none; user-select: none;
+  object-fit: contain; user-select: none; cursor: pointer;
 }
+.stage-base.on { outline: 2px solid var(--accent); outline-offset: 8px; border-radius: 10px; }
+.stage-base .lift {
+  position: absolute; top: -13px; right: -13px; width: 25px; height: 25px; border-radius: 50%;
+  border: none; background: var(--crimson-solid); color: #fff; font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 0; display: none; place-items: center;
+}
+.stage-base.on .lift { display: grid; }
 .stage-hint {
   position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
   gap: 7px; text-align: center; padding: 40px; pointer-events: none; max-width: 44ch; margin: auto;
@@ -747,7 +754,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <div class="stat"><span class="eyebrow">Delivery</span><b id="s-ship">—</b></div>
     <div class="stat headline"><span class="eyebrow">Running total</span><b id="s-total">—</b></div>
     <div class="spacer"></div>
-    <button id="s-clear">Clear the piece</button>
+    <button id="s-clear-charms">Remove all but base</button>
+    <button id="s-clear">Remove everything</button>
     <button class="solid" id="s-order" disabled>Review &amp; order</button>
   </div>
 
@@ -1089,6 +1097,7 @@ const S = {
   base: null,          // { uid, itemId, variantId }
   charms: [],          // [{ uid, itemId, variantId, x, y, w, rot, z }]
   picked: null,
+  baseOn: false,       // is the base piece itself selected on the canvas?
   zTop: 1,
   mode: 'browse',
   section: null,
@@ -1786,8 +1795,24 @@ function unplace(uid) {
   paint();
 }
 
-function clearBase() {
+/** Nothing is lost by clearing — every piece goes straight back to the tray. */
+function clearAll() {
   S.base = null;
+  S.charms = [];
+  S.picked = null;
+  S.baseOn = false;
+  paint();
+}
+
+/** Taking the base off leaves the charms in place, so a band can be swapped. */
+function removeBase() {
+  S.base = null;
+  S.baseOn = false;
+  paint();
+  if (S.charms.length) toast('Base removed — your charms are still arranged. Place another base.');
+}
+
+function clearCharms() {
   S.charms = [];
   S.picked = null;
   paint();
@@ -1801,8 +1826,9 @@ function paintStage() {
 
   if (baseItem) {
     const holder = document.createElement('div');
-    holder.className = 'stage-base';
-    holder.innerHTML = shotHtml(baseItem, S.base.variantId);
+    holder.className = 'stage-base' + (S.baseOn ? ' on' : '');
+    holder.innerHTML = shotHtml(baseItem, S.base.variantId)
+      + `<button class="lift" aria-label="Take off ${esc(baseItem.name)}">×</button>`;
     const img = holder.querySelector('img');
     if (img) { img.style.cssText = 'width:100%;height:100%;object-fit:contain'; }
     const glyph = holder.querySelector('.glyph');
@@ -1810,6 +1836,14 @@ function paintStage() {
       holder.style.cssText += ';display:grid;place-items:center';
       glyph.style.fontSize = 'min(38vh, 260px)';
     }
+    // The base is where people reach first when they want it gone.
+    holder.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (e.target.closest('.lift')) { removeBase(); return; }
+      S.baseOn = true;
+      S.picked = null;
+      paintStage();
+    });
     stage.append(holder);
   }
 
@@ -1834,6 +1868,7 @@ function paintStage() {
 function startMove(ev, charm, node) {
   ev.preventDefault();
   S.picked = charm.uid;
+  S.baseOn = false;
   charm.z = ++S.zTop;
   node.style.zIndex = String(charm.z);
   $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
@@ -1921,6 +1956,8 @@ function paintBill() {
   const ready = Boolean(S.base);
   $('#s-order').disabled = !ready;
   $('#s-order-2').disabled = !ready;
+  $('#s-clear').disabled = !ready && !S.charms.length;
+  $('#s-clear-charms').disabled = !S.charms.length;
   return { lines, items, ship };
 }
 
@@ -2939,8 +2976,9 @@ function wireDesign() {
     place(itemId, variantId, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
   });
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target === stage || e.target.closest('.stage-base') || e.target.closest('.stage-hint')) {
+    if (e.target === stage || e.target.closest('.stage-hint')) {
       S.picked = null;
+      S.baseOn = false;
       paintStage();
     }
   });
@@ -2958,13 +2996,21 @@ function wireDesign() {
 
   document.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-    if ((e.key === 'Delete' || e.key === 'Backspace') && S.picked) { e.preventDefault(); unplace(S.picked); }
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    if (S.picked) { e.preventDefault(); unplace(S.picked); }
+    else if (S.baseOn) { e.preventDefault(); removeBase(); }
   });
 
   $('#s-clear').addEventListener('click', () => {
     if (!S.base && !S.charms.length) return;
-    if (!confirm('Clear the piece? Everything goes back to your tray.')) return;
-    clearBase();
+    if (!confirm('Take the base off too? Everything goes back to your tray.')) return;
+    clearAll();
+  });
+  // Charms are cheap to put back, so this one does not stop to ask.
+  $('#s-clear-charms').addEventListener('click', () => {
+    if (!S.charms.length) return;
+    clearCharms();
+    toast('Charms are back in your tray.', 'good');
   });
   $('#s-order').addEventListener('click', startOrder);
   $('#s-order-2').addEventListener('click', startOrder);
