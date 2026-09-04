@@ -194,6 +194,13 @@ Setting an expected-back date there replaces the request with "more
 expected around …" for every customer, so nobody asks twice; *Mark done* clears
 the requests and the date once the piece has landed and they have been told.
 
+A plain request with **no quantity** on it says only "tell me when it's back",
+so adding stock answers it: those requests close themselves, stamped *Restocked
+on <date>*, and any expected-back date on that colour is cleared. Requests that
+named a quantity stay open — a partial delivery may not cover what they asked
+for — and so do rush requests, which carry a promised date or money and are the
+studio's to settle.
+
 **Rushing is a negotiation, not a button.** A customer with a plain request can
 elevate it to urgent, and the request then walks a short path: *waiting for the
 studio* → the studio either confirms it can be done **and gives a date**, or

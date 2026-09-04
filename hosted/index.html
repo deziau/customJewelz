@@ -2649,6 +2649,7 @@ function wireAdmin() {
       const variants = item.variants.map((x) => (x.id === v.id ? { ...x, quantity: x.quantity + delta } : x));
       await S.db.doc(`catalog/${item.id}`).update({ variants });
       toast('Stock updated.', 'good');
+      await settleOpenRequests(item.id, v.id, delta);
     }
 
     if (btn.dataset.act === 'del') {
@@ -3201,9 +3202,17 @@ function wirePieceDialog() {
         active: f.active.checked,
         order: id && itemOf(id) ? itemOf(id).order : S.items.length + 1,
       };
+      const before = id ? itemOf(id) : null;
       await S.db.doc(`catalog/${id || 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)}`).set(doc);
       $('#dlg-piece').close();
       toast('Saved.', 'good');
+
+      if (before) {
+        for (const v of doc.variants) {
+          const was = variantOf(before, v.id);
+          if (was) await settleOpenRequests(id, v.id, v.quantity - was.quantity);
+        }
+      }
     } catch (ex) {
       err.hidden = false;
       err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
@@ -3642,6 +3651,38 @@ async function requestRestock(kind) {
     ? `Urgent request logged for ${many}${label(item, v.id)} — ${money(fee)} rush fee.`
     : `We'll email you when ${many}${label(item, v.id)} is back.`, 'good');
   paintSheet();
+}
+
+/**
+ * A plain request with no number attached says "tell me when it's back" —
+ * so putting stock back answers it, and it closes itself with the date.
+ * Requests that named a quantity, and rush requests with a promise or money
+ * behind them, are left for the studio to judge.
+ */
+async function settleOpenRequests(itemId, variantId, added) {
+  if (!(added > 0)) return;
+  const answered = S.restock.filter((r) => r.itemId === itemId && r.variantId === variantId
+    && r.kind !== 'urgent' && !r.qty);
+  const on = prettyDate(new Date().toISOString().slice(0, 10));
+  const note = `Restocked on ${on}`;
+
+  await Promise.all(answered.map((r) => S.db.doc(`restock/${r.id}`).update({
+    status: 'done', resolvedNote: note, resolvedAt: new Date().toISOString(),
+  })));
+
+  // An expected-back date is moot once the pieces are on the shelf.
+  const item = itemOf(itemId);
+  const v = variantOf(item, variantId);
+  if (item && v && etaOf(v)) {
+    await S.db.doc(`catalog/${itemId}`).update({
+      variants: item.variants.map((x) => (x.id === variantId ? { ...x, restockEta: '' } : x)),
+    });
+  }
+
+  if (answered.length) {
+    toast(`${answered.length} restock request${answered.length === 1 ? '' : 's'} closed — restocked on ${on}.`, 'good');
+  }
+  return answered.length;
 }
 
 /** Lift an existing plain request to an urgent one, pending the studio's word. */
