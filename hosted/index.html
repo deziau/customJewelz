@@ -372,50 +372,233 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   .bill-bar { gap: 16px; }
   .choices, .pair { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------- browse view */
+
+.shop-head {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  max-width: 1500px; margin: 0 auto; padding: 22px 22px 0;
+}
+.shop-head .lede { max-width: 46ch; }
+.shop-head h1 { font-size: 26px; }
+.shop-head .spacer { flex: 1; }
+
+.shop-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  max-width: 1500px; margin: 0 auto; padding: 14px 22px 0;
+}
+.shop-bar input[type="search"] { width: 230px; }
+
+.catalogue {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 16px;
+  max-width: 1500px; margin: 0 auto; padding: 18px 22px 64px;
+}
+.card {
+  display: grid; grid-template-rows: auto 1fr; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+  cursor: pointer; text-align: left; padding: 0; font: inherit; color: inherit;
+  transition: border-color .14s, transform .12s, box-shadow .14s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.card .shot {
+  position: relative; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
+  border-bottom: 1px solid var(--line);
+}
+.card .shot img { width: 74%; height: 74%; object-fit: contain; }
+.card .shot .glyph { font-size: 62px; line-height: 1; }
+.card .meta { display: grid; gap: 4px; padding: 11px 12px 13px; align-content: start; }
+.card .title { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.card .price { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card .foot { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 2px; }
+.flag {
+  position: absolute; top: 9px; left: 9px; padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+.flag.out { background: var(--crimson-solid); color: #fff; }
+.flag.low { background: var(--ochre-soft); color: var(--ochre); }
+.count-pip {
+  position: absolute; top: 9px; right: 9px; min-width: 22px; height: 22px; padding: 0 7px;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-family: var(--mono); font-size: 11px; display: grid; place-items: center;
+}
+
+.dots { display: flex; gap: 4px; align-items: center; }
+.dot {
+  width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line-strong);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+.dot.more { font-size: 10px; color: var(--muted); border: none; box-shadow: none; width: auto; }
+
+/* ---------------------------------------------------------- product sheet */
+
+#dlg-item { max-width: 720px; }
+.sheet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.gallery { display: grid; gap: 9px; align-content: start; }
+.gallery .main {
+  aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
+}
+.gallery .main img { width: 78%; height: 78%; object-fit: contain; }
+.gallery .main .glyph { font-size: 96px; line-height: 1; }
+.thumbs { display: flex; gap: 7px; flex-wrap: wrap; }
+.thumbs button {
+  width: 50px; height: 50px; padding: 3px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--surface-2);
+}
+.thumbs button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.thumbs img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.sheet-info { display: grid; gap: 12px; align-content: start; }
+.sheet-info .price { font-family: var(--display); font-size: 25px; color: var(--accent); }
+.sheet-info .desc { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 6px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--surface); font-size: 12.5px; cursor: pointer;
+}
+.swatch i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line-strong); }
+.swatch[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.swatch:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
+
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 8px; }
+.stepper button { border: none; background: none; width: 34px; padding: 6px 0; font-size: 16px; line-height: 1; }
+.stepper output {
+  min-width: 42px; text-align: center; font-family: var(--mono); font-size: 14px;
+  border-left: 1px solid var(--line); border-right: 1px solid var(--line); padding: 7px 0;
+}
+
+/* ----------------------------------------------------------------- the tray */
+
+.tray-line {
+  display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+}
+.tray-line:last-child { border-bottom: none; }
+.tray-line .shot {
+  width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface-2);
+}
+.tray-line .shot img { max-width: 34px; max-height: 34px; object-fit: contain; }
+.tray-line .shot .glyph { font-size: 22px; line-height: 1; }
+.tray-line .nm { font-size: 13px; line-height: 1.3; }
+.tray-line .sub { font-size: 11.5px; color: var(--muted); }
+.tray-line.spent { opacity: .55; }
+
+.place-list { display: grid; gap: 9px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
+.placeable {
+  display: grid; grid-template-columns: 46px 1fr; gap: 10px; align-items: center;
+  border: 1px solid var(--line); border-radius: 9px; padding: 8px; cursor: grab;
+  background: var(--surface); transition: border-color .14s, transform .1s;
+}
+.placeable:hover { border-color: var(--accent); transform: translateY(-1px); }
+.placeable:active { cursor: grabbing; }
+.placeable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.placeable.done { opacity: .45; cursor: not-allowed; }
+.placeable .shot { width: 46px; height: 46px; display: grid; place-items: center; }
+.placeable .shot img { max-width: 100%; max-height: 46px; object-fit: contain; }
+.placeable .shot .glyph { font-size: 28px; line-height: 1; }
+.placeable .nm { font-size: 12.5px; line-height: 1.25; }
+.placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.placeable.is-base { border-left: 3px solid var(--gold); }
+.placeable.on { border-color: var(--accent); background: var(--accent-soft); }
+
+.empty-rail { padding: 20px 14px; display: grid; gap: 10px; justify-items: start; }
+
+/* ---------------------------------------------------- studio: variant rows */
+
+.variant-rows { display: grid; gap: 7px; }
+.variant-row {
+  display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1.2fr) 82px 34px;
+  gap: 7px; align-items: center;
+}
+.variant-row input[type="color"] { padding: 2px; height: 36px; }
+.image-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+.image-strip figure {
+  position: relative; margin: 0; width: 62px; height: 62px; border: 1px solid var(--line);
+  border-radius: 8px; display: grid; place-items: center; background: var(--surface-2);
+}
+.image-strip img { max-width: 52px; max-height: 52px; object-fit: contain; }
+.image-strip button {
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+  border: none; background: var(--crimson-solid); color: #fff; font-size: 13px; line-height: 1;
+  padding: 0; display: grid; place-items: center;
+}
+
+@media (max-width: 620px) {
+  .sheet { grid-template-columns: 1fr; }
+  .variant-row { grid-template-columns: 40px 1fr 1fr; }
+  .variant-row .kill { grid-column: 3; justify-self: end; }
+}
 </style>
 
 <div class="masthead">
   <div class="wordmark">Custom<em>Jewelz</em></div>
   <div class="modes" role="group" aria-label="Choose view">
-    <button id="mode-shop" aria-pressed="true">Design</button>
-    <button id="mode-admin" aria-pressed="false">Studio</button>
+    <button id="mode-browse" aria-pressed="true">Browse</button>
+    <button id="mode-design" aria-pressed="false">Design</button>
+    <button id="mode-studio" aria-pressed="false">Studio</button>
   </div>
   <div class="spacer"></div>
+  <button id="open-tray">Tray <span class="tag on" id="tray-pip">0</span></button>
   <span class="eyebrow" id="conn">connecting…</span>
 </div>
 
 <main id="boot" class="boot">
-  <h2>Opening the workbench</h2>
-  <p class="muted">Loading your component tray and order book.</p>
+  <h2>Opening the shop</h2>
+  <p class="muted">Loading the collection.</p>
 </main>
 
-<!-- ===================================================== customer view -->
-<div id="shop" hidden>
+<!-- ======================================================== browse -->
+<div id="browse" hidden>
+  <div class="shop-head">
+    <div class="lede">
+      <h1>Build it piece by piece</h1>
+      <p class="muted" style="margin:6px 0 0">Pick the charms, bangles and chains you like — then arrange
+        them on a base in the design room.</p>
+    </div>
+  </div>
+  <div class="shop-bar">
+    <input type="search" id="find" placeholder="Search the collection" aria-label="Search the collection">
+    <div class="tabs" id="shop-cats"></div>
+    <div class="spacer" style="flex:1"></div>
+    <label class="tag flat" style="cursor:pointer;font-weight:400">
+      <input type="checkbox" id="hide-out" style="width:auto;margin-right:6px">Hide sold out
+    </label>
+  </div>
+  <div class="catalogue" id="catalogue"></div>
+</div>
+
+<!-- ======================================================== design -->
+<div id="design" hidden>
   <div class="bill-bar">
-    <div class="stat"><span class="eyebrow">Components</span><b class="num" id="s-count">0</b></div>
-    <div class="stat"><span class="eyebrow">Components subtotal</span><b id="s-items">—</b></div>
+    <div class="stat"><span class="eyebrow">On the piece</span><b class="num" id="s-count">0</b></div>
+    <div class="stat"><span class="eyebrow">Piece subtotal</span><b id="s-items">—</b></div>
     <div class="stat"><span class="eyebrow">Delivery</span><b id="s-ship">—</b></div>
     <div class="stat headline"><span class="eyebrow">Running total</span><b id="s-total">—</b></div>
     <div class="spacer"></div>
-    <button id="s-clear">Start over</button>
+    <button id="s-clear">Clear the piece</button>
     <button class="solid" id="s-order" disabled>Review &amp; order</button>
   </div>
 
   <div class="bench">
     <div class="rail">
       <section class="panel">
-        <header><h2>Component tray</h2><span class="spacer"></span><span class="eyebrow">drag or tap to add</span></header>
-        <div class="cat-strip" id="cats"></div>
-        <div class="tray" id="tray"></div>
+        <header><h2>Your tray</h2><span class="spacer"></span>
+          <span class="eyebrow" id="tray-left">nothing picked yet</span></header>
+        <div id="place-rail"></div>
       </section>
     </div>
 
     <div class="stage-col">
       <div class="stage" id="stage">
         <div class="stage-hint" id="hint">
-          <h2>Begin with a base</h2>
-          <p class="muted">Choose a bracelet band, pendant frame or kaleera from the tray.
-            Then drag charms onto it and place them where you want them attached.</p>
+          <h2>Start with a base</h2>
+          <p class="muted">Pick a bracelet band, pendant frame or kaleera in Browse, then place it here
+            and hang your charms on it.</p>
+          <button class="solid" id="hint-browse">Go to Browse</button>
         </div>
       </div>
       <div class="tools">
@@ -425,9 +608,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
-        Drag a charm from the tray onto the piece, then drag it again to position it.
-        Tap a charm to select it — rotate or take it off with the controls above,
-        or press Delete.
+        Drag a piece from your tray onto the base, then drag it again to position it.
+        Tap it to select — rotate or take it off with the controls above, or press Delete.
+        Anything you take off goes straight back to your tray.
       </p>
     </div>
 
@@ -444,12 +627,12 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </div>
 </div>
 
-<!-- ======================================================== studio view -->
-<div id="admin" hidden>
+<!-- ======================================================== studio -->
+<div id="studio" hidden>
   <div class="admin-wrap">
     <div class="tabs" id="admin-tabs">
       <button class="cat" data-view="overview" aria-pressed="true">Overview</button>
-      <button class="cat" data-view="tray" aria-pressed="false">Component repo</button>
+      <button class="cat" data-view="repo" aria-pressed="false">Component repo</button>
       <button class="cat" data-view="stock" aria-pressed="false">Stock alerts</button>
       <button class="cat" data-view="orders" aria-pressed="false">Orders</button>
       <button class="cat" data-view="delivery" aria-pressed="false">Delivery areas</button>
@@ -459,7 +642,65 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </div>
 </div>
 
-<!-- =========================================================== dialogs -->
+<!-- ======================================================== dialogs -->
+<dialog id="dlg-item">
+  <header><h2 id="item-title">Item</h2></header>
+  <div class="body">
+    <div class="sheet">
+      <div class="gallery">
+        <div class="main" id="item-main"></div>
+        <div class="thumbs" id="item-thumbs"></div>
+      </div>
+      <div class="sheet-info">
+        <div>
+          <div class="eyebrow" id="item-section"></div>
+          <div class="price" id="item-price"></div>
+        </div>
+        <p class="desc" id="item-desc"></p>
+        <div id="item-colours"></div>
+        <div>
+          <div class="eyebrow" style="margin-bottom:5px">How many</div>
+          <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+            <div class="stepper">
+              <button type="button" id="qty-down" aria-label="One fewer">−</button>
+              <output id="qty-out">1</output>
+              <button type="button" id="qty-up" aria-label="One more">+</button>
+            </div>
+            <span class="muted" style="font-size:12.5px" id="item-stock"></span>
+          </div>
+        </div>
+        <p class="notice" id="item-error" hidden></p>
+        <button class="solid" id="item-add">Add to tray</button>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <button id="item-close">Keep browsing</button>
+    <button id="item-to-design">Go to design room</button>
+  </footer>
+</dialog>
+
+<dialog id="dlg-tray">
+  <header><h2>Your tray</h2></header>
+  <div class="body" id="tray-body"></div>
+  <footer>
+    <button class="warnbtn" id="tray-empty">Empty the tray</button>
+    <span style="flex:1"></span>
+    <button id="tray-close">Keep browsing</button>
+    <button class="solid" id="tray-design">Design with these</button>
+  </footer>
+</dialog>
+
+<dialog id="dlg-leftover">
+  <header><h2>Some picks aren't on your piece</h2></header>
+  <div class="body" id="leftover-body"></div>
+  <footer>
+    <button id="leftover-back">Back to the design</button>
+    <button id="leftover-discard">Discard them</button>
+    <button class="solid" id="leftover-keep">Keep for next time</button>
+  </footer>
+</dialog>
+
 <dialog id="dlg-checkout">
   <header><h2>Confirm your piece</h2></header>
   <form id="form-checkout">
@@ -510,27 +751,38 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <input type="hidden" name="id">
       <div class="pair">
         <label class="f"><span>Name *</span><input name="name" required></label>
-        <label class="f"><span>SKU</span><input name="sku" placeholder="auto"></label>
+        <label class="f"><span>Base SKU</span><input name="sku" placeholder="auto"></label>
         <label class="f"><span>Section *</span><select name="category" id="piece-cat" required></select></label>
         <label class="f"><span>Price *</span><input name="price" type="number" min="0" step="0.01" required></label>
-        <label class="f"><span>Quantity in repo *</span><input name="quantity" type="number" min="0" step="1" required></label>
         <label class="f"><span>Size on the piece (px)</span><input name="width" type="number" min="20" max="620" step="1" value="86"></label>
+        <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
+          <input type="checkbox" name="active" checked style="width:auto"><span style="color:var(--ink)">Show to customers</span>
+        </label>
       </div>
-      <label class="f"><span>Description</span><textarea name="note"></textarea></label>
+      <label class="f"><span>Description — customers read this on the item page</span>
+        <textarea name="note" placeholder="Materials, size, how it hangs, care notes…"></textarea></label>
+
       <fieldset>
-        <legend>Artwork</legend>
-        <div class="pair">
-          <label class="f"><span>Emoji or symbol</span><input name="glyph" placeholder="💎" maxlength="4"></label>
-          <label class="f"><span>…or upload a photo</span><input name="upload" type="file" accept="image/*"></label>
+        <legend>Photos</legend>
+        <div class="image-strip" id="piece-images"></div>
+        <div class="pair" style="margin-top:11px">
+          <label class="f"><span>Add photos</span><input name="upload" type="file" accept="image/*" multiple></label>
+          <label class="f"><span>…or an emoji, if you have no photo</span><input name="glyph" placeholder="💎" maxlength="4"></label>
         </div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="mini" id="piece-preview"></div>
-          <span class="muted" style="font-size:12.5px">Photos are shrunk to fit. A clear cut-out on a plain background works best.</span>
+        <p class="muted" style="font-size:12.5px;margin:0">The first photo is the one customers see in the
+          collection. Upload one photo per colour, in the same order as the colours below, and the
+          picture follows whichever colour the customer picks. Photos are shrunk to fit.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Colours &amp; stock</legend>
+        <div class="variant-rows" id="piece-variants"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+          <button type="button" id="variant-add">Add a colour</button>
+          <span class="muted" style="font-size:12.5px">Stock is counted per colour. One unnamed row means
+            this item has no colour choice.</span>
         </div>
       </fieldset>
-      <label class="f" style="grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
-        <input type="checkbox" name="active" checked style="width:auto"><span style="color:var(--ink)">Show to customers</span>
-      </label>
       <p class="notice" id="piece-error" hidden></p>
     </div>
     <footer>
@@ -568,27 +820,32 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const TRAY_KEY = 'cj.tray.v2';
 
 const S = {
   db: null,
   ready: false,
   settings: { businessName: 'CustomJewelz', currency: '₹', threshold: 10, pin: '2468', sections: [] },
-  pieces: [],
+  items: [],
   byId: new Map(),
   zones: [],
   orders: [],
-  section: null,
-  mode: 'shop',
-  adminView: 'overview',
-  adminOpen: false,
-  base: null,
-  charms: [],
+  tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
+  base: null,          // { uid, itemId, variantId }
+  charms: [],          // [{ uid, itemId, variantId, x, y, w, rot, z }]
   picked: null,
   zTop: 1,
-  pendingArt: null,
+  mode: 'browse',
+  section: null,
+  search: '',
+  hideOut: false,
+  adminView: 'overview',
+  adminOpen: false,
+  sheet: null,         // { itemId, variantId, qty, image }
+  draft: null,         // studio: component being edited
 };
 
-/* ------------------------------------------------------------- utilities */
+/* ------------------------------------------------------------------ basics */
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -610,29 +867,187 @@ function toast(msg, kind = '') {
   setTimeout(() => el.remove(), 4300);
 }
 
-/** Artwork is either an uploaded/seeded image or a single glyph. */
-function artHtml(piece, cls = '') {
-  const art = piece && piece.art;
-  if (art && art.t === 'img') return `<img class="${cls}" src="${esc(art.v)}" alt="">`;
-  return `<span class="glyph ${cls}">${esc((art && art.v) || '◇')}</span>`;
+/**
+ * Reads both shapes: the original one-image / one-quantity component and the
+ * current multi-photo, per-colour one, so nothing in the repo has to be
+ * rewritten before the shop can show it.
+ */
+function normalize(id, d) {
+  const images = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
+  let glyph = typeof d.glyph === 'string' ? d.glyph : '';
+  if (!images.length && !glyph && d.art) {
+    if (d.art.t === 'img') images.push(d.art.v);
+    else glyph = d.art.v;
+  }
+  const raw = Array.isArray(d.variants) && d.variants.length
+    ? d.variants
+    : [{ id: 'v0', name: '', swatch: '', sku: d.sku, quantity: d.quantity }];
+  const variants = raw.map((v, i) => ({
+    id: v.id || `v${i}`,
+    name: String(v.name || ''),
+    swatch: String(v.swatch || ''),
+    sku: String(v.sku || d.sku || ''),
+    quantity: Math.max(0, Number(v.quantity) || 0),
+  }));
+  return {
+    id,
+    sku: String(d.sku || ''),
+    name: String(d.name || 'Untitled'),
+    category: String(d.category || ''),
+    price: Number(d.price) || 0,
+    note: String(d.note || ''),
+    images,
+    glyph: glyph || '◇',
+    width: Number(d.width) || 86,
+    active: d.active !== false,
+    order: Number(d.order) || 0,
+    variants,
+    stock: variants.reduce((s, v) => s + v.quantity, 0),
+    hasColours: variants.length > 1 || Boolean(variants[0] && variants[0].name),
+  };
+}
+
+const itemOf = (id) => S.byId.get(id) || null;
+
+function variantOf(item, variantId) {
+  if (!item) return null;
+  return item.variants.find((v) => v.id === variantId) || null;
+}
+
+/**
+ * When a component carries one photo per colour, in the same order, the picture
+ * follows the colour the customer picked. Any other number of photos is treated
+ * as a plain gallery and the first one stands for the component.
+ */
+function imageIndexFor(item, variantId) {
+  if (!item || item.images.length !== item.variants.length) return 0;
+  const i = item.variants.findIndex((v) => v.id === variantId);
+  return i < 0 ? 0 : i;
+}
+
+/** Picture for an item, in a given colour or at a given gallery position. */
+function shotHtml(item, variantId) {
+  if (!item) return '';
+  const index = typeof variantId === 'number' ? variantId : imageIndexFor(item, variantId);
+  const src = item.images[index] || item.images[0];
+  return src ? `<img src="${esc(src)}" alt="">` : `<span class="glyph">${esc(item.glyph)}</span>`;
+}
+
+function label(item, variantId) {
+  const v = variantOf(item, variantId);
+  return v && v.name ? `${item.name} · ${v.name}` : item.name;
 }
 
 function sections() {
-  return S.settings.sections && S.settings.sections.length ? S.settings.sections : [];
+  return Array.isArray(S.settings.sections) ? S.settings.sections : [];
 }
 
-function sectionOf(slug) {
-  return sections().find((c) => c.slug === slug) || { slug, name: slug, kind: 'attachment' };
+function sectionOf(slugValue) {
+  return sections().find((c) => c.slug === slugValue) || { slug: slugValue, name: slugValue || 'Other', kind: 'attachment' };
 }
 
-/* --------------------------------------------------------------- database */
+const isBaseItem = (item) => item && sectionOf(item.category).kind === 'base';
+
+/* -------------------------------------------------------------------- tray */
+
+function loadTray() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TRAY_KEY) || '[]');
+    S.tray = Array.isArray(raw) ? raw.filter((r) => r && r.itemId && r.variantId && r.qty > 0) : [];
+  } catch { S.tray = []; }
+}
+
+function saveTray() {
+  try { localStorage.setItem(TRAY_KEY, JSON.stringify(S.tray)); } catch { /* private mode */ }
+}
+
+const trayQty = (itemId, variantId) => {
+  const row = S.tray.find((r) => r.itemId === itemId && r.variantId === variantId);
+  return row ? row.qty : 0;
+};
+
+const trayTotal = () => S.tray.reduce((s, r) => s + r.qty, 0);
+
+function trayAdd(itemId, variantId, n) {
+  const row = S.tray.find((r) => r.itemId === itemId && r.variantId === variantId);
+  if (row) row.qty += n;
+  else S.tray.push({ itemId, variantId, qty: n });
+  saveTray();
+}
+
+function trayTake(itemId, variantId, n) {
+  const row = S.tray.find((r) => r.itemId === itemId && r.variantId === variantId);
+  if (!row) return;
+  row.qty -= n;
+  if (row.qty <= 0) S.tray = S.tray.filter((r) => r !== row);
+  saveTray();
+}
+
+/** Placed on the piece right now, base included. */
+function placedQty(itemId, variantId) {
+  let n = S.charms.filter((c) => c.itemId === itemId && c.variantId === variantId).length;
+  if (S.base && S.base.itemId === itemId && S.base.variantId === variantId) n += 1;
+  return n;
+}
+
+/** Still in the tray and not yet on the piece. */
+const toPlace = (itemId, variantId) => trayQty(itemId, variantId) - placedQty(itemId, variantId);
+
+/** What the shopper may still add to the tray, given the repo and their tray. */
+function addable(item, variantId) {
+  const v = variantOf(item, variantId);
+  if (!v) return 0;
+  return Math.max(0, v.quantity - trayQty(item.id, variantId));
+}
+
+/**
+ * Keeps the tray honest against the live repo: drops picks whose component or
+ * colour has gone, and trims quantities that no longer exist in stock.
+ */
+function reconcileTray() {
+  const notes = [];
+  S.tray = S.tray.filter((row) => {
+    const item = itemOf(row.itemId);
+    const v = variantOf(item, row.variantId);
+    if (!item || !item.active || !v) {
+      notes.push(`${item ? label(item, row.variantId) : 'A piece'} is no longer available`);
+      return false;
+    }
+    if (row.qty > v.quantity) {
+      if (v.quantity === 0) {
+        notes.push(`${label(item, row.variantId)} has sold out`);
+        return false;
+      }
+      notes.push(`${label(item, row.variantId)} is down to ${v.quantity}`);
+      row.qty = v.quantity;
+    }
+    return true;
+  });
+
+  // Anything placed but no longer backed by a tray pick comes off the piece.
+  const over = new Map();
+  const keep = [];
+  for (const c of S.charms) {
+    const k = `${c.itemId}::${c.variantId}`;
+    const used = (over.get(k) || 0) + 1;
+    const allowed = trayQty(c.itemId, c.variantId) - (S.base && S.base.itemId === c.itemId && S.base.variantId === c.variantId ? 1 : 0);
+    if (used <= allowed) { over.set(k, used); keep.push(c); }
+  }
+  if (keep.length !== S.charms.length) S.charms = keep;
+  if (S.base && trayQty(S.base.itemId, S.base.variantId) < 1) S.base = null;
+
+  saveTray();
+  if (notes.length) toast(`${notes.join('. ')}. Your tray was updated.`, 'bad');
+}
+
+/* ---------------------------------------------------------------- database */
 
 async function connect() {
   const db = await claude.use('db');
   if (!db) {
-    $('#boot').innerHTML = `<h2>This view can't reach the shop's database</h2>
-      <p class="muted">Open the artifact link directly in a browser while signed in.
-      The designer needs the live component tray to price and reserve pieces.</p>`;
+    $('#boot').innerHTML = `<h2>This view can't reach the shop</h2>
+      <p class="muted">Open the artifact link directly in a browser while signed in —
+      the shop needs the live collection to price and reserve pieces.</p>`;
     $('#conn').textContent = 'offline';
     return;
   }
@@ -645,11 +1060,11 @@ async function connect() {
   }, onDbError);
 
   db.collection('catalog').onSnapshot((snap) => {
-    S.pieces = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
-    S.byId = new Map(S.pieces.map((p) => [p.id, p]));
-    dropMissing();
-    if (!S.ready && S.pieces.length) { S.ready = true; setMode(S.mode); }
+    S.items = snap.docs.map((d) => normalize(d.id, d.data()))
+      .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+    S.byId = new Map(S.items.map((i) => [i.id, i]));
+    reconcileTray();
+    if (!S.ready && S.items.length) { S.ready = true; setMode(S.mode); }
     paint();
   }, onDbError);
 
@@ -662,17 +1077,17 @@ async function connect() {
   db.collection('orders').onSnapshot((snap) => {
     S.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    if (S.mode === 'admin') paintAdmin();
+    if (S.mode === 'studio') paintAdmin();
   }, onDbError);
 
   setTimeout(() => {
     if (!S.ready) {
-      $('#boot').innerHTML = `<h2>The component tray is empty</h2>
-        <p class="muted">Open <b>Studio → Component repo</b> and add your first bracelet band,
-        pendant frame or charm. Customers see it here the moment you save.</p>`;
+      $('#boot').innerHTML = `<h2>The collection is empty</h2>
+        <p class="muted">Open <b>Studio → Component repo</b> and add your first band, frame or charm.
+        Customers see it the moment you save.</p>`;
       S.ready = true;
       setMode(S.mode);
-      $('#boot').hidden = S.mode === 'admin';
+      $('#boot').hidden = S.mode === 'studio';
     }
   }, 4000);
 }
@@ -683,64 +1098,232 @@ function onDbError(err) {
   $('#conn').textContent = 'reconnecting…';
 }
 
-/** Drop anything the studio retired or deleted while a design was open. */
-function dropMissing() {
-  const live = (id) => S.byId.has(id) && S.byId.get(id).active !== false;
-  const before = S.charms.length;
-  S.charms = S.charms.filter((c) => live(c.pieceId));
-  if (S.base && !live(S.base)) { S.base = null; toast('That base piece is no longer available.', 'bad'); }
-  else if (S.charms.length !== before) toast('Some charms are no longer available and were taken off.', 'bad');
+function dbFail(err) {
+  const code = err && err.code;
+  if (code === 'invalid_argument') return 'That change was refused — check the values and try again.';
+  if (code === 'quota_exceeded') return 'The shop database is full. Delete something before adding more.';
+  if (code === 'resource_exhausted') return 'Too many changes at once. Give it a moment and try again.';
+  if (code === 'not_granted' || code === 'revoked') return 'This view can only read the shop.';
+  return (err && err.message) || 'That did not save.';
 }
 
-/* ------------------------------------------------------------ stock rules */
+const guard = (fn) => async (...args) => {
+  try { await fn(...args); } catch (err) { toast(dbFail(err), 'bad'); }
+};
+</script>
 
-function usedOf(id) {
-  return S.charms.filter((c) => c.pieceId === id).length + (S.base === id ? 1 : 0);
+<script>
+'use strict';
+
+/* ------------------------------------------------------------ browse view */
+
+function paintShopCats() {
+  const live = sections().filter((c) => S.items.some((i) => i.active && i.category === c.slug));
+  $('#shop-cats').innerHTML = [`<button class="cat" data-slug="" aria-pressed="${!S.section}">Everything</button>`]
+    .concat(live.map((c) => `<button class="cat" data-slug="${esc(c.slug)}"
+      aria-pressed="${c.slug === S.section}">${esc(c.name)}</button>`)).join('');
 }
 
-function freeOf(id) {
-  const p = S.byId.get(id);
-  return p ? Math.max(0, (p.quantity || 0) - usedOf(id)) : 0;
+function visibleItems() {
+  const q = S.search.trim().toLowerCase();
+  return S.items.filter((i) => i.active
+    && (!S.section || i.category === S.section)
+    && (!S.hideOut || i.stock > 0)
+    && (!q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)
+        || i.note.toLowerCase().includes(q)
+        || i.variants.some((v) => v.name.toLowerCase().includes(q))));
 }
 
-function mayAdd(p) {
-  if ((p.quantity || 0) <= 0) { toast(`${p.name} is out of stock.`, 'bad'); return false; }
-  if (usedOf(p.id) >= p.quantity) {
-    toast(`Only ${p.quantity} ${p.quantity === 1 ? 'is' : 'are'} available of ${p.name}.`, 'bad');
-    return false;
+function paintCatalogue() {
+  const items = visibleItems();
+  if (!items.length) {
+    $('#catalogue').innerHTML = `<p class="blank" style="grid-column:1/-1">
+      ${S.items.length ? 'Nothing matches that.' : 'The collection is empty.'}</p>`;
+    return;
   }
-  return true;
-}
-
-/* -------------------------------------------------------------- the tray */
-
-function paintSections() {
-  const shown = sections().filter((c) => S.pieces.some((p) => p.category === c.slug && p.active !== false));
-  if (!S.section || !shown.some((c) => c.slug === S.section)) S.section = shown.length ? shown[0].slug : null;
-  $('#cats').innerHTML = shown.map((c) =>
-    `<button class="cat" data-slug="${esc(c.slug)}" aria-pressed="${c.slug === S.section}">${esc(c.name)}</button>`).join('');
-}
-
-function paintTray() {
-  const items = S.pieces.filter((p) => p.active !== false && p.category === S.section);
-  if (!items.length) { $('#tray').innerHTML = '<p class="blank">Nothing in this section yet.</p>'; return; }
-  $('#tray').innerHTML = items.map((p) => {
-    const kind = sectionOf(p.category).kind;
-    const used = usedOf(p.id);
-    const free = freeOf(p.id);
-    return `<div class="piece ${kind === 'base' ? 'base' : ''} ${kind === 'base' && S.base === p.id ? 'on' : ''} ${free <= 0 ? 'gone' : ''}"
-      data-id="${esc(p.id)}" draggable="${free > 0}" tabindex="0" role="button"
-      title="${esc(p.note || p.name)}">
-      <div class="art">${artHtml(p)}</div>
-      <div class="nm">${esc(p.name)}</div>
-      <div class="pr">${money(p.price)}</div>
-      <div class="left">${(p.quantity || 0) <= 0 ? 'out of stock' : `${free} of ${p.quantity} left`}</div>
-      ${used ? `<span class="used">${used}</span>` : ''}
-    </div>`;
+  const t = Number(S.settings.threshold) || 10;
+  $('#catalogue').innerHTML = items.map((i) => {
+    const inTray = S.tray.filter((r) => r.itemId === i.id).reduce((s, r) => s + r.qty, 0);
+    const flag = i.stock <= 0 ? '<span class="flag out">Sold out</span>'
+      : i.stock < t ? `<span class="flag low">Only ${i.stock} left</span>` : '';
+    const dots = i.hasColours ? `<span class="dots">${i.variants.slice(0, 5).map((v) =>
+      `<i class="dot" style="background:${esc(v.swatch || '#c9bfc4')}" title="${esc(v.name)}"></i>`).join('')}
+      ${i.variants.length > 5 ? `<span class="dot more">+${i.variants.length - 5}</span>` : ''}</span>` : '';
+    return `<button class="card" data-id="${esc(i.id)}">
+      <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
+      <span class="meta">
+        <span class="title">${esc(i.name)}</span>
+        <span class="price">${money(i.price)}</span>
+        <span class="foot">${dots}${isBaseItem(i) ? '<span class="tag flat">base piece</span>' : ''}</span>
+      </span>
+    </button>`;
   }).join('');
 }
 
-/* ------------------------------------------------------------- the stage */
+/* ----------------------------------------------------------- product sheet */
+
+function openSheet(itemId) {
+  const item = itemOf(itemId);
+  if (!item) return;
+  const first = item.variants.find((v) => v.quantity > 0) || item.variants[0];
+  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0 };
+  paintSheet();
+  $('#dlg-item').showModal();
+}
+
+function paintSheet() {
+  if (!S.sheet) return;
+  const item = itemOf(S.sheet.itemId);
+  if (!item) { $('#dlg-item').close(); return; }
+  const v = variantOf(item, S.sheet.variantId) || item.variants[0];
+  S.sheet.variantId = v.id;
+  const free = addable(item, v.id);
+  S.sheet.qty = clamp(S.sheet.qty, 1, Math.max(1, free));
+
+  $('#item-title').textContent = item.name;
+  $('#item-section').textContent = sectionOf(item.category).name;
+  $('#item-price').textContent = money(item.price);
+  $('#item-desc').textContent = item.note || 'Handmade in the studio.';
+  $('#item-main').innerHTML = shotHtml(item, S.sheet.image);
+
+  $('#item-thumbs').innerHTML = item.images.length > 1
+    ? item.images.map((src, k) => `<button data-shot="${k}" aria-pressed="${k === S.sheet.image}"
+        aria-label="Photo ${k + 1}"><img src="${esc(src)}" alt=""></button>`).join('')
+    : '';
+
+  $('#item-colours').innerHTML = item.hasColours ? `
+    <div class="eyebrow" style="margin-bottom:6px">Colour${
+      v.name ? ` — <span style="text-transform:none;letter-spacing:0">${esc(v.name)}</span>` : ''}</div>
+    <div class="swatches">${item.variants.map((x) => `<button class="swatch" data-variant="${esc(x.id)}"
+      aria-pressed="${x.id === v.id}" ${x.quantity <= 0 ? 'disabled' : ''}
+      title="${x.quantity <= 0 ? 'Sold out' : `${x.quantity} in stock`}"><i style="background:${
+        esc(x.swatch || '#c9bfc4')}"></i>${esc(x.name || 'Standard')}</button>`).join('')}</div>` : '';
+
+  $('#qty-out').textContent = S.sheet.qty;
+  $('#qty-down').disabled = S.sheet.qty <= 1;
+  $('#qty-up').disabled = S.sheet.qty >= free;
+  $('#item-add').disabled = free <= 0;
+  $('#item-add').textContent = free <= 0 ? 'Sold out' : 'Add to tray';
+
+  const inTray = trayQty(item.id, v.id);
+  $('#item-stock').textContent = v.quantity <= 0
+    ? 'None left in the repo.'
+    : `${v.quantity} in stock${inTray ? ` · ${inTray} already in your tray` : ''}`;
+  $('#item-error').hidden = true;
+}
+
+function addFromSheet() {
+  const item = itemOf(S.sheet.itemId);
+  const v = variantOf(item, S.sheet.variantId);
+  const free = addable(item, v.id);
+  const err = $('#item-error');
+  if (free <= 0) {
+    err.hidden = false;
+    err.textContent = trayQty(item.id, v.id)
+      ? `All ${v.quantity} of ${label(item, v.id)} are already in your tray.`
+      : `${label(item, v.id)} is out of stock.`;
+    return;
+  }
+  if (S.sheet.qty > free) {
+    err.hidden = false;
+    err.textContent = `Only ${free} more available.`;
+    S.sheet.qty = free;
+    paintSheet();
+    return;
+  }
+  trayAdd(item.id, v.id, S.sheet.qty);
+  toast(`${S.sheet.qty} × ${label(item, v.id)} added to your tray.`, 'good');
+  S.sheet.qty = 1;
+  paint();
+  paintSheet();
+}
+
+/* ------------------------------------------------------------ tray dialog */
+
+function trayRows() {
+  return S.tray.map((row) => {
+    const item = itemOf(row.itemId);
+    return item ? { ...row, item, variant: variantOf(item, row.variantId) } : null;
+  }).filter(Boolean);
+}
+
+function paintTrayDialog() {
+  const rows = trayRows();
+  $('#tray-body').innerHTML = rows.length ? rows.map((r) => {
+    const placed = placedQty(r.itemId, r.variantId);
+    return `<div class="tray-line ${placed >= r.qty ? 'spent' : ''}" data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}">
+      <span class="shot">${shotHtml(r.item, r.variantId)}</span>
+      <span>
+        <span class="nm">${esc(r.item.name)}</span>
+        <span class="sub">${r.variant && r.variant.name ? `${esc(r.variant.name)} · ` : ''}${money(r.item.price)} each${
+          placed ? ` · ${placed} on your piece` : ''}</span>
+      </span>
+      <span class="acts" style="display:flex;gap:6px;align-items:center">
+        <span class="stepper">
+          <button type="button" data-act="less" aria-label="One fewer">−</button>
+          <output>${r.qty}</output>
+          <button type="button" data-act="more" aria-label="One more">+</button>
+        </span>
+        <button class="tiny warnbtn" data-act="drop">Remove</button>
+      </span>
+    </div>`;
+  }).join('') + `<div class="sum">
+      <div><span>Pieces picked</span><span class="num">${trayTotal()}</span></div>
+      <div><span>If you use them all</span><span class="num">${money(
+        rows.reduce((s, r) => s + r.item.price * r.qty, 0))}</span></div>
+    </div>
+    <p class="muted" style="font-size:12.5px;margin:12px 0 0">You're only charged for what you place on
+      the piece. Anything left in the tray stays here for next time.</p>`
+    : '<p class="blank">Your tray is empty. Browse the collection and add what you like.</p>';
+
+  $('#tray-empty').disabled = !rows.length;
+  $('#tray-design').disabled = !rows.length;
+}
+
+function paintTrayPip() {
+  const n = trayTotal();
+  $('#tray-pip').textContent = n;
+  const left = S.tray.reduce((s, r) => s + Math.max(0, toPlace(r.itemId, r.variantId)), 0);
+  $('#tray-left').textContent = n === 0 ? 'nothing picked yet'
+    : left === 0 ? 'all of it is on the piece'
+      : `${left} still to place`;
+}
+</script>
+
+<script>
+'use strict';
+
+/* -------------------------------------------------------------- place rail */
+
+function paintPlaceRail() {
+  const rows = trayRows();
+  if (!rows.length) {
+    $('#place-rail').innerHTML = `<div class="empty-rail">
+      <p class="muted" style="margin:0">Your tray is empty, so there's nothing to place yet.</p>
+      <button class="solid" id="rail-browse">Browse the collection</button></div>`;
+    return;
+  }
+  rows.sort((a, b) => Number(isBaseItem(b.item)) - Number(isBaseItem(a.item)));
+  $('#place-rail').innerHTML = `<div class="place-list">${rows.map((r) => {
+    const left = toPlace(r.itemId, r.variantId);
+    const base = isBaseItem(r.item);
+    const isCurrentBase = Boolean(S.base && S.base.itemId === r.itemId && S.base.variantId === r.variantId);
+    return `<div class="placeable ${base ? 'is-base' : ''} ${isCurrentBase ? 'on' : ''} ${left <= 0 ? 'done' : ''}"
+      data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
+      draggable="${left > 0}" tabindex="0" role="button"
+      title="${esc(r.item.note || r.item.name)}">
+      <span class="shot">${shotHtml(r.item, r.variantId)}</span>
+      <span>
+        <span class="nm">${esc(r.item.name)}${r.variant && r.variant.name
+          ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
+        <span class="sub">${left > 0 ? `${left} of ${r.qty} to place` : 'all placed'}${
+          base ? ' · base' : ''}</span>
+      </span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/* ------------------------------------------------------------------ stage */
 
 function fanOut(x, y) {
   for (let i = 0; i < 26; i += 1) {
@@ -751,77 +1334,90 @@ function fanOut(x, y) {
   return { x, y };
 }
 
-function chooseBase(p) {
-  if (S.base === p.id) return;
-  const was = S.base;
-  S.base = null;
-  if (!mayAdd(p)) { S.base = was; return; }
-  S.base = p.id;
-  paint();
-}
+/** Placing only ever draws on the tray — never straight from the repo. */
+function place(itemId, variantId, x, y) {
+  const item = itemOf(itemId);
+  if (!item) return;
+  if (toPlace(itemId, variantId) <= 0) {
+    const picked = trayQty(itemId, variantId);
+    toast(picked
+      ? `All ${picked} of your ${label(item, variantId)} are already on the piece — add more in Browse.`
+      : `${label(item, variantId)} isn't in your tray yet.`, 'bad');
+    return;
+  }
 
-function attach(p, x, y) {
-  if (sectionOf(p.category).kind === 'base') { chooseBase(p); return; }
-  if (!S.base) { toast('Choose a base piece first.', 'bad'); return; }
-  if (!mayAdd(p)) return;
+  if (isBaseItem(item)) {
+    S.base = { uid: 'b' + Date.now().toString(36), itemId, variantId };
+    S.picked = null;
+    paint();
+    return;
+  }
+  if (!S.base) { toast('Place a base piece first — a band, frame or kaleera.', 'bad'); return; }
+
   const stage = $('#stage');
   const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    pieceId: p.id, x: spot.x, y: spot.y,
-    w: clamp(((p.width || 86) / stage.clientWidth) * 100, 3, 60),
+    itemId, variantId, x: spot.x, y: spot.y,
+    w: clamp((item.width / stage.clientWidth) * 100, 3, 60),
     rot: 0, z: ++S.zTop,
   });
   S.picked = S.charms[S.charms.length - 1].uid;
   paint();
 }
 
-function takeOff(uid) {
+/** Taking something off returns it to the tray — it was never charged. */
+function unplace(uid) {
   S.charms = S.charms.filter((c) => c.uid !== uid);
   if (S.picked === uid) S.picked = null;
+  paint();
+}
+
+function clearBase() {
+  S.base = null;
+  S.charms = [];
+  S.picked = null;
   paint();
 }
 
 function paintStage() {
   const stage = $('#stage');
   $$('.charm, .stage-base', stage).forEach((n) => n.remove());
-  const base = S.base ? S.byId.get(S.base) : null;
-  $('#hint').hidden = Boolean(base);
+  const baseItem = S.base ? itemOf(S.base.itemId) : null;
+  $('#hint').hidden = Boolean(baseItem);
 
-  if (base) {
-    if (base.art && base.art.t === 'img') {
-      const img = document.createElement('img');
-      img.className = 'stage-base';
-      img.src = base.art.v;
-      img.alt = base.name;
-      stage.append(img);
-    } else {
-      const holder = document.createElement('div');
-      holder.className = 'stage-base';
-      holder.style.cssText += ';display:grid;place-items:center;font-size:min(38vh,260px);line-height:1';
-      holder.textContent = (base.art && base.art.v) || '◇';
-      stage.append(holder);
+  if (baseItem) {
+    const holder = document.createElement('div');
+    holder.className = 'stage-base';
+    holder.innerHTML = shotHtml(baseItem, S.base.variantId);
+    const img = holder.querySelector('img');
+    if (img) { img.style.cssText = 'width:100%;height:100%;object-fit:contain'; }
+    const glyph = holder.querySelector('.glyph');
+    if (glyph) {
+      holder.style.cssText += ';display:grid;place-items:center';
+      glyph.style.fontSize = 'min(38vh, 260px)';
     }
+    stage.append(holder);
   }
 
   for (const c of S.charms) {
-    const p = S.byId.get(c.pieceId);
-    if (!p) continue;
+    const item = itemOf(c.itemId);
+    if (!item) continue;
     const node = document.createElement('div');
     node.className = 'charm' + (S.picked === c.uid ? ' on' : '');
     node.dataset.uid = c.uid;
     node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${c.w}%;aspect-ratio:1;z-index:${c.z};` +
       `transform:translate(-50%,-50%) rotate(${c.rot}deg)`;
-    node.innerHTML = artHtml(p) + '<button class="lift" aria-label="Take off ' + esc(p.name) + '">×</button>';
+    node.innerHTML = shotHtml(item, c.variantId) +
+      `<button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
     const glyph = node.querySelector('.glyph');
     if (glyph) glyph.style.fontSize = `calc(${c.w}vw * 0.5)`;
-    node.querySelector('.lift').addEventListener('pointerdown', (e) => { e.stopPropagation(); takeOff(c.uid); });
+    node.querySelector('.lift').addEventListener('pointerdown', (e) => { e.stopPropagation(); unplace(c.uid); });
     node.addEventListener('pointerdown', (e) => startMove(e, c, node));
     stage.append(node);
   }
 }
 
-/** One pointer path covers mouse, pen and touch. */
 function startMove(ev, charm, node) {
   ev.preventDefault();
   S.picked = charm.uid;
@@ -850,24 +1446,40 @@ function startMove(ev, charm, node) {
   window.addEventListener('pointerup', up);
 }
 
-/* --------------------------------------------------------------- the bill */
+/* ------------------------------------------------------------------- bill */
 
+/** The bill counts what is on the piece — tray picks are not charged. */
 function billLines() {
   const counts = new Map();
-  if (S.base) counts.set(S.base, 1);
-  for (const c of S.charms) counts.set(c.pieceId, (counts.get(c.pieceId) || 0) + 1);
+  const add = (itemId, variantId) => {
+    const k = `${itemId}::${variantId}`;
+    const row = counts.get(k) || { itemId, variantId, qty: 0 };
+    row.qty += 1;
+    counts.set(k, row);
+  };
+  if (S.base) add(S.base.itemId, S.base.variantId);
+  for (const c of S.charms) add(c.itemId, c.variantId);
+
   const lines = [];
-  for (const [id, qty] of counts) {
-    const p = S.byId.get(id);
-    if (!p) continue;
-    lines.push({ id, sku: p.sku, name: p.name, category: p.category, unit: p.price, qty, total: p.price * qty });
+  for (const row of counts.values()) {
+    const item = itemOf(row.itemId);
+    if (!item) continue;
+    const v = variantOf(item, row.variantId);
+    lines.push({
+      itemId: item.id, variantId: row.variantId,
+      sku: (v && v.sku) || item.sku,
+      name: item.name,
+      colour: (v && v.name) || '',
+      unit: item.price, qty: row.qty, total: item.price * row.qty,
+    });
   }
   return lines.sort((a, b) => b.total - a.total);
 }
 
 function shippingNow() {
   if (!$('#dlg-checkout').open) return 0;
-  if ($('input[name=fulfilment]:checked').value !== 'ship') return 0;
+  const picked = $('input[name=fulfilment]:checked');
+  if (!picked || picked.value !== 'ship') return 0;
   const z = S.zones.find((x) => x.id === $('#ck-area').value);
   return z ? z.cost : 0;
 }
@@ -884,12 +1496,12 @@ function paintBill() {
   $('#s-total').textContent = count ? money(items + ship) : '—';
 
   $('#bill').innerHTML = lines.length
-    ? lines.map((l) => `<li><span>${esc(l.name)}</span><span class="q">×${l.qty}</span>
-        <span class="amt">${money(l.total)}</span></li>`).join('')
+    ? lines.map((l) => `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
+        <span class="q">×${l.qty}</span><span class="amt">${money(l.total)}</span></li>`).join('')
     : '<li class="blank" style="display:block">Nothing on the piece yet.</li>';
 
   $('#sum').innerHTML = `
-    <div><span>Components</span><span class="num">${money(items)}</span></div>
+    <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
     <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'chosen at checkout'}</span></div>
     <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
 
@@ -900,28 +1512,58 @@ function paintBill() {
 }
 
 function paint() {
-  if (S.mode === 'shop') { paintSections(); paintTray(); paintStage(); paintBill(); }
+  paintTrayPip();
+  if (S.mode === 'browse') { paintShopCats(); paintCatalogue(); }
+  else if (S.mode === 'design') { paintPlaceRail(); paintStage(); paintBill(); }
   else paintAdmin();
+  if ($('#dlg-tray').open) paintTrayDialog();
 }
 </script>
 
 <script>
 'use strict';
 
-/* --------------------------------------------------------------- checkout */
+let leftoverChoice = 'none';   // 'none' | 'keep' | 'discard'
 
 function orderNumber() {
   const d = new Date();
-  const stamp = String(d.getFullYear()).slice(2) +
-    String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  const stamp = String(d.getFullYear()).slice(2)
+    + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
   return `CJ-${stamp}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+}
+
+/** Tray picks the shopper has not put on the piece. */
+function leftovers() {
+  return S.tray.map((r) => ({ ...r, left: toPlace(r.itemId, r.variantId), item: itemOf(r.itemId) }))
+    .filter((r) => r.left > 0 && r.item);
+}
+
+function startOrder() {
+  if (!S.base) { toast('Place a base piece first.', 'bad'); return; }
+  const rest = leftovers();
+  if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
+
+  $('#leftover-body').innerHTML = `
+    <p style="margin-top:0">You picked these but haven't used them on this piece:</p>
+    ${rest.map((r) => `<div class="tray-line">
+      <span class="shot">${shotHtml(r.item, r.variantId)}</span>
+      <span><span class="nm">${esc(r.item.name)}</span>
+        <span class="sub">${variantOf(r.item, r.variantId) && variantOf(r.item, r.variantId).name
+          ? `${esc(variantOf(r.item, r.variantId).name)} · ` : ''}${r.left} unused</span></span>
+      <span class="mono">×${r.left}</span>
+    </div>`).join('')}
+    <p class="muted" style="font-size:13px;margin-bottom:0">They aren't part of this order either way — you're
+      only charged for what's on the piece. Keep them and they'll be waiting in your tray next time;
+      discard them and they go back to the shop.</p>`;
+  $('#dlg-leftover').showModal();
 }
 
 function openCheckout() {
   const { lines, items } = paintBill();
   $('#ck-lines').innerHTML = `<ul class="bill">${lines.map((l) =>
-    `<li><span>${esc(l.name)}</span><span class="q">×${l.qty}</span>
-     <span class="amt">${money(l.total)}</span></li>`).join('')}</ul><div class="sum" id="ck-sum"></div>`;
+    `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
+     <span class="q">×${l.qty}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
+    <div class="sum" id="ck-sum"></div>`;
   $('#ck-area').innerHTML = S.zones.length
     ? S.zones.map((z) => `<option value="${esc(z.id)}">${esc(z.area)} — ${money(z.cost)}${
         z.eta ? ` · ${esc(z.eta)} days` : ''}</option>`).join('')
@@ -936,7 +1578,7 @@ function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) 
   const node = $('#ck-sum');
   if (node) {
     node.innerHTML = `
-      <div><span>Components</span><span class="num">${money(items)}</span></div>
+      <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
       <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'free — collect in studio'}</span></div>
       <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
   }
@@ -944,25 +1586,29 @@ function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) 
 }
 
 /**
- * Re-read every component straight from the store before committing, so a
- * design built minutes ago cannot claim stock another customer just took.
+ * Re-reads every component from the store before committing, so a design built
+ * minutes ago cannot claim stock another customer has since taken.
  */
-async function placeOrder(form) {
+async function submitOrder(form) {
   const lines = billLines();
   if (!lines.length) throw new Error('Your piece is empty.');
 
-  const fresh = await Promise.all(lines.map((l) => S.db.doc(`catalog/${l.id}`).get()));
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  const snaps = await Promise.all(itemIds.map((id) => S.db.doc(`catalog/${id}`).get()));
+  const fresh = new Map(itemIds.map((id, i) =>
+    [id, snaps[i].exists ? normalize(id, snaps[i].data()) : null]));
+
   const short = [];
-  fresh.forEach((snap, i) => {
-    const l = lines[i];
-    const now = snap.exists ? snap.data() : null;
-    if (!now || now.active === false) short.push(`${l.name} is no longer available.`);
-    else if ((now.quantity || 0) < l.qty) {
-      short.push((now.quantity || 0) === 0
-        ? `${l.name} has just sold out.`
-        : `Only ${now.quantity} of ${l.name} left — your piece uses ${l.qty}.`);
+  for (const l of lines) {
+    const item = fresh.get(l.itemId);
+    const v = item && variantOf(item, l.variantId);
+    if (!item || !item.active || !v) short.push(`${l.name} is no longer available.`);
+    else if (v.quantity < l.qty) {
+      short.push(v.quantity === 0
+        ? `${label(item, l.variantId)} has just sold out.`
+        : `Only ${v.quantity} of ${label(item, l.variantId)} left — your piece uses ${l.qty}.`);
     }
-  });
+  }
   if (short.length) throw new Error(short.join(' '));
 
   const fulfilment = form.get('fulfilment');
@@ -975,7 +1621,7 @@ async function placeOrder(form) {
     areaName = zone.area;
   }
 
-  const items = lines.reduce((s, l) => s + l.total, 0);
+  const itemsTotal = lines.reduce((s, l) => s + l.total, 0);
   const id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const order = {
     no: orderNumber(),
@@ -985,88 +1631,121 @@ async function placeOrder(form) {
     notes: String(form.get('notes') || '').trim(),
     fulfilment, area: areaName,
     address: fulfilment === 'ship' ? String(form.get('address')).trim() : '',
-    items: lines.map((l) => ({ id: l.id, sku: l.sku, name: l.name, unit: l.unit, qty: l.qty, total: l.total })),
-    design: { base: S.base, charms: S.charms.map(({ pieceId, x, y, w, rot, z }) => ({ pieceId, x, y, w, rot, z })) },
-    itemsTotal: items, shipping: ship, total: items + ship,
+    items: lines.map((l) => ({
+      itemId: l.itemId, variantId: l.variantId, sku: l.sku,
+      name: l.name, colour: l.colour, unit: l.unit, qty: l.qty, total: l.total,
+    })),
+    design: {
+      base: S.base ? { itemId: S.base.itemId, variantId: S.base.variantId } : null,
+      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z }) => ({ itemId, variantId, x, y, w, rot, z })),
+    },
+    itemsTotal, shipping: ship, total: itemsTotal + ship,
     status: 'new',
     createdAt: new Date().toISOString(),
   };
 
   await S.db.doc(`orders/${id}`).set(order);
-  // Take the components out of the repo now that the order is on the book.
-  await Promise.all(lines.map((l, i) => {
-    const now = fresh[i].data();
-    return S.db.doc(`catalog/${l.id}`).update({ quantity: (now.quantity || 0) - l.qty });
+
+  // Clear the tray and the piece BEFORE the stock write. The write comes back as
+  // a snapshot, and a tray that still claimed the ordered units would be
+  // reconciled against the new, lower counts and debited a second time.
+  for (const l of lines) trayTake(l.itemId, l.variantId, l.qty);
+  if (leftoverChoice === 'discard') { S.tray = []; saveTray(); }
+  S.base = null;
+  S.charms = [];
+  S.picked = null;
+  leftoverChoice = 'none';
+
+  await Promise.all(itemIds.map((itemId) => {
+    const item = fresh.get(itemId);
+    const variants = item.variants.map((v) => {
+      const used = lines.filter((l) => l.itemId === itemId && l.variantId === v.id)
+        .reduce((s, l) => s + l.qty, 0);
+      return used ? { ...v, quantity: v.quantity - used } : v;
+    });
+    return S.db.doc(`catalog/${itemId}`).update({ variants });
   }));
+
   return order;
 }
 
 function showDone(order) {
+  const left = trayTotal();
   $('#done-body').innerHTML = `
     <p>Thank you — order <b class="mono">${esc(order.no)}</b> is on the book.</p>
     <div class="sum">
-      <div><span>Components</span><span class="num">${money(order.itemsTotal)}</span></div>
+      <div><span>Pieces used</span><span class="num">${money(order.itemsTotal)}</span></div>
       <div><span>Delivery${order.area ? ` — ${esc(order.area)}` : ''}</span>
         <span class="num">${order.shipping ? money(order.shipping) : 'free'}</span></div>
       <div class="grand"><span>Total</span><span>${money(order.total)}</span></div>
     </div>
-    <p class="muted" style="margin-bottom:0">${order.fulfilment === 'ship'
+    <p class="muted" style="margin-top:12px">${order.fulfilment === 'ship'
       ? 'We’ll post it to your address as soon as it’s made and message you the tracking details.'
-      : 'We’ll message you the moment it’s ready to collect from the studio.'}</p>`;
+      : 'We’ll message you the moment it’s ready to collect from the studio.'}</p>
+    <p class="muted" style="margin-bottom:0">${left
+      ? `${left} piece${left === 1 ? '' : 's'} stayed in your tray for next time.`
+      : 'Your tray is empty again.'}</p>`;
   $('#dlg-done').showModal();
 }
+</script>
 
-function clearDesign() {
-  S.base = null; S.charms = []; S.picked = null;
-  paint();
-}
-
-/* ------------------------------------------------------------ studio: data */
+<script>
+'use strict';
 
 const STATUS = { new: 'New', making: 'Being made', ready: 'Ready', done: 'Completed', cancelled: 'Cancelled' };
 const STATUS_TAG = { new: 'low', making: 'low', ready: 'ok', done: 'flat', cancelled: 'out' };
 const OPEN_STATUS = ['new', 'making'];
 
-function threshold() { return Number(S.settings.threshold) || 10; }
+const threshold = () => Number(S.settings.threshold) || 10;
+
+/** Stock lives per colour, so the studio counts colours, not components. */
+function stockRows() {
+  const rows = [];
+  for (const item of S.items) for (const v of item.variants) rows.push({ item, v });
+  return rows;
+}
 
 function buckets() {
   const t = threshold();
+  const rows = stockRows();
   return {
-    out: S.pieces.filter((p) => (p.quantity || 0) <= 0),
-    low: S.pieces.filter((p) => (p.quantity || 0) > 0 && p.quantity < t),
-    ok: S.pieces.filter((p) => (p.quantity || 0) >= t),
+    out: rows.filter((r) => r.v.quantity <= 0),
+    low: rows.filter((r) => r.v.quantity > 0 && r.v.quantity < t),
+    ok: rows.filter((r) => r.v.quantity >= t),
   };
 }
 
-/** Everything the bench has to pull for orders that are not finished. */
 function pickList() {
   const need = new Map();
   for (const o of S.orders) {
     if (!OPEN_STATUS.includes(o.status)) continue;
     for (const it of o.items || []) {
-      const row = need.get(it.id) || { name: it.name, sku: it.sku, needed: 0 };
+      const k = `${it.itemId || it.id}::${it.variantId || 'v0'}`;
+      const row = need.get(k) || { name: it.name, colour: it.colour || '', sku: it.sku, needed: 0, itemId: it.itemId || it.id, variantId: it.variantId || 'v0' };
       row.needed += it.qty;
-      need.set(it.id, row);
+      need.set(k, row);
     }
   }
-  return [...need.entries()].map(([id, r]) => ({
-    id, ...r, inRepo: S.byId.has(id) ? (S.byId.get(id).quantity || 0) : 0,
-  })).sort((a, b) => b.needed - a.needed);
+  return [...need.values()].map((r) => {
+    const item = itemOf(r.itemId);
+    const v = variantOf(item, r.variantId);
+    return { ...r, inRepo: v ? v.quantity : 0 };
+  }).sort((a, b) => b.needed - a.needed);
 }
 
-/* ----------------------------------------------------------- studio: views */
-
-function stockRow(p) {
+function stockRow({ item, v }) {
   const t = threshold();
-  const q = p.quantity || 0;
-  const tag = q <= 0 ? '<span class="tag out">out of stock</span>'
-    : q < t ? `<span class="tag low">low · ${q}</span>` : `<span class="tag ok">${q}</span>`;
-  return `<tr class="stripe ${q <= 0 ? 'out' : q < t ? 'low' : ''}" data-id="${esc(p.id)}">
-    <td><div class="mini">${artHtml(p)}</div></td>
-    <td><b>${esc(p.name)}</b><br><span class="mono muted">${esc(p.sku)}</span>${
-      p.active === false ? ' <span class="tag flat">hidden</span>' : ''}</td>
-    <td>${esc(sectionOf(p.category).name)}</td>
-    <td class="r">${money(p.price)}</td>
+  const tag = v.quantity <= 0 ? '<span class="tag out">out of stock</span>'
+    : v.quantity < t ? `<span class="tag low">low · ${v.quantity}</span>`
+      : `<span class="tag ok">${v.quantity}</span>`;
+  return `<tr class="stripe ${v.quantity <= 0 ? 'out' : v.quantity < t ? 'low' : ''}"
+      data-id="${esc(item.id)}" data-variant="${esc(v.id)}">
+    <td><div class="mini">${shotHtml(item, v.id)}</div></td>
+    <td><b>${esc(item.name)}</b>${v.name ? ` <span class="tag flat">${esc(v.name)}</span>` : ''}
+      <br><span class="mono muted">${esc(v.sku || item.sku)}</span>${
+      item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
+    <td>${esc(sectionOf(item.category).name)}</td>
+    <td class="r">${money(item.price)}</td>
     <td class="r">${tag}</td>
     <td><div class="acts">
       <input type="number" value="10" step="1" aria-label="How many arrived">
@@ -1079,7 +1758,8 @@ function stockRow(p) {
 
 function stockTable(rows, blank) {
   return `<div class="scroll"><table class="repo">
-    <thead><tr><th></th><th>Component</th><th>Section</th><th class="r">Price</th><th class="r">In repo</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Component &amp; colour</th><th>Section</th>
+      <th class="r">Price</th><th class="r">In repo</th><th></th></tr></thead>
     <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="6" class="blank">${blank}</td></tr>`}</tbody>
   </table></div>`;
 }
@@ -1104,7 +1784,8 @@ function viewOverview() {
       <div class="scroll"><table>
         <thead><tr><th>Component</th><th>SKU</th><th class="r">Needed</th><th class="r">In repo</th><th class="r">Cover</th></tr></thead>
         <tbody>${pick.length ? pick.map((r) => `<tr class="stripe ${r.inRepo < r.needed ? 'out' : ''}">
-          <td>${esc(r.name)}</td><td class="mono muted">${esc(r.sku)}</td>
+          <td>${esc(r.name)}${r.colour ? ` <span class="tag flat">${esc(r.colour)}</span>` : ''}</td>
+          <td class="mono muted">${esc(r.sku)}</td>
           <td class="r">${r.needed}</td><td class="r">${r.inRepo}</td>
           <td class="r">${r.inRepo < r.needed
             ? `<span class="tag out">short ${r.needed - r.inRepo}</span>`
@@ -1114,13 +1795,13 @@ function viewOverview() {
     </section>`;
 }
 
-function viewTray() {
+function viewRepo() {
   return `
     <section class="panel">
       <header><h2>Component repo</h2><span class="spacer"></span>
-        <input id="repo-find" placeholder="Search name or SKU" style="width:210px">
+        <input id="repo-find" placeholder="Search name, colour or SKU" style="width:220px">
         <button class="solid" id="repo-add">Add component</button></header>
-      ${stockTable(S.pieces, 'Nothing in the repo yet — add your first component.')}
+      ${stockTable(stockRows(), 'Nothing in the repo yet — add your first component.')}
     </section>
     <section class="panel">
       <header><h2>Sections</h2><span class="spacer"></span>
@@ -1132,15 +1813,16 @@ function viewTray() {
         <button id="sec-add">Add</button></header>
       <div class="pad" style="display:flex;gap:7px;flex-wrap:wrap">
         ${sections().map((c) => `<span class="tag ${c.kind === 'base' ? 'on' : 'flat'}">${esc(c.name)}
-          <button class="ghost tiny" data-sec="${esc(c.slug)}" style="padding:0 2px" aria-label="Remove ${esc(c.name)}">×</button>
-        </span>`).join('') || '<span class="muted">No sections yet.</span>'}
+          <button class="ghost tiny" data-sec="${esc(c.slug)}" style="padding:0 2px"
+            aria-label="Remove ${esc(c.name)}">×</button></span>`).join('')
+          || '<span class="muted">No sections yet.</span>'}
       </div>
     </section>`;
 }
 
 function viewStock() {
   const b = buckets();
-  return `
+  return `<div class="stack">
     <section class="panel">
       <header><h2>Out of stock</h2><span class="spacer"></span><span class="tag out">${b.out.length}</span></header>
       ${stockTable(b.out, 'Nothing is out of stock.')}
@@ -1153,7 +1835,8 @@ function viewStock() {
     <section class="panel">
       <header><h2>Healthy stock</h2><span class="spacer"></span><span class="tag ok">${b.ok.length}</span></header>
       ${stockTable(b.ok, 'Nothing here yet.')}
-    </section>`;
+    </section>
+  </div>`;
 }
 
 function viewOrders() {
@@ -1173,7 +1856,8 @@ function viewOrders() {
         <td>${o.fulfilment === 'ship'
           ? `Ship — ${esc(o.area || '')}<br><span class="muted num">${money(o.shipping)}</span>`
           : 'Collect in studio'}</td>
-        <td style="font-size:12.5px">${(o.items || []).map((i) => `${esc(i.name)} ×${i.qty}`).join('<br>')}</td>
+        <td style="font-size:12.5px">${(o.items || []).map((i) =>
+          `${esc(i.name)}${i.colour ? ` (${esc(i.colour)})` : ''} ×${i.qty}`).join('<br>')}</td>
         <td class="r"><b>${money(o.total)}</b></td>
         <td><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span></td>
         <td><div class="acts">
@@ -1212,7 +1896,7 @@ function viewDelivery() {
 }
 
 function viewSetup() {
-  return `
+  return `<div class="stack">
     <section class="panel">
       <header><h2>Shop details</h2></header>
       <div class="pad">
@@ -1227,19 +1911,24 @@ function viewSetup() {
       </div>
     </section>
     <section class="panel">
-      <header><h2>How stock is counted</h2></header>
-      <div class="pad" style="max-width:66ch;display:grid;gap:9px">
-        <p style="margin:0">Placing an order takes its components out of the repo straight away, so the
-          next customer sees the lower count. Cancelling an order puts them back.</p>
-        <p style="margin:0">Deleting a component that appears on a past order hides it from customers
-          instead of erasing it, so the order stays readable.</p>
+      <header><h2>How the shop works</h2></header>
+      <div class="pad" style="max-width:68ch;display:grid;gap:9px">
+        <p style="margin:0"><b>Browse → tray → design.</b> Customers pick items with their colour and
+          quantity into a tray, then place them on a base in the design room. The tray is theirs alone
+          and survives closing the app.</p>
+        <p style="margin:0"><b>Nothing leaves the repo until an order is placed.</b> A tray pick is
+          capped by what's in stock, and the counts are re-checked at the moment of ordering. Customers
+          are charged only for what ends up on the piece; unused picks stay in their tray or go back.</p>
+        <p style="margin:0"><b>Stock is per colour.</b> Each colour has its own SKU and count, so
+          "gold heart" running out doesn't hide the silver one.</p>
         <p class="muted" style="margin:0">The PIN keeps the studio out of the way on a shared screen —
           it is not a security boundary. Anyone you send this link to can reach the shop.</p>
       </div>
-    </section>`;
+    </section>
+  </div>`;
 }
 
-const ADMIN_VIEWS = { overview: viewOverview, tray: viewTray, stock: viewStock, orders: viewOrders, delivery: viewDelivery, setup: viewSetup };
+const ADMIN_VIEWS = { overview: viewOverview, repo: viewRepo, stock: viewStock, orders: viewOrders, delivery: viewDelivery, setup: viewSetup };
 
 function paintAdmin() {
   $$('#admin-tabs .cat').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.adminView)));
@@ -1252,28 +1941,12 @@ function paintAdmin() {
 'use strict';
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const saveSettings = (patch) => S.db.doc('meta/settings').set({ ...S.settings, ...patch });
 
-async function saveSettings(patch) {
-  await S.db.doc('meta/settings').set({ ...S.settings, ...patch });
-}
+/* ------------------------------------------------------- component dialog */
 
-function dbFail(err) {
-  const code = err && err.code;
-  if (code === 'invalid_argument') return 'That change was refused — check the values and try again.';
-  if (code === 'quota_exceeded') return 'The shop database is full. Delete something before adding more.';
-  if (code === 'resource_exhausted') return 'Too many changes at once. Give it a moment and try again.';
-  if (code === 'not_granted' || code === 'revoked') return 'This view can only read the shop.';
-  return (err && err.message) || 'That did not save.';
-}
-
-const guard = (fn) => async (...args) => {
-  try { await fn(...args); } catch (err) { toast(dbFail(err), 'bad'); }
-};
-
-/* -------------------------------------------------------- component dialog */
-
-/** Shrink an uploaded photo so a component document stays small. */
-function shrink(file, edge = 260) {
+/** Shrinks an uploaded photo so a component document stays small. */
+function shrink(file, edge = 300) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('That image could not be read.'));
@@ -1286,8 +1959,8 @@ function shrink(file, edge = 260) {
         c.width = Math.max(1, Math.round(img.width * scale));
         c.height = Math.max(1, Math.round(img.height * scale));
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        let out = c.toDataURL('image/webp', 0.86);
-        if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/png');
+        let out = c.toDataURL('image/webp', 0.85);
+        if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', 0.85);
         resolve(out);
       };
       img.src = reader.result;
@@ -1296,31 +1969,55 @@ function shrink(file, edge = 260) {
   });
 }
 
-function openPieceDialog(piece) {
+function paintDraftImages() {
+  $('#piece-images').innerHTML = S.draft.images.length
+    ? S.draft.images.map((src, i) => `<figure>
+        <img src="${esc(src)}" alt="">
+        <button type="button" data-shot="${i}" aria-label="Remove photo ${i + 1}">×</button>
+      </figure>`).join('')
+    : '<span class="muted" style="font-size:12.5px">No photos yet — the emoji below is used instead.</span>';
+}
+
+function paintDraftVariants() {
+  $('#piece-variants').innerHTML = S.draft.variants.map((v, i) => `
+    <div class="variant-row" data-i="${i}">
+      <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
+      <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
+      <input value="${esc(v.sku)}" placeholder="SKU" data-f="sku">
+      <input type="number" min="0" step="1" value="${v.quantity}" data-f="quantity" aria-label="Quantity">
+      <button type="button" class="tiny warnbtn kill" data-kill="${i}"
+        ${S.draft.variants.length === 1 ? 'disabled' : ''} aria-label="Remove colour">×</button>
+    </div>`).join('');
+}
+
+function openPieceDialog(item) {
   const f = $('#form-piece');
   f.reset();
   $('#piece-error').hidden = true;
-  $('#piece-title').textContent = piece ? `Edit ${piece.name}` : 'Add a component';
+  $('#piece-title').textContent = item ? `Edit ${item.name}` : 'Add a component';
   $('#piece-cat').innerHTML = sections().map((c) =>
     `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('')
     || '<option value="">Add a section first</option>';
 
-  S.pendingArt = piece ? piece.art : null;
-  if (piece) {
-    f.id.value = piece.id;
-    f.name.value = piece.name;
-    f.sku.value = piece.sku || '';
-    f.category.value = piece.category;
-    f.price.value = piece.price;
-    f.quantity.value = piece.quantity || 0;
-    f.width.value = piece.width || 86;
-    f.note.value = piece.note || '';
-    f.glyph.value = piece.art && piece.art.t === 'glyph' ? piece.art.v : '';
-    f.active.checked = piece.active !== false;
+  S.draft = item
+    ? { images: [...item.images], glyph: item.images.length ? '' : item.glyph, variants: item.variants.map((v) => ({ ...v })) }
+    : { images: [], glyph: '', variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
+
+  if (item) {
+    f.id.value = item.id;
+    f.name.value = item.name;
+    f.sku.value = item.sku;
+    f.category.value = item.category;
+    f.price.value = item.price;
+    f.width.value = item.width;
+    f.note.value = item.note;
+    f.glyph.value = S.draft.glyph;
+    f.active.checked = item.active;
   } else {
     f.id.value = '';
   }
-  $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
+  paintDraftImages();
+  paintDraftVariants();
   $('#dlg-piece').showModal();
 }
 
@@ -1342,23 +2039,28 @@ function wireAdmin() {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const tr = btn.closest('tr');
-    const piece = S.byId.get(tr.dataset.id);
-    if (!piece) return;
-    if (btn.dataset.act === 'edit') return openPieceDialog(piece);
+    const item = itemOf(tr.dataset.id);
+    if (!item) return;
+    const v = variantOf(item, tr.dataset.variant);
+
+    if (btn.dataset.act === 'edit') return openPieceDialog(item);
+
     if (btn.dataset.act === 'add') {
       const delta = parseInt(tr.querySelector('input[type=number]').value, 10);
       if (!Number.isInteger(delta) || delta === 0) return toast('Enter how many arrived.', 'bad');
-      if ((piece.quantity || 0) + delta < 0) return toast(`Only ${piece.quantity || 0} in the repo.`, 'bad');
-      await S.db.doc(`catalog/${piece.id}`).update({ quantity: (piece.quantity || 0) + delta });
+      if (v.quantity + delta < 0) return toast(`Only ${v.quantity} in the repo.`, 'bad');
+      const variants = item.variants.map((x) => (x.id === v.id ? { ...x, quantity: x.quantity + delta } : x));
+      await S.db.doc(`catalog/${item.id}`).update({ variants });
       toast('Stock updated.', 'good');
     }
+
     if (btn.dataset.act === 'del') {
-      const onOrder = S.orders.some((o) => (o.items || []).some((i) => i.id === piece.id));
+      const onOrder = S.orders.some((o) => (o.items || []).some((i) => (i.itemId || i.id) === item.id));
       if (!confirm(onOrder
-        ? `${piece.name} appears on past orders, so it will be hidden from customers rather than deleted. Continue?`
-        : `Delete ${piece.name} from the repo?`)) return;
-      if (onOrder) { await S.db.doc(`catalog/${piece.id}`).update({ active: false }); toast('Hidden from customers.', 'good'); }
-      else { await S.db.doc(`catalog/${piece.id}`).delete(); toast('Deleted.', 'good'); }
+        ? `${item.name} appears on past orders, so it will be hidden from customers rather than deleted. Continue?`
+        : `Delete ${item.name} from the repo?`)) return;
+      if (onOrder) { await S.db.doc(`catalog/${item.id}`).update({ active: false }); toast('Hidden from customers.', 'good'); }
+      else { await S.db.doc(`catalog/${item.id}`).delete(); toast('Deleted.', 'good'); }
     }
   })));
 
@@ -1372,7 +2074,7 @@ function wireAdmin() {
   }));
 
   $$('button[data-sec]', body).forEach((b) => b.addEventListener('click', guard(async () => {
-    const used = S.pieces.filter((p) => p.category === b.dataset.sec).length;
+    const used = S.items.filter((i) => i.category === b.dataset.sec).length;
     if (used) return toast(`That section still holds ${used} component${used === 1 ? '' : 's'}.`, 'bad');
     await saveSettings({ sections: sections().filter((c) => c.slug !== b.dataset.sec) });
   })));
@@ -1380,13 +2082,10 @@ function wireAdmin() {
   $('#ord-filter')?.addEventListener('change', (e) => {
     $$('#ord-table tbody tr').forEach((tr) => { tr.hidden = e.target.value && tr.dataset.status !== e.target.value; });
   });
-
   $('#ord-table')?.addEventListener('change', guard(async (e) => {
     const sel = e.target.closest('select[data-act="status"]');
-    if (!sel) return;
-    await setOrderStatus(sel.closest('tr').dataset.id, sel.value);
+    if (sel) await setOrderStatus(sel.closest('tr').dataset.id, sel.value);
   }));
-
   $('#ord-table')?.addEventListener('click', (e) => {
     if (!e.target.closest('button[data-act="open"]')) return;
     showOrder(S.orders.find((o) => o.id === e.target.closest('tr').dataset.id));
@@ -1438,23 +2137,34 @@ function wireAdmin() {
 async function setOrderStatus(id, status) {
   const order = S.orders.find((o) => o.id === id);
   if (!order || order.status === status) return;
+  const lines = (order.items || []).map((i) => ({ ...i, itemId: i.itemId || i.id, variantId: i.variantId || 'v0' }));
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  const move = (sign) => Promise.all(itemIds.map(async (itemId) => {
+    const snap = await S.db.doc(`catalog/${itemId}`).get();
+    if (!snap.exists) return;
+    const fresh = normalize(itemId, snap.data());
+    const variants = fresh.variants.map((v) => {
+      const n = lines.filter((l) => l.itemId === itemId && l.variantId === v.id).reduce((s, l) => s + l.qty, 0);
+      return n ? { ...v, quantity: Math.max(0, v.quantity + sign * n) } : v;
+    });
+    await S.db.doc(`catalog/${itemId}`).update({ variants });
+  }));
 
   if (status === 'cancelled') {
-    await Promise.all((order.items || []).map(async (it) => {
-      const snap = await S.db.doc(`catalog/${it.id}`).get();
-      if (snap.exists) await S.db.doc(`catalog/${it.id}`).update({ quantity: (snap.data().quantity || 0) + it.qty });
-    }));
+    await move(1);
   } else if (order.status === 'cancelled') {
-    const snaps = await Promise.all((order.items || []).map((it) => S.db.doc(`catalog/${it.id}`).get()));
-    const short = (order.items || []).filter((it, i) =>
-      !snaps[i].exists || (snaps[i].data().quantity || 0) < it.qty);
+    const snaps = await Promise.all(itemIds.map((i) => S.db.doc(`catalog/${i}`).get()));
+    const fresh = new Map(itemIds.map((i, k) => [i, snaps[k].exists ? normalize(i, snaps[k].data()) : null]));
+    const short = lines.filter((l) => {
+      const v = variantOf(fresh.get(l.itemId), l.variantId);
+      return !v || v.quantity < l.qty;
+    });
     if (short.length) {
       toast(`Cannot reopen — not enough ${short.map((s) => s.name).join(', ')} in the repo.`, 'bad');
       paintAdmin();
       return;
     }
-    await Promise.all((order.items || []).map((it, i) =>
-      S.db.doc(`catalog/${it.id}`).update({ quantity: snaps[i].data().quantity - it.qty })));
+    await move(-1);
   }
 
   await S.db.doc(`orders/${id}`).update({ status });
@@ -1465,19 +2175,19 @@ function showOrder(o) {
   if (!o) return;
   $('#order-title').textContent = `Order ${o.no}`;
   $('#order-body').innerHTML = `
-    <p><b>${esc(o.name)}</b> · <span class="mono">${esc(o.phone)}</span>${
-      o.email ? ` · ${esc(o.email)}` : ''}</p>
+    <p><b>${esc(o.name)}</b> · <span class="mono">${esc(o.phone)}</span>${o.email ? ` · ${esc(o.email)}` : ''}</p>
     <p>${o.fulfilment === 'ship'
       ? `<b>Ship to ${esc(o.area)}</b><br>${esc(o.address || '').replace(/\n/g, '<br>')}`
       : '<b>Collect from the studio when ready</b>'}</p>
     ${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}
     <h3 style="margin:16px 0 6px">Components to pull</h3>
     <table><thead><tr><th>Component</th><th>SKU</th><th class="r">Qty</th><th class="r">Line</th></tr></thead>
-      <tbody>${(o.items || []).map((i) => `<tr><td>${esc(i.name)}</td>
+      <tbody>${(o.items || []).map((i) => `<tr>
+        <td>${esc(i.name)}${i.colour ? ` <span class="tag flat">${esc(i.colour)}</span>` : ''}</td>
         <td class="mono muted">${esc(i.sku)}</td><td class="r">${i.qty}</td>
         <td class="r">${money(i.total)}</td></tr>`).join('')}</tbody></table>
     <div class="sum">
-      <div><span>Components</span><span class="num">${money(o.itemsTotal)}</span></div>
+      <div><span>Pieces used</span><span class="num">${money(o.itemsTotal)}</span></div>
       <div><span>Delivery</span><span class="num">${money(o.shipping)}</span></div>
       <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
     </div>`;
@@ -1488,39 +2198,110 @@ function showOrder(o) {
 
 function setMode(mode) {
   S.mode = mode;
-  $('#mode-shop').setAttribute('aria-pressed', String(mode === 'shop'));
-  $('#mode-admin').setAttribute('aria-pressed', String(mode === 'admin'));
-  $('#shop').hidden = mode !== 'shop' || !S.ready;
-  $('#admin').hidden = mode !== 'admin';
-  $('#boot').hidden = S.ready || mode === 'admin';
+  $('#mode-browse').setAttribute('aria-pressed', String(mode === 'browse'));
+  $('#mode-design').setAttribute('aria-pressed', String(mode === 'design'));
+  $('#mode-studio').setAttribute('aria-pressed', String(mode === 'studio'));
+  $('#browse').hidden = mode !== 'browse' || !S.ready;
+  $('#design').hidden = mode !== 'design' || !S.ready;
+  $('#studio').hidden = mode !== 'studio';
+  $('#boot').hidden = S.ready || mode === 'studio';
   paint();
 }
 
-function wireShop() {
-  $('#cats').addEventListener('click', (e) => {
+function wireBrowse() {
+  $('#catalogue').addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (card) openSheet(card.dataset.id);
+  });
+  $('#shop-cats').addEventListener('click', (e) => {
     const b = e.target.closest('.cat');
     if (!b) return;
-    S.section = b.dataset.slug;
-    paintSections();
-    paintTray();
+    S.section = b.dataset.slug || null;
+    paintShopCats();
+    paintCatalogue();
+  });
+  $('#find').addEventListener('input', (e) => { S.search = e.target.value; paintCatalogue(); });
+  $('#hide-out').addEventListener('change', (e) => { S.hideOut = e.target.checked; paintCatalogue(); });
+
+  $('#item-close').addEventListener('click', () => $('#dlg-item').close());
+  $('#item-to-design').addEventListener('click', () => { $('#dlg-item').close(); setMode('design'); });
+  $('#item-add').addEventListener('click', addFromSheet);
+  $('#qty-up').addEventListener('click', () => { S.sheet.qty += 1; paintSheet(); });
+  $('#qty-down').addEventListener('click', () => { S.sheet.qty -= 1; paintSheet(); });
+  $('#item-colours').addEventListener('click', (e) => {
+    const b = e.target.closest('.swatch');
+    if (!b || b.disabled) return;
+    S.sheet.variantId = b.dataset.variant;
+    S.sheet.qty = 1;
+    S.sheet.image = imageIndexFor(itemOf(S.sheet.itemId), b.dataset.variant);
+    paintSheet();
+  });
+  $('#item-thumbs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-shot]');
+    if (!b) return;
+    S.sheet.image = Number(b.dataset.shot);
+    paintSheet();
+  });
+}
+
+function wireTray() {
+  const dlg = $('#dlg-tray');
+  $('#open-tray').addEventListener('click', () => { paintTrayDialog(); dlg.showModal(); });
+  $('#tray-close').addEventListener('click', () => dlg.close());
+  $('#tray-design').addEventListener('click', () => { dlg.close(); setMode('design'); });
+  $('#tray-empty').addEventListener('click', () => {
+    if (!confirm('Empty your tray? Nothing is ordered — the pieces simply go back to the shop.')) return;
+    S.tray = [];
+    saveTray();
+    S.base = null;
+    S.charms = [];
+    paint();
+    paintTrayDialog();
   });
 
-  const trayAct = (e) => {
-    const node = e.target.closest('.piece');
-    if (!node) return;
-    const p = S.byId.get(node.dataset.id);
-    if (!p) return;
-    if (sectionOf(p.category).kind === 'base') chooseBase(p);
-    else attach(p, 50, 50);
-  };
-  $('#tray').addEventListener('click', trayAct);
-  $('#tray').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trayAct(e); }
+  $('#tray-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const line = btn.closest('.tray-line');
+    const itemId = line.dataset.item;
+    const variantId = line.dataset.variant;
+    const item = itemOf(itemId);
+    const placed = placedQty(itemId, variantId);
+
+    if (btn.dataset.act === 'more') {
+      if (addable(item, variantId) <= 0) return toast(`Only ${variantOf(item, variantId).quantity} available.`, 'bad');
+      trayAdd(itemId, variantId, 1);
+    }
+    if (btn.dataset.act === 'less') {
+      if (trayQty(itemId, variantId) - 1 < placed) return toast('Take it off the piece first.', 'bad');
+      trayTake(itemId, variantId, 1);
+    }
+    if (btn.dataset.act === 'drop') {
+      if (placed) return toast('Take it off the piece first.', 'bad');
+      trayTake(itemId, variantId, trayQty(itemId, variantId));
+    }
+    paint();
+    paintTrayDialog();
   });
-  $('#tray').addEventListener('dragstart', (e) => {
-    const node = e.target.closest('.piece');
-    if (!node || node.classList.contains('gone')) return e.preventDefault();
-    e.dataTransfer.setData('text/plain', node.dataset.id);
+}
+
+function wireDesign() {
+  const railAct = (e) => {
+    const node = e.target.closest('.placeable');
+    if (!node) return;
+    place(node.dataset.item, node.dataset.variant, 50, 50);
+  };
+  $('#place-rail').addEventListener('click', (e) => {
+    if (e.target.id === 'rail-browse') return setMode('browse');
+    railAct(e);
+  });
+  $('#place-rail').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); railAct(e); }
+  });
+  $('#place-rail').addEventListener('dragstart', (e) => {
+    const node = e.target.closest('.placeable');
+    if (!node || node.classList.contains('done')) return e.preventDefault();
+    e.dataTransfer.setData('text/plain', `${node.dataset.item}::${node.dataset.variant}`);
     e.dataTransfer.effectAllowed = 'copy';
   });
 
@@ -1530,17 +2311,18 @@ function wireShop() {
   stage.addEventListener('drop', (e) => {
     e.preventDefault();
     stage.classList.remove('over');
-    const p = S.byId.get(e.dataTransfer.getData('text/plain'));
-    if (!p) return;
+    const [itemId, variantId] = String(e.dataTransfer.getData('text/plain')).split('::');
+    if (!itemId) return;
     const r = stage.getBoundingClientRect();
-    attach(p, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+    place(itemId, variantId, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
   });
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target === stage || e.target.classList.contains('stage-base') || e.target.closest('.stage-hint')) {
+    if (e.target === stage || e.target.closest('.stage-base') || e.target.closest('.stage-hint')) {
       S.picked = null;
       paintStage();
     }
   });
+  $('#hint-browse').addEventListener('click', () => setMode('browse'));
 
   $$('.tools button').forEach((b) => b.addEventListener('click', () => {
     const c = S.charms.find((x) => x.uid === S.picked);
@@ -1548,22 +2330,30 @@ function wireShop() {
     if (b.dataset.tool === 'ccw') c.rot -= 15;
     if (b.dataset.tool === 'cw') c.rot += 15;
     if (b.dataset.tool === 'front') c.z = ++S.zTop;
-    if (b.dataset.tool === 'lift') return takeOff(c.uid);
+    if (b.dataset.tool === 'lift') return unplace(c.uid);
     paintStage();
   }));
 
   document.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-    if ((e.key === 'Delete' || e.key === 'Backspace') && S.picked) { e.preventDefault(); takeOff(S.picked); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && S.picked) { e.preventDefault(); unplace(S.picked); }
   });
 
-  $('#s-clear').addEventListener('click', clearDesign);
-  $('#s-order').addEventListener('click', openCheckout);
-  $('#s-order-2').addEventListener('click', openCheckout);
-  window.addEventListener('resize', () => { if (S.mode === 'shop') paintStage(); });
+  $('#s-clear').addEventListener('click', () => {
+    if (!S.base && !S.charms.length) return;
+    if (!confirm('Clear the piece? Everything goes back to your tray.')) return;
+    clearBase();
+  });
+  $('#s-order').addEventListener('click', startOrder);
+  $('#s-order-2').addEventListener('click', startOrder);
+  window.addEventListener('resize', () => { if (S.mode === 'design') paintStage(); });
 }
 
 function wireCheckout() {
+  $('#leftover-back').addEventListener('click', () => $('#dlg-leftover').close());
+  $('#leftover-keep').addEventListener('click', () => { leftoverChoice = 'keep'; $('#dlg-leftover').close(); openCheckout(); });
+  $('#leftover-discard').addEventListener('click', () => { leftoverChoice = 'discard'; $('#dlg-leftover').close(); openCheckout(); });
+
   $('#ck-back').addEventListener('click', () => $('#dlg-checkout').close());
   $$('input[name=fulfilment]').forEach((i) => i.addEventListener('change', () => {
     const ship = i.value === 'ship' && i.checked;
@@ -1582,10 +2372,10 @@ function wireCheckout() {
     err.hidden = true;
     submit.disabled = true;
     try {
-      const order = await placeOrder(new FormData(e.target));
+      const order = await submitOrder(new FormData(e.target));
       $('#dlg-checkout').close();
-      clearDesign();
       showDone(order);
+      paint();
     } catch (ex) {
       err.hidden = false;
       err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
@@ -1594,7 +2384,7 @@ function wireCheckout() {
       submit.disabled = false;
     }
   });
-  $('#done-close').addEventListener('click', () => $('#dlg-done').close());
+  $('#done-close').addEventListener('click', () => { $('#dlg-done').close(); setMode('browse'); });
   $('#order-close').addEventListener('click', () => $('#dlg-order').close());
 }
 
@@ -1602,46 +2392,77 @@ function wirePieceDialog() {
   const f = $('#form-piece');
   $('#piece-cancel').addEventListener('click', () => $('#dlg-piece').close());
 
-  f.glyph.addEventListener('input', () => {
-    if (f.glyph.value.trim()) S.pendingArt = { t: 'glyph', v: f.glyph.value.trim() };
-    $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
-  });
-
   f.upload.addEventListener('change', async () => {
-    const file = f.upload.files[0];
-    if (!file) return;
-    try {
-      S.pendingArt = { t: 'img', v: await shrink(file) };
-      f.glyph.value = '';
-      $('#piece-preview').innerHTML = artHtml({ art: S.pendingArt });
-    } catch (ex) { toast(ex.message, 'bad'); }
+    for (const file of [...f.upload.files]) {
+      try { S.draft.images.push(await shrink(file)); }
+      catch (ex) { toast(ex.message, 'bad'); }
+    }
+    f.upload.value = '';
+    paintDraftImages();
+  });
+  $('#piece-images').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-shot]');
+    if (!b) return;
+    S.draft.images.splice(Number(b.dataset.shot), 1);
+    paintDraftImages();
   });
 
-  f.addEventListener('submit', async (e) => {
+  $('#variant-add').addEventListener('click', () => {
+    S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: '', swatch: '#c9a227', sku: '', quantity: 0 });
+    paintDraftVariants();
+  });
+  $('#piece-variants').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-kill]');
+    if (!b || S.draft.variants.length === 1) return;
+    S.draft.variants.splice(Number(b.dataset.kill), 1);
+    paintDraftVariants();
+  });
+  $('#piece-variants').addEventListener('input', (e) => {
+    const field = e.target.dataset.f;
+    if (!field) return;
+    const row = S.draft.variants[Number(e.target.closest('.variant-row').dataset.i)];
+    row[field] = field === 'quantity' ? Math.max(0, parseInt(e.target.value, 10) || 0) : e.target.value;
+  });
+
+  f.addEventListener('submit', guard(async (e) => {
     e.preventDefault();
     const err = $('#piece-error');
     err.hidden = true;
     const data = new FormData(f);
     const price = Number(data.get('price'));
-    const quantity = parseInt(data.get('quantity'), 10);
     const name = String(data.get('name')).trim();
     try {
       if (!name) throw new Error('Give the component a name.');
       if (!data.get('category')) throw new Error('Choose a section.');
       if (!Number.isFinite(price) || price < 0) throw new Error('The price must be zero or more.');
-      if (!Number.isInteger(quantity) || quantity < 0) throw new Error('The quantity must be a whole number, zero or more.');
+      if (S.draft.variants.some((v) => !Number.isInteger(v.quantity) || v.quantity < 0)) {
+        throw new Error('Every colour needs a whole-number quantity, zero or more.');
+      }
+      const named = S.draft.variants.filter((v) => v.name.trim());
+      if (S.draft.variants.length > 1 && named.length !== S.draft.variants.length) {
+        throw new Error('Name every colour, or keep just one unnamed row.');
+      }
 
       const id = data.get('id');
+      const baseSku = String(data.get('sku') || '').trim() || `SKU-${Date.now().toString(36).toUpperCase()}`;
       const doc = {
         name,
-        sku: String(data.get('sku') || '').trim() || `SKU-${Date.now().toString(36).toUpperCase()}`,
+        sku: baseSku,
         category: data.get('category'),
-        price, quantity,
+        price,
         width: parseInt(data.get('width'), 10) || 86,
         note: String(data.get('note') || '').trim(),
-        art: S.pendingArt || { t: 'glyph', v: '◇' },
+        images: S.draft.images,
+        glyph: String(data.get('glyph') || '').trim() || '◇',
+        variants: S.draft.variants.map((v, i) => ({
+          id: v.id || `v${i}`,
+          name: v.name.trim(),
+          swatch: v.swatch || '',
+          sku: (v.sku || '').trim() || (v.name.trim() ? `${baseSku}-${slug(v.name).toUpperCase()}` : baseSku),
+          quantity: v.quantity,
+        })),
         active: f.active.checked,
-        order: id && S.byId.has(id) ? (S.byId.get(id).order || 0) : S.pieces.length + 1,
+        order: id && itemOf(id) ? itemOf(id).order : S.items.length + 1,
       };
       await S.db.doc(`catalog/${id || 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)}`).set(doc);
       $('#dlg-piece').close();
@@ -1650,13 +2471,14 @@ function wirePieceDialog() {
       err.hidden = false;
       err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
     }
-  });
+  }));
 }
 
-function wireStudio() {
-  $('#mode-shop').addEventListener('click', () => setMode('shop'));
-  $('#mode-admin').addEventListener('click', () => {
-    if (S.adminOpen) return setMode('admin');
+function wireShell() {
+  $('#mode-browse').addEventListener('click', () => setMode('browse'));
+  $('#mode-design').addEventListener('click', () => setMode('design'));
+  $('#mode-studio').addEventListener('click', () => {
+    if (S.adminOpen) return setMode('studio');
     $('#pin-error').hidden = true;
     $('#form-pin').reset();
     $('#dlg-pin').showModal();
@@ -1671,7 +2493,7 @@ function wireStudio() {
     }
     $('#dlg-pin').close();
     S.adminOpen = true;
-    setMode('admin');
+    setMode('studio');
   });
   $('#admin-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('.cat');
@@ -1681,10 +2503,13 @@ function wireStudio() {
   });
 }
 
-setMode('shop');
-wireShop();
+loadTray();
+setMode('browse');
+wireBrowse();
+wireTray();
+wireDesign();
 wireCheckout();
 wirePieceDialog();
-wireStudio();
+wireShell();
 connect();
 </script>

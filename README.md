@@ -125,9 +125,36 @@ data/               SQLite database + uploaded images (git-ignored)
 
 ## The hosted build
 
-`hosted/index.html` is the same product as one page. It keeps the catalogue,
-delivery areas, orders and settings in the artifact database rather than SQLite,
-so it needs no server at all. Differences worth knowing:
+`hosted/index.html` is the current, fuller product as one page, and the one
+customers actually use. It works in three rooms:
+
+**Browse** — the collection as a card grid, filtered by section and searchable.
+Each item opens a product page with its photos, a written description, colour
+options and a quantity stepper. A colour that is sold out cannot be picked, and
+the stepper stops at what the repo actually holds. Adding puts the item in the
+customer's **tray**.
+
+**Tray** — the customer's own picks, held in their browser, so it survives
+closing the app. Quantities can be changed or dropped there. Nothing in the tray
+is charged or taken out of the repo.
+
+**Design** — the tray becomes the rail beside the canvas: only what they picked
+can be placed, and each row counts down ("8 of 10 to place"). Taking a piece off
+the design puts it straight back in the tray. The bill charges for what is on
+the piece, never for what is still in the tray.
+
+At checkout, if anything in the tray was not used, the customer is asked whether
+to **keep it for next time** or **discard it** before the order goes through.
+Use everything and the tray simply empties.
+
+Stock is counted **per colour** — each colour has its own SKU and count, so gold
+hearts running out does not hide the silver ones. Where a component has one
+photo per colour, in the same order, the picture follows the colour the customer
+picks, in the shop and on the piece.
+
+It keeps the catalogue, delivery areas, orders and settings in the artifact
+database rather than SQLite, so it needs no server at all. Differences worth
+knowing:
 
 - The studio is behind a PIN (`2468` by default, changeable under **Setup**).
   That keeps the studio out of the way on a shared screen; it is not a security
@@ -136,8 +163,8 @@ so it needs no server at all. Differences worth knowing:
   placed, so a stale tab cannot claim components that have since gone. Two
   customers ordering the very last charm within the same instant is still
   possible — the self-hosted build closes that window with a transaction.
-- Component artwork is an emoji or an uploaded photo, shrunk in the browser so
-  each component record stays small.
+- Component artwork is a set of uploaded photos (or an emoji if you have none),
+  shrunk in the browser so each component record stays small.
 
 ## Before going live
 
