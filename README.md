@@ -171,12 +171,30 @@ number rather than making a second one. Within two hours they can cancel
 outright. Both windows show the time remaining. An order held open for changes
 releases its components back to the repo, so nothing is claimed twice.
 
-**Restock requests.** A sold-out piece offers customers a *Request a restock*
-button. Requests land in the studio's **Restock requests** section, grouped by
-component and colour with the count and everyone's contact details. Setting an
-expected-back date there replaces the button with "back in stock around …" for
-every customer, so nobody asks twice; *Mark done* clears the requests and the
-date once the piece has landed and they have been told.
+**Restock requests.** Whenever a customer cannot add another — the repo is
+empty, or they already hold every one we have in their tray — they are offered
+a restock request in two kinds: a plain one, and an **urgent** one carrying a
+rush fee set per component in the studio (a component with no fee is not
+offered urgently). Requests land in the studio under two separate displays,
+**Urgent restock requests** and **Restock requests**, each grouped by component
+and colour with the waiting count, the rush fees owed and everyone's contact
+details. Setting an expected-back date there replaces the request with "more
+expected around …" for every customer, so nobody asks twice; *Mark done* clears
+the requests and the date once the piece has landed and they have been told.
+
+The rush fee is recorded against the request and shown to the studio — the app
+does not take payment, so it is collected with the eventual order.
+
+**Every component carries its real size**, in millimetres, entered once in the
+studio. Customers see it in both units — "1.2 × 1.2 cm · 0.47 × 0.47 in" — on
+the card and the product page, and the product photo is drawn at that true
+size, with zoom controls and a centimetre rule beside it to check against. When
+both a base and a charm are measured, the design canvas draws them to scale to
+each other, so a 12 mm heart on a 65 mm band looks like one.
+
+True size assumes the browser convention of 96 pixels to the inch. That is what
+every "actual size" feature relies on and it is close on most screens, but it
+is an approximation of the real display — hence the rule.
 
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
 hearts running out does not hide the silver ones. Where a component has one

@@ -440,10 +440,30 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .gallery { display: grid; gap: 9px; align-content: start; }
 .gallery .main {
   aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line);
-  border-radius: 10px; overflow: hidden;
+  border-radius: 10px; overflow: auto;
   background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
 }
 .gallery .main img { width: 78%; height: 78%; object-fit: contain; }
+/* True-size mode: the photo is drawn at the piece's real millimetres. */
+.gallery .main.measured { place-items: center; padding: 14px; }
+.gallery .main.measured img { width: auto; height: auto; object-fit: contain; flex: none; }
+
+.zoombar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.zoombar button { padding: 4px 10px; }
+.zoombar output { font-family: var(--mono); font-size: 12px; min-width: 46px; text-align: center; }
+.zoombar .rule {
+  display: inline-flex; align-items: flex-end; gap: 5px; margin-left: auto;
+  font-size: 11px; color: var(--muted); white-space: nowrap;
+}
+.zoombar .rule i {
+  display: block; height: 8px; border: 1px solid var(--muted); border-top: none;
+}
+.size-line { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.card .size { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.kind-row { display: grid; gap: 8px; }
+.kind-row button { text-align: left; }
+.fee-tag { font-weight: 700; }
 .gallery .main .glyph { font-size: 96px; line-height: 1; }
 .thumbs { display: flex; gap: 7px; flex-wrap: wrap; }
 .thumbs button {
@@ -774,12 +794,20 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <div class="sheet">
       <div class="gallery">
         <div class="main" id="item-main"></div>
+        <div class="zoombar" id="item-zoom" hidden>
+          <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+          <output id="zoom-out-val">100%</output>
+          <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+          <button type="button" class="tiny" data-zoom="reset">Actual size</button>
+          <span class="rule" id="item-rule"></span>
+        </div>
         <div class="thumbs" id="item-thumbs"></div>
       </div>
       <div class="sheet-info">
         <div>
           <div class="eyebrow" id="item-section"></div>
           <div class="price" id="item-price"></div>
+          <div class="size-line" id="item-size"></div>
         </div>
         <p class="desc" id="item-desc"></p>
         <div id="item-colours"></div>
@@ -878,7 +906,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <label class="f"><span>Base SKU</span><input name="sku" placeholder="auto"></label>
         <label class="f"><span>Section *</span><select name="category" id="piece-cat" required></select></label>
         <label class="f"><span>Price *</span><input name="price" type="number" min="0" step="0.01" required></label>
-        <label class="f"><span>Size on the piece (px)</span><input name="width" type="number" min="20" max="620" step="1" value="86"></label>
+        <label class="f"><span>Width (mm)</span><input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
+        <label class="f"><span>Height (mm)</span><input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
+        <label class="f"><span>Urgent restock fee — 0 to not offer it</span>
+          <input name="urgentFee" type="number" min="0" step="0.01" value="0"></label>
         <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
           <input type="checkbox" name="active" checked style="width:auto"><span style="color:var(--ink)">Show to customers</span>
         </label>
@@ -1102,6 +1133,9 @@ function normalize(id, d) {
     images,
     glyph: glyph || '◇',
     width: Number(d.width) || 86,
+    widthMm: Number(d.widthMm) || 0,
+    heightMm: Number(d.heightMm) || 0,
+    urgentFee: Number(d.urgentFee) || 0,
     active: d.active !== false,
     order: Number(d.order) || 0,
     variants,
@@ -1150,6 +1184,23 @@ function sectionOf(slugValue) {
 }
 
 const isBaseItem = (item) => item && sectionOf(item.category).kind === 'base';
+
+/* Browsers treat 96 CSS pixels as an inch, which is what every "actual size"
+   feature leans on. It is an approximation of the real screen, so the sheet
+   also draws a centimetre rule the eye can check against. */
+const PX_PER_MM = 96 / 25.4;
+const hasSize = (item) => Boolean(item && item.widthMm && item.heightMm);
+const longestMm = (item) => Math.max(item.widthMm || 0, item.heightMm || 0);
+
+const cm = (mm) => (mm / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+const inches = (mm) => (mm / 25.4).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+/** "3.2 × 1.8 cm · 1.26 × 0.71 in" — both units, always. */
+function sizeLabel(item, short = false) {
+  if (!hasSize(item)) return '';
+  const metric = `${cm(item.widthMm)} × ${cm(item.heightMm)} cm`;
+  return short ? metric : `${metric} · ${inches(item.widthMm)} × ${inches(item.heightMm)} in`;
+}
 
 /* -------------------------------------------------------------------- tray */
 
@@ -1371,6 +1422,7 @@ function paintCatalogue() {
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
+        ${hasSize(i) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
         <span class="price">${money(i.price)}</span>
         <span class="foot">${dots}${isBaseItem(i) ? '<span class="tag flat">base piece</span>' : ''}</span>
       </span>
@@ -1380,11 +1432,41 @@ function paintCatalogue() {
 
 /* ----------------------------------------------------------- product sheet */
 
+/**
+ * Draws the photo at the piece's real size when we know its millimetres, with
+ * a zoom and a centimetre rule beside it; falls back to a contained thumbnail
+ * for anything not measured yet.
+ */
+function paintGallery(item) {
+  const main = $('#item-main');
+  const bar = $('#item-zoom');
+  const src = item.images[S.sheet.image] || item.images[0];
+
+  if (!hasSize(item) || !src) {
+    main.className = 'main';
+    main.innerHTML = shotHtml(item, S.sheet.image);
+    bar.hidden = true;
+    return;
+  }
+
+  const zoom = S.sheet.zoom || 1;
+  const w = item.widthMm * PX_PER_MM * zoom;
+  const h = item.heightMm * PX_PER_MM * zoom;
+  main.className = 'main measured';
+  main.innerHTML = `<img src="${esc(src)}" alt="${esc(item.name)}"
+    style="width:${w}px;height:${h}px">`;
+
+  bar.hidden = false;
+  $('#zoom-out-val').textContent = `${Math.round(zoom * 100)}%`;
+  const ruleWidth = 10 * PX_PER_MM * zoom;
+  $('#item-rule').innerHTML = `<i style="width:${ruleWidth}px"></i><span>1 cm</span>`;
+}
+
 function openSheet(itemId) {
   const item = itemOf(itemId);
   if (!item) return;
   const first = item.variants.find((v) => v.quantity > 0) || item.variants[0];
-  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0 };
+  S.sheet = { itemId, variantId: first.id, qty: 1, image: 0, zoom: 1 };
   paintSheet();
   $('#dlg-item').showModal();
 }
@@ -1401,8 +1483,11 @@ function paintSheet() {
   $('#item-title').textContent = item.name;
   $('#item-section').textContent = sectionOf(item.category).name;
   $('#item-price').textContent = money(item.price);
+  $('#item-size').textContent = hasSize(item)
+    ? sizeLabel(item)
+    : 'Measurements coming soon.';
   $('#item-desc').textContent = item.note || 'Handmade in the studio.';
-  $('#item-main').innerHTML = shotHtml(item, S.sheet.image);
+  paintGallery(item);
 
   $('#item-thumbs').innerHTML = item.images.length > 1
     ? item.images.map((src, k) => {
@@ -1431,7 +1516,7 @@ function paintSheet() {
   $('#item-stock').textContent = v.quantity <= 0
     ? 'None left in the repo.'
     : `${v.quantity} in stock${inTray ? ` · ${inTray} already in your tray` : ''}`;
-  $('#item-restock').innerHTML = v.quantity <= 0 ? restockHtml(item, v) : '';
+  $('#item-restock').innerHTML = addable(item, v.id) <= 0 ? restockHtml(item, v) : '';
   $('#item-error').hidden = true;
 }
 
@@ -1552,6 +1637,22 @@ function paintPlaceRail() {
 
 /* ------------------------------------------------------------------ stage */
 
+/**
+ * How wide a charm sits on the canvas, as a percentage of it. When the base
+ * and the charm are both measured, the whole piece is drawn to scale — a 12 mm
+ * heart on a 65 mm band looks like a 12 mm heart on a 65 mm band.
+ */
+function stageMm() {
+  const base = S.base ? itemOf(S.base.itemId) : null;
+  return base && hasSize(base) ? longestMm(base) / 0.66 : 0;
+}
+
+function charmWidthPct(item) {
+  const span = stageMm();
+  if (span && hasSize(item)) return clamp((longestMm(item) / span) * 100, 1.5, 60);
+  return clamp((item.width / ($('#stage').clientWidth || 600)) * 100, 3, 60);
+}
+
 function fanOut(x, y) {
   for (let i = 0; i < 26; i += 1) {
     if (!S.charms.some((c) => Math.hypot(c.x - x, c.y - y) < 6)) break;
@@ -1581,12 +1682,11 @@ function place(itemId, variantId, x, y) {
   }
   if (!S.base) { toast('Place a base piece first — a band, frame or kaleera.', 'bad'); return; }
 
-  const stage = $('#stage');
   const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId, variantId, x: spot.x, y: spot.y,
-    w: clamp((item.width / stage.clientWidth) * 100, 3, 60),
+    w: charmWidthPct(item),
     rot: 0, z: ++S.zTop,
   });
   S.picked = S.charms[S.charms.length - 1].uid;
@@ -2035,8 +2135,10 @@ function stockRow({ item, v }) {
     <td><b>${esc(item.name)}</b>${v.name ? ` <span class="tag flat">${esc(v.name)}</span>` : ''}
       <br><span class="mono muted">${esc(v.sku || item.sku)}</span>${
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
-    <td>${esc(sectionOf(item.category).name)}</td>
-    <td class="r">${money(item.price)}</td>
+    <td>${esc(sectionOf(item.category).name)}${
+      hasSize(item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
+    <td class="r">${money(item.price)}${
+      item.urgentFee ? `<br><span class="muted" style="font-size:11.5px">rush ${money(item.urgentFee)}</span>` : ''}</td>
     <td class="r">${tag}</td>
     <td><div class="acts">
       <input type="number" value="10" step="1" aria-label="How many arrived">
@@ -2072,7 +2174,9 @@ function viewOverview() {
       <button class="tile sev-low" data-go="stock"><span class="eyebrow">Low · under ${threshold()}</span>
         <b>${b.low.length}</b><span class="go">Check stock alerts →</span></button>
       <button class="tile" data-go="restock"><span class="eyebrow">Restock requests</span>
-        <b>${S.restock.length}</b><span class="go">Customers waiting →</span></button>
+        <b>${S.restock.filter((r) => r.kind !== 'urgent').length}</b><span class="go">Customers waiting →</span></button>
+      <button class="tile sev-out" data-go="restock"><span class="eyebrow">Urgent requests</span>
+        <b>${S.restock.filter((r) => r.kind === 'urgent').length}</b><span class="go">Paid to jump the queue →</span></button>
     </div>
     <section class="panel">
       <header><h2>What the open orders need</h2><span class="spacer"></span>
@@ -2312,7 +2416,9 @@ function openPieceDialog(item) {
     f.sku.value = item.sku;
     f.category.value = item.category;
     f.price.value = item.price;
-    f.width.value = item.width;
+    f.widthMm.value = item.widthMm || '';
+    f.heightMm.value = item.heightMm || '';
+    f.urgentFee.value = item.urgentFee || 0;
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
     f.active.checked = item.active;
@@ -2648,6 +2754,16 @@ function wireBrowse() {
     S.sheet.image = imageIndexFor(itemOf(S.sheet.itemId), b.dataset.variant);
     paintSheet();
   });
+  $('#item-zoom').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-zoom]');
+    if (!b) return;
+    const z = S.sheet.zoom || 1;
+    if (b.dataset.zoom === 'in') S.sheet.zoom = clamp(z * 1.25, 0.25, 8);
+    if (b.dataset.zoom === 'out') S.sheet.zoom = clamp(z / 1.25, 0.25, 8);
+    if (b.dataset.zoom === 'reset') S.sheet.zoom = 1;
+    paintGallery(itemOf(S.sheet.itemId));
+  });
+
   $('#item-thumbs').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-shot]');
     if (!b) return;
@@ -2870,7 +2986,10 @@ function wirePieceDialog() {
         sku: baseSku,
         category: data.get('category'),
         price,
-        width: parseInt(data.get('width'), 10) || 86,
+        width: (id && itemOf(id) ? itemOf(id).width : 86),
+        widthMm: Number(data.get('widthMm')) || 0,
+        heightMm: Number(data.get('heightMm')) || 0,
+        urgentFee: Number(data.get('urgentFee')) || 0,
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
         glyph: String(data.get('glyph') || '').trim() || '◇',
@@ -3204,36 +3323,62 @@ function prettyDate(iso) {
 const myRequestFor = (itemId, variantId) => S.restock.find((r) => r.itemId === itemId
   && r.variantId === variantId && S.account && r.customerId === S.account.id);
 
-/** Sold out: show the expected date if the seller has one, else offer to ask. */
+/**
+ * Shown whenever the customer cannot add another — the repo is empty, or they
+ * already hold every one we have. Offers the expected date if the seller has
+ * set one, otherwise a plain or a paid-rush request.
+ */
 function restockHtml(item, v) {
+  const held = trayQty(item.id, v.id);
+  const gone = v.quantity <= 0;
+  const opening = gone
+    ? 'Out of stock.'
+    : `You have all ${v.quantity} we hold of this colour in your tray.`;
+
   const eta = etaOf(v);
   if (eta) {
-    return `<div class="restock-note">Back in stock around <b>${esc(prettyDate(eta))}</b>.
-      We've already ordered more — check back then.</div>`;
+    return `<div class="restock-note"><span>${esc(opening)} More expected around
+      <b>${esc(prettyDate(eta))}</b> — we've already ordered them.</span></div>`;
   }
-  if (myRequestFor(item.id, v.id)) {
-    return `<div class="restock-note">You've asked us to restock this. We'll email you
-      ${S.account ? `at <b>${esc(S.account.email)}</b>` : ''} the moment it's back.</div>`;
+
+  const mine = myRequestFor(item.id, v.id);
+  if (mine) {
+    return `<div class="restock-note">You've asked us for
+      ${mine.kind === 'urgent' ? `an <b>urgent</b> restock (${money(mine.fee || 0)} rush fee)` : 'a restock'}.
+      We'll email you${S.account ? ` at <b>${esc(S.account.email)}</b>` : ''} as soon as it's in.</div>`;
   }
+
+  const fee = item.urgentFee || 0;
   return `<div class="restock-note">
-    <span>Out of stock, with no date yet. Ask us to make more and we'll let you know when it lands.</span>
-    <button class="solid" id="ask-restock" style="justify-self:start">Request a restock</button></div>`;
+    <span>${esc(opening)} Ask us to make more${held && !gone ? ' of it' : ''} and we'll let you know when it lands.</span>
+    <div class="kind-row">
+      <button class="solid" data-ask="simple">Request a restock</button>
+      ${fee > 0 ? `<button data-ask="urgent">Urgent restock —
+        <span class="fee-tag">${money(fee)}</span> rush fee</button>` : ''}
+    </div>
+    ${fee > 0 ? `<span style="font-size:12px">The rush fee is added to the order you place once it
+      arrives; nothing is charged now.</span>` : ''}
+  </div>`;
 }
 
-async function requestRestock() {
+async function requestRestock(kind) {
   const item = itemOf(S.sheet.itemId);
   const v = variantOf(item, S.sheet.variantId);
   if (!item || !v) return;
   if (!S.account) { openAuth('Sign in so we can tell you when it is back'); return; }
+  const fee = kind === 'urgent' ? (item.urgentFee || 0) : 0;
   const id = `r-${item.id}-${v.id}-${S.account.id}`.replace(/[^A-Za-z0-9_.~:@+-]/g, '-');
   await S.db.doc(`restock/${id}`).set({
     itemId: item.id, variantId: v.id,
     itemName: item.name, colour: v.name, sku: v.sku,
+    kind, fee,
     customerId: S.account.id, name: S.account.name,
     email: S.account.email, phone: S.account.phone,
     status: 'open', createdAt: new Date().toISOString(),
   });
-  toast(`We'll email you when ${label(item, v.id)} is back.`, 'good');
+  toast(kind === 'urgent'
+    ? `Urgent request logged for ${label(item, v.id)} — ${money(fee)} rush fee.`
+    : `We'll email you when ${label(item, v.id)} is back.`, 'good');
   paintSheet();
 }
 
@@ -3249,48 +3394,67 @@ function restockGroups() {
   return [...groups.values()].map((g) => {
     const item = itemOf(g.itemId);
     const v = variantOf(item, g.variantId);
-    return { ...g, item, variant: v, inRepo: v ? v.quantity : 0, eta: etaOf(v) };
+    return {
+      ...g, item, variant: v, inRepo: v ? v.quantity : 0, eta: etaOf(v),
+      urgent: g.requests.some((r) => r.kind === 'urgent'),
+      feeTotal: g.requests.reduce((t, r) => t + (Number(r.fee) || 0), 0),
+    };
   }).sort((a, b) => b.requests.length - a.requests.length);
 }
 
-function viewRestock() {
-  const groups = restockGroups();
+function restockPanel(groups, title, urgent) {
   return `<section class="panel">
-    <header><h2>Restock requests</h2><span class="spacer"></span>
-      <span class="eyebrow">customers waiting on sold-out pieces</span></header>
-    ${groups.length ? `<div id="restock-list">${groups.map((g) => `
+    <header><h2>${title}</h2><span class="spacer"></span>
+      <span class="tag ${urgent ? 'out' : 'low'}">${groups.length}</span></header>
+    ${groups.length ? `<div class="restock-list">${groups.map((g) => `
       <div class="req-group" data-item="${esc(g.itemId)}" data-variant="${esc(g.variantId)}">
         <div class="req-head">
           <div class="mini">${g.item ? shotHtml(g.item, g.variantId) : ''}</div>
           <div>
             <b>${esc(g.itemName)}</b>${g.colour ? ` <span class="tag flat">${esc(g.colour)}</span>` : ''}
             <br><span class="mono muted">${esc(g.sku || '')}</span>
+            ${g.item && hasSize(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
           </div>
-          <span class="tag ${g.requests.length > 2 ? 'out' : 'low'}">${g.requests.length} waiting</span>
-          ${g.inRepo > 0 ? `<span class="tag ok">${g.inRepo} back in the repo</span>` : ''}
+          <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${g.requests.length} waiting</span>
+          ${urgent ? `<span class="tag on">${money(g.feeTotal)} in rush fees</span>` : ''}
+          ${g.inRepo > 0 ? `<span class="tag ok">${g.inRepo} in the repo</span>` : ''}
           <span class="spacer" style="flex:1"></span>
           <div class="eta-set">
-            <label class="eyebrow" for="eta-${esc(g.itemId)}-${esc(g.variantId)}">Expected back</label>
-            <input type="date" id="eta-${esc(g.itemId)}-${esc(g.variantId)}" data-f="eta" value="${esc(g.eta)}">
+            <label class="eyebrow" for="eta-${urgent ? 'u' : 's'}-${esc(g.itemId)}-${esc(g.variantId)}">Expected back</label>
+            <input type="date" id="eta-${urgent ? 'u' : 's'}-${esc(g.itemId)}-${esc(g.variantId)}"
+              data-f="eta" value="${esc(g.eta)}">
             <button class="tiny" data-act="eta">Save date</button>
             ${g.eta ? '<button class="tiny" data-act="clear-eta">Clear</button>' : ''}
             <button class="tiny warnbtn" data-act="close">Mark done</button>
           </div>
         </div>
         <div class="req-who">${g.requests.map((r) => `<span title="${esc(r.email)} · ${esc(r.phone)}">${
-          esc(r.name)} — ${esc(r.email)}</span>`).join('')}</div>
+          esc(r.name)} — ${esc(r.email)}${r.fee ? ` · ${money(r.fee)}` : ''}</span>`).join('')}</div>
       </div>`).join('')}</div>`
-      : '<p class="blank">Nobody is waiting on a sold-out piece right now.</p>'}
-    <div class="pad" style="border-top:1px solid var(--line)">
-      <p class="muted" style="font-size:12.5px;margin:0">Saving a date shows customers
-        “back in stock around …” on that piece and stops them asking again. Marking done clears the
-        requests — do that once you've restocked and told them.</p>
-    </div>
+      : `<p class="blank">${urgent
+        ? 'No one has paid to jump the queue.'
+        : 'Nobody is waiting on a piece right now.'}</p>`}
   </section>`;
 }
 
+function viewRestock() {
+  const groups = restockGroups();
+  const urgent = groups.filter((g) => g.urgent);
+  const simple = groups.filter((g) => !g.urgent);
+  return `<div class="stack">
+    ${restockPanel(urgent, 'Urgent restock requests', true)}
+    ${restockPanel(simple, 'Restock requests', false)}
+    <section class="panel"><div class="pad">
+      <p class="muted" style="font-size:12.5px;margin:0">Saving a date shows customers
+        “more expected around …” on that piece and stops them asking again. Marking done clears the
+        requests and the date — do that once you've restocked and told them. Set each component's
+        rush fee in <b>Component repo → Edit</b>; a component with no fee is not offered urgently.</p>
+    </div></section>
+  </div>`;
+}
+
 function wireRestock() {
-  $('#restock-list')?.addEventListener('click', guard(async (e) => {
+  $$('.restock-list').forEach((list) => list.addEventListener('click', guard(async (e) => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const row = btn.closest('.req-group');
@@ -3314,7 +3478,7 @@ function wireRestock() {
       await S.db.doc(`catalog/${item.id}`).update({ variants });
       toast('Requests cleared.', 'good');
     }
-  }));
+  })));
 }
 
 
@@ -3428,7 +3592,8 @@ function wireExtras() {
   wireOrderActions();
   // Sold-out request button lives inside the product sheet, which re-renders.
   $('#item-restock').addEventListener('click', guard(async (e) => {
-    if (e.target.closest('#ask-restock')) await requestRestock();
+    const b = e.target.closest('button[data-ask]');
+    if (b) await requestRestock(b.dataset.ask);
   }));
 
   $('#acct-btn').addEventListener('click', () => {
