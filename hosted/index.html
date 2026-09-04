@@ -221,17 +221,6 @@ h3 { font-size: 15px; }
   pointer-events: none; opacity: .55;
 }
 .stage.over { outline: 2px dashed var(--accent); outline-offset: -8px; }
-.stage-base {
-  position: absolute; inset: 0; margin: auto; width: 66%; height: 66%;
-  object-fit: contain; user-select: none; cursor: pointer;
-}
-.stage-base.on { outline: 2px solid var(--accent); outline-offset: 8px; border-radius: 10px; }
-.stage-base .lift {
-  position: absolute; top: -13px; right: -13px; width: 25px; height: 25px; border-radius: 50%;
-  border: none; background: var(--crimson-solid); color: #fff; font-size: 16px; line-height: 1;
-  cursor: pointer; padding: 0; display: none; place-items: center;
-}
-.stage-base.on .lift { display: grid; }
 .stage-hint {
   position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
   gap: 7px; text-align: center; padding: 40px; pointer-events: none; max-width: 44ch; margin: auto;
@@ -588,7 +577,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .placeable .shot .glyph { font-size: 28px; line-height: 1; }
 .placeable .nm { font-size: 12.5px; line-height: 1.25; }
 .placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.placeable.is-base { border-left: 3px solid var(--gold); }
 .placeable.on { border-color: var(--accent); background: var(--accent-soft); }
 
 .empty-rail { padding: 20px 14px; display: grid; gap: 10px; justify-items: start; }
@@ -790,7 +778,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <div class="stat"><span class="eyebrow">Delivery</span><b id="s-ship">—</b></div>
     <div class="stat headline"><span class="eyebrow">Running total</span><b id="s-total">—</b></div>
     <div class="spacer"></div>
-    <button id="s-clear-charms">Remove all but base</button>
     <button id="s-clear">Remove everything</button>
     <button class="solid" id="s-order" disabled>Review &amp; order</button>
   </div>
@@ -807,9 +794,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <div class="stage-col">
       <div class="stage" id="stage">
         <div class="stage-hint" id="hint">
-          <h2>Start with a base</h2>
-          <p class="muted">Pick a bracelet band, pendant frame or kaleera in Browse, then place it here
-            and hang your charms on it.</p>
+          <h2>Start with the piece it hangs on</h2>
+          <p class="muted">A chain, a bangle, a frame — whatever your piece is built around. Place it
+            here, then hang the rest on it.</p>
           <button class="solid" id="hint-browse">Go to Browse</button>
         </div>
       </div>
@@ -824,7 +811,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
-        Drag a piece from your tray onto the base, then drag it again to position it.
+        Drag a piece from your tray onto the canvas, then drag it again to position it.
         Tap it to select — rotate or take it off with the controls above, or press Delete.
         Anything you take off goes straight back to your tray.
       </p>
@@ -1189,10 +1176,8 @@ const S = {
   zones: [],
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
-  base: null,          // { uid, itemId, variantId }
-  charms: [],          // [{ uid, itemId, variantId, x, y, w, rot, z }]
+  charms: [],          // everything on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
   picked: null,
-  baseOn: false,       // is the base piece itself selected on the canvas?
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   strandAsk: null,     // { itemId, variantId, x, y } while the length is being chosen
   zTop: 1,
@@ -1321,7 +1306,9 @@ function sectionOf(slugValue) {
   return sections().find((c) => c.slug === slugValue) || { slug: slugValue, name: slugValue || 'Other', kind: 'attachment' };
 }
 
-const isBaseItem = (item) => item && sectionOf(item.category).kind === 'base';
+/* There is no privileged base component any more: a chain, a bangle or a frame
+   all sit on the canvas the same way, and whichever one you place first is
+   simply the thing the rest hangs on. */
 
 /* Browsers treat 96 CSS pixels as an inch, which is what every "actual size"
    feature leans on. It is an approximation of the real screen, so the sheet
@@ -1399,7 +1386,6 @@ function placedQty(itemId, variantId) {
   for (const c of S.charms) {
     if (c.itemId === itemId && c.variantId === variantId) n += c.lenCm || 1;
   }
-  if (S.base && S.base.itemId === itemId && S.base.variantId === variantId) n += 1;
   return n;
 }
 
@@ -1452,12 +1438,10 @@ function reconcileTray() {
   for (const c of S.charms) {
     const k = `${c.itemId}::${c.variantId}`;
     const used = (over.get(k) || 0) + 1;
-    const allowed = trayQty(c.itemId, c.variantId) - (S.base && S.base.itemId === c.itemId && S.base.variantId === c.variantId ? 1 : 0);
+    const allowed = trayQty(c.itemId, c.variantId);
     if (used <= allowed) { over.set(k, used); keep.push(c); }
   }
   if (keep.length !== S.charms.length) S.charms = keep;
-  if (S.base && trayQty(S.base.itemId, S.base.variantId) < 1) S.base = null;
-
   saveTray();
   if (notes.length) toast(`${notes.join('. ')}. Your tray was updated.`, 'bad');
 }
@@ -1841,12 +1825,11 @@ function paintPlaceRail() {
       <button class="solid" id="rail-browse">Browse the collection</button></div>`;
     return;
   }
-  rows.sort((a, b) => Number(isBaseItem(b.item)) - Number(isBaseItem(a.item)));
+  // Largest first, so the piece most people build on is at the top.
+  rows.sort((a, b) => longestMm(b.item) - longestMm(a.item));
   $('#place-rail').innerHTML = `<div class="place-list">${rows.map((r) => {
     const left = toPlace(r.itemId, r.variantId);
-    const base = isBaseItem(r.item);
-    const isCurrentBase = Boolean(S.base && S.base.itemId === r.itemId && S.base.variantId === r.variantId);
-    return `<div class="placeable ${base ? 'is-base' : ''} ${isCurrentBase ? 'on' : ''} ${left <= 0 ? 'done' : ''}"
+    return `<div class="placeable ${left <= 0 ? 'done' : ''}"
       data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
       draggable="${left > 0}" tabindex="0" role="button"
       title="${esc(r.item.note || r.item.name)}">
@@ -1856,7 +1839,7 @@ function paintPlaceRail() {
           ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
         <span class="sub">${left > 0
           ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
-          : 'all placed'}${base ? ' · base' : ''}</span>
+          : 'all placed'}</span>
       </span>
     </div>`;
   }).join('')}</div>`;
@@ -1870,8 +1853,7 @@ function paintPlaceRail() {
  * heart on a 65 mm band looks like a 12 mm heart on a 65 mm band.
  */
 function stageMm() {
-  const base = S.base ? itemOf(S.base.itemId) : null;
-  let span = base && hasSize(base) ? longestMm(base) / 0.66 : 0;
+  let span = 0;
   // A kaleera's hangings are longer than its frame, so the stage has to grow to
   // hold the longest thing on it — otherwise 18 cm and 25 cm draw the same.
   for (const c of S.charms) {
@@ -1881,8 +1863,11 @@ function stageMm() {
       // Room left below the pin (straight) or out to the rim (round).
       const room = S.view === 'straight' ? Math.max(0.12, (100 - c.y) / 100) * 0.95 : 0.45;
       span = Math.max(span, (c.lenCm * 10) / room);
+    } else if (hasSize(item)) {
+      // The largest piece fills about two thirds, and everything else keeps
+      // its true proportion against it.
+      span = Math.max(span, longestMm(item) / 0.66);
     }
-    else if (hasSize(item)) span = Math.max(span, longestMm(item) / 0.35);
   }
   return span;
 }
@@ -1914,14 +1899,6 @@ function place(itemId, variantId, x, y) {
     return;
   }
 
-  if (isBaseItem(item)) {
-    S.base = { uid: 'b' + Date.now().toString(36), itemId, variantId };
-    S.picked = null;
-    paint();
-    return;
-  }
-  if (!S.base) { toast('Place a base piece first — a band, frame or kaleera.', 'bad'); return; }
-
   if (isLength(item)) { askStrand(itemId, variantId, x, y); return; }
 
   const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
@@ -1944,10 +1921,8 @@ function unplace(uid) {
 
 /** Nothing is lost by clearing — every piece goes straight back to the tray. */
 function clearAll() {
-  S.base = null;
   S.charms = [];
   S.picked = null;
-  S.baseOn = false;
   paint();
 }
 
@@ -1995,49 +1970,11 @@ function addStrand(lenCm) {
   paint();
 }
 
-/** Taking the base off leaves the charms in place, so a band can be swapped. */
-function removeBase() {
-  S.base = null;
-  S.baseOn = false;
-  paint();
-  if (S.charms.length) toast('Base removed — your charms are still arranged. Place another base.');
-}
-
-function clearCharms() {
-  S.charms = [];
-  S.picked = null;
-  paint();
-}
-
 function paintStage() {
   const stage = $('#stage');
-  $$('.charm, .stage-base', stage).forEach((n) => n.remove());
+  $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
-  const baseItem = S.base ? itemOf(S.base.itemId) : null;
-  $('#hint').hidden = Boolean(baseItem);
-
-  if (baseItem) {
-    const holder = document.createElement('div');
-    holder.className = 'stage-base' + (S.baseOn ? ' on' : '');
-    holder.innerHTML = shotHtml(baseItem, S.base.variantId)
-      + `<button class="lift" aria-label="Take off ${esc(baseItem.name)}">×</button>`;
-    const img = holder.querySelector('img');
-    if (img) { img.style.cssText = 'width:100%;height:100%;object-fit:contain'; }
-    const glyph = holder.querySelector('.glyph');
-    if (glyph) {
-      holder.style.cssText += ';display:grid;place-items:center';
-      glyph.style.fontSize = 'min(38vh, 260px)';
-    }
-    // The base is where people reach first when they want it gone.
-    holder.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      if (e.target.closest('.lift')) { removeBase(); return; }
-      S.baseOn = true;
-      S.picked = null;
-      paintStage();
-    });
-    stage.append(holder);
-  }
+  $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {
     const item = itemOf(c.itemId);
@@ -2107,7 +2044,6 @@ function paintGuide() {
 function startMove(ev, charm, node) {
   ev.preventDefault();
   S.picked = charm.uid;
-  S.baseOn = false;
   charm.z = ++S.zTop;
   node.style.zIndex = String(charm.z);
   $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
@@ -2144,7 +2080,6 @@ function billLines() {
     row.qty += n;
     counts.set(k, row);
   };
-  if (S.base) add(S.base.itemId, S.base.variantId, 1);
   for (const c of S.charms) add(c.itemId, c.variantId, c.lenCm || 1);
 
   const lines = [];
@@ -2182,7 +2117,7 @@ function paintBill() {
   const ship = shippingNow();
   // Count what is on the piece, not its centimetres — a 78 cm strand is one
   // hanging, not seventy-eight of anything.
-  const count = S.charms.length + (S.base ? 1 : 0);
+  const count = S.charms.length;
 
   $('#s-count').textContent = count;
   $('#s-items').textContent = count ? money(items) : '—';
@@ -2199,11 +2134,10 @@ function paintBill() {
     <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'chosen at checkout'}</span></div>
     <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
 
-  const ready = Boolean(S.base);
+  const ready = S.charms.length > 0;
   $('#s-order').disabled = !ready;
   $('#s-order-2').disabled = !ready;
-  $('#s-clear').disabled = !ready && !S.charms.length;
-  $('#s-clear-charms').disabled = !S.charms.length;
+  $('#s-clear').disabled = !S.charms.length;
   return { lines, items, ship };
 }
 
@@ -2238,7 +2172,7 @@ function leftovers() {
 }
 
 function startOrder() {
-  if (!S.base) { toast('Place a base piece first.', 'bad'); return; }
+  if (!S.charms.length) { toast('Put something on the piece first.', 'bad'); return; }
   if (!S.account) { openAuth('Sign in to place your order'); return; }
   const rest = leftovers();
   if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
@@ -2354,7 +2288,6 @@ async function submitOrder(form) {
       unit: l.unit, qty: l.qty, total: l.total,
     })),
     design: {
-      base: S.base ? { itemId: S.base.itemId, variantId: S.base.variantId } : null,
       view: S.view,
       charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm }) =>
         ({ itemId, variantId, x, y, w, rot, z, lenCm })),
@@ -2375,7 +2308,6 @@ async function submitOrder(form) {
   // reconciled against the new, lower counts and debited a second time.
   for (const l of lines) trayTake(l.itemId, l.variantId, l.qty);
   if (leftoverChoice === 'discard') { S.tray = []; saveTray(); }
-  S.base = null;
   S.charms = [];
   S.picked = null;
   S.amending = null;
@@ -2615,13 +2547,9 @@ function viewRepo() {
     <section class="panel">
       <header><h2>Sections</h2><span class="spacer"></span>
         <input id="sec-name" placeholder="Section name" style="width:170px">
-        <select id="sec-kind" style="width:auto">
-          <option value="attachment">Attachment — charms, drops</option>
-          <option value="base">Base piece — band, frame, kaleera</option>
-        </select>
         <button id="sec-add">Add</button></header>
       <div class="pad" style="display:flex;gap:7px;flex-wrap:wrap">
-        ${sections().map((c) => `<span class="tag ${c.kind === 'base' ? 'on' : 'flat'}">${esc(c.name)}
+        ${sections().map((c) => `<span class="tag flat">${esc(c.name)}
           <button class="ghost tiny" data-sec="${esc(c.slug)}" style="padding:0 2px"
             aria-label="Remove ${esc(c.name)}">×</button></span>`).join('')
           || '<span class="muted">No sections yet.</span>'}
@@ -2906,7 +2834,7 @@ function wireAdmin() {
     if (!name) return toast('Name the section first.', 'bad');
     const s = slug(name);
     if (sections().some((c) => c.slug === s)) return toast('That section already exists.', 'bad');
-    await saveSettings({ sections: [...sections(), { slug: s, name, kind: $('#sec-kind').value }] });
+    await saveSettings({ sections: [...sections(), { slug: s, name }] });
     toast('Section added.', 'good');
   }));
 
@@ -3222,7 +3150,6 @@ function wireTray() {
     if (!confirm('Empty your tray? Nothing is ordered — the pieces simply go back to the shop.')) return;
     S.tray = [];
     saveTray();
-    S.base = null;
     S.charms = [];
     paint();
     paintTrayDialog();
@@ -3291,7 +3218,6 @@ function wireDesign() {
   stage.addEventListener('pointerdown', (e) => {
     if (e.target === stage || e.target.closest('.stage-hint')) {
       S.picked = null;
-      S.baseOn = false;
       paintStage();
     }
   });
@@ -3339,19 +3265,12 @@ function wireDesign() {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
     if (e.key !== 'Delete' && e.key !== 'Backspace') return;
     if (S.picked) { e.preventDefault(); unplace(S.picked); }
-    else if (S.baseOn) { e.preventDefault(); removeBase(); }
   });
 
   $('#s-clear').addEventListener('click', () => {
-    if (!S.base && !S.charms.length) return;
-    if (!confirm('Take the base off too? Everything goes back to your tray.')) return;
-    clearAll();
-  });
-  // Charms are cheap to put back, so this one does not stop to ask.
-  $('#s-clear-charms').addEventListener('click', () => {
     if (!S.charms.length) return;
-    clearCharms();
-    toast('Charms are back in your tray.', 'good');
+    if (!confirm('Clear the piece? Everything goes back to your tray.')) return;
+    clearAll();
   });
   $('#s-order').addEventListener('click', startOrder);
   $('#s-order-2').addEventListener('click', startOrder);
@@ -3560,7 +3479,6 @@ const loadImage = (src) => new Promise((res, rej) => {
  */
 async function renderSnapshot(size = 560) {
   try {
-    if (!S.base) return '';
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -3611,8 +3529,6 @@ async function renderSnapshot(size = 560) {
       ctx.restore();
     };
 
-    const baseItem = itemOf(S.base.itemId);
-    if (baseItem) await draw(baseItem, S.base.variantId, size / 2, size / 2, size * 0.66, 0);
     for (const c of [...S.charms].sort((a, b) => a.z - b.z)) {
       const item = itemOf(c.itemId);
       if (!item) continue;
@@ -4220,16 +4136,17 @@ function askCancelReason(id, by) {
  */
 async function startAmend(order) {
   if (!canCustomerAmend(order)) { toast('The hour to change this order has passed.', 'bad'); return; }
-  if (S.base || S.charms.length) {
+  if (S.charms.length) {
     if (!confirm('Your current design will be cleared so this order can be opened. Continue?')) return;
   }
   await moveOrder(order.id, 'amending', 'Customer is changing the design.', 'customer');
 
   for (const i of order.items || []) trayAdd(i.itemId || i.id, i.variantId || 'v0', i.qty);
   const d = order.design || {};
-  S.base = d.base ? { uid: 'b' + Date.now().toString(36), itemId: d.base.itemId, variantId: d.base.variantId } : null;
+  // Orders placed before the base slot went away carry theirs separately.
+  const legacy = d.base ? [{ itemId: d.base.itemId, variantId: d.base.variantId, x: 50, y: 50, z: 0 }] : [];
   S.view = d.view === 'straight' ? 'straight' : 'round';
-  S.charms = (d.charms || []).map((c, k) => ({
+  S.charms = [...legacy, ...(d.charms || [])].map((c, k) => ({
     uid: `c${Date.now().toString(36)}${k}`,
     itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w,
     rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm,
@@ -4247,7 +4164,6 @@ async function dropAmend() {
   const order = S.orders.find((o) => o.id === S.amending.id);
   if (!order) { S.amending = null; paint(); return; }
   for (const i of order.items || []) trayTake(i.itemId || i.id, i.variantId || 'v0', i.qty);
-  S.base = null;
   S.charms = [];
   S.picked = null;
   S.amending = null;

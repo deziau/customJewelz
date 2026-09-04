@@ -138,16 +138,17 @@ customer's **tray**.
 closing the app. Quantities can be changed or dropped there. Nothing in the tray
 is charged or taken out of the repo.
 
-**Design** — the tray becomes the rail beside the canvas: only what they picked
-can be placed, and each row counts down ("8 of 10 to place"). Taking a piece off
-the design puts it straight back in the tray. The bill charges for what is on
-the piece, never for what is still in the tray.
+**Design** — the tray becomes the rail beside the canvas, largest piece first:
+only what they picked can be placed, and each row counts down ("8 of 10 to
+place"). Taking a piece off the design puts it straight back in the tray. The
+bill charges for what is on the piece, never for what is still in the tray.
 
-The base piece is selectable like anything else on the canvas, and taking it off
-leaves the charms where they are, so a band can be swapped without rebuilding
-the arrangement. Two clearing actions sit in the top bar: **Remove all but
-base**, and **Remove everything**. Both hand every piece straight back to the
-tray, so nothing is ever lost by clearing.
+**Nothing is a "base".** A chain, a bangle, a frame — whatever a piece is built
+around is just the first thing placed, and everything sits on the canvas the
+same way. Sections are only for browsing; none of them is privileged. The
+canvas scales to the largest thing on it, so a 10 mm bell on a 74 mm kada looks
+like a 10 mm bell on a 74 mm kada. **Remove everything** hands the lot back to
+the tray, and any single piece can be selected and taken off on its own.
 
 At checkout, if anything in the tray was not used, the customer is asked whether
 to **keep it for next time** or **discard it** before the order goes through.
