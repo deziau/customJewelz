@@ -628,12 +628,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 }
 .image-strip img { max-width: 56px; max-height: 56px; object-fit: contain; }
 .image-strip figcaption { font-size: 9.5px; line-height: 1.2; text-align: center; color: var(--muted); }
-.image-strip .row { display: flex; gap: 3px; }
-.image-strip .row button, .image-strip .row label {
-  font: inherit; font-size: 10px; height: 19px; padding: 0 6px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  display: grid; place-items: center;
-}
 .image-strip .kill {
   position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
   border: none; background: var(--crimson-solid); color: #fff; font-size: 13px; line-height: 1;
@@ -1032,17 +1026,23 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <label class="f"><span>Add photos</span><input name="upload" type="file" accept="image/*" multiple></label>
           <label class="f"><span>…or an emoji, if you have no photo</span><input name="glyph" placeholder="💎" maxlength="4"></label>
         </div>
-        <label class="f" style="grid-auto-flow:column;justify-content:start;align-items:center;gap:8px;margin:2px 0">
-          <input type="checkbox" name="autoCut" checked style="width:auto">
-          <span style="color:var(--ink)">Cut the background out for the design area</span>
-        </label>
         <p class="muted" style="font-size:12.5px;margin:0">The first photo is the one customers see in the
           collection. Upload one photo per colour, in the same order as the colours below, and the
-          picture follows whichever colour the customer picks. Photos are shrunk to fit.
-          In the design area the piece is laid on the customer's canvas with its background removed, so
-          pieces overlap like real ones; the tile above each photo is exactly what they will see. If a
-          cut is wrong — a busy or dark background usually — upload your own transparent PNG for that
-          photo, or turn the cutting off and the photo is used whole.</p>
+          picture follows whichever colour the customer picks. Photos are shrunk to fit. Photos are
+          used in the collection only — the design area uses the stickers below.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Stickers for the design area *</legend>
+        <div class="image-strip" id="piece-stickers"></div>
+        <label class="f" style="margin:11px 0 0;max-width:320px"><span>Add stickers</span>
+          <input name="stickerUpload" type="file" accept="image/png,image/webp" multiple></label>
+        <p class="muted" style="font-size:12.5px;margin:0">A sticker is the same piece cut out on a
+          transparent background — a PNG saved with no backdrop. It is what customers drag onto their
+          canvas, so pieces overlap like real ones instead of covering each other with squares.
+          Every component needs at least one. Upload one sticker per colour, in the same order as the
+          colours below, and the sticker follows the colour they picked. The chequerboard behind each
+          tile is see-through: if you cannot see it, that file still has a background.</p>
       </fieldset>
 
       <fieldset>
@@ -1298,8 +1298,10 @@ function normalize(id, d) {
     // restock button, so it has to survive every read and write.
     restockEta: String(v.restockEta || ''),
   }));
-  // One sticker slot per photo. Empty means "cut it out for me".
-  const cutouts = images.map((_, i) => String((Array.isArray(d.cutouts) && d.cutouts[i]) || ''));
+  // The transparent pictures used on the design canvas, kept apart from the
+  // photographs. `cutouts` is what the same list was called for one release.
+  const rawStickers = Array.isArray(d.stickers) ? d.stickers : (Array.isArray(d.cutouts) ? d.cutouts : []);
+  const stickers = rawStickers.map((x) => String(x || '')).filter(Boolean);
   return {
     id,
     sku: String(d.sku || ''),
@@ -1308,9 +1310,7 @@ function normalize(id, d) {
     price: Number(d.price) || 0,
     note: String(d.note || ''),
     images,
-    cutouts,
-    // Off means the photo is laid on the canvas exactly as it was uploaded.
-    autoCut: d.autoCut !== false,
+    stickers,
     glyph: glyph || '◇',
     width: Number(d.width) || 86,
     widthMm: Number(d.widthMm) || 0,
@@ -1353,130 +1353,16 @@ function shotHtml(item, variantId) {
   return src ? `<img src="${esc(src)}" alt="">` : `<span class="glyph">${esc(item.glyph)}</span>`;
 }
 
-/* ------------------------------------------------------------- cut-outs */
+/* ------------------------------------------------------------- stickers */
 
 /**
- * A photo shown in the collection is a rectangle: the piece, and the paper or
- * cloth it was photographed on. On the canvas that rectangle is wrong — laying
- * one over another gives you a stack of cards, not a piece of jewellery. So the
- * background is carved away and what is left is drawn as a sticker.
- *
- * The seller can upload their own cut-out per photo; when they have not, we
- * make one here, in the browser, on a canvas — no model and no network, since
- * the page may reach neither. That makes it good at the plain, evenly lit
- * backgrounds product photos usually have, and it gives up honestly on the
- * rest: a photo it cannot cut is used whole rather than shown in ruins.
+ * A photo is a rectangle: the piece, and the sheet it was shot on. On the canvas
+ * that rectangle would cover whatever it overlaps, so what goes there is a
+ * sticker instead — the same piece cut out on a transparent background, which
+ * the seller uploads themselves alongside the photos. Stickers are never shown
+ * in the collection; photos are never laid on the canvas.
  */
-const CUT_CACHE = new Map();   // photo -> sticker, or '' when it could not be cut
-const cutQueue = [];
-let cutting = false;
 let webpAlpha = null;
-
-/** How far a pixel is from the background colour, weighted the way an eye is. */
-function colourGap(d, i, r, g, b) {
-  const dr = d[i] - r, dg = d[i + 1] - g, db = d[i + 2] - b;
-  return Math.sqrt(dr * dr * 0.9 + dg * dg * 1.2 + db * db * 0.7);
-}
-
-/**
- * Clears the background out of one frame of pixels, in place. The flood starts
- * at the border and can only spread through background-coloured pixels, so a
- * hole in the middle of a charm is opened only when it really opens onto the
- * background, and the piece itself is never eaten from the inside.
- */
-function carve(px, w, h) {
-  const d = px.data;
-  const rs = [], gs = [], bs = [];
-  const sample = (x, y) => { const i = (y * w + x) * 4; rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); };
-  for (let x = 0; x < w; x++) { sample(x, 0); sample(x, h - 1); }
-  for (let y = 0; y < h; y++) { sample(0, y); sample(w - 1, y); }
-  const mid = (a) => { const t = [...a].sort((m, n) => m - n); return t[t.length >> 1]; };
-  const R = mid(rs), G = mid(gs), B = mid(bs);
-  let spread = 0;
-  for (let k = 0; k < rs.length; k++) spread += Math.abs(rs[k] - R) + Math.abs(gs[k] - G) + Math.abs(bs[k] - B);
-  spread /= rs.length * 3;
-  // An even background is cut tightly; a shadowed or gradient one needs room.
-  const tol = clamp(30 + spread * 2.6, 30, 96);
-
-  const seen = new Uint8Array(w * h);
-  const gone = new Uint8Array(w * h);
-  const stack = [];
-  const push = (x, y) => { const q = y * w + x; if (!seen[q]) { seen[q] = 1; stack.push(q); } };
-  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
-  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
-  let cleared = 0;
-  while (stack.length) {
-    const q = stack.pop();
-    // A photo that already carries transparency is simply trimmed: the empty
-    // part is background whatever colour it claims to be.
-    if (d[q * 4 + 3] > 16 && colourGap(d, q * 4, R, G, B) > tol) continue;   // the piece starts here
-    gone[q] = 1; cleared++;
-    const x = q % w, y = (q - x) / w;
-    if (x > 0) push(x - 1, y);
-    if (x < w - 1) push(x + 1, y);
-    if (y > 0) push(x, y - 1);
-    if (y < h - 1) push(x, y + 1);
-  }
-
-  // A photo saved as a JPEG rings along a hard edge, which leaves a crust of
-  // pixels that are neither piece nor background. Anything all but surrounded
-  // by background is background: two passes take that crust off.
-  for (let pass = 0; pass < 2; pass++) {
-    const crust = [];
-    for (let q = 0; q < w * h; q++) {
-      if (gone[q]) continue;
-      const x = q % w, y = (q - x) / w;
-      let open = 0;
-      if (x === 0 || gone[q - 1]) open++;
-      if (x === w - 1 || gone[q + 1]) open++;
-      if (y === 0 || gone[q - w]) open++;
-      if (y === h - 1 || gone[q + w]) open++;
-      if (open >= 3) crust.push(q);
-    }
-    for (const q of crust) { gone[q] = 1; cleared++; }
-  }
-
-  // Cut edges are jagged; the rim pixels fade instead, by how much of the
-  // background is still mixed into them, which is what softens the outline.
-  for (let q = 0; q < w * h; q++) {
-    if (gone[q]) { d[q * 4 + 3] = 0; continue; }
-    const x = q % w, y = (q - x) / w;
-    const rim = (x > 0 && gone[q - 1]) || (x < w - 1 && gone[q + 1])
-      || (y > 0 && gone[q - w]) || (y < h - 1 && gone[q + w]);
-    if (!rim) continue;
-    const gap = colourGap(d, q * 4, R, G, B);
-    d[q * 4 + 3] = Math.min(d[q * 4 + 3], clamp(Math.round(((gap - tol) / (tol * 0.7)) * 255), 0, 255));
-  }
-  return cleared / (w * h);
-}
-
-/** Trims the empty margin away, so the sticker is the piece and nothing else. */
-function trimToPiece(px, w, h) {
-  const d = px.data;
-  let x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (d[(y * w + x) * 4 + 3] > 8) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-    }
-  }
-  if (x1 < 0) return null;
-  const pad = 2;
-  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
-  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
-  const c = document.createElement('canvas');
-  c.width = x1 - x0 + 1;
-  c.height = y1 - y0 + 1;
-  const hold = document.createElement('canvas');
-  hold.width = w; hold.height = h;
-  hold.getContext('2d').putImageData(px, 0, 0);
-  c.getContext('2d').drawImage(hold, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
-  return c;
-}
 
 /** Some browsers throw transparency away when they encode WebP. PNG never does. */
 function keepsWebpAlpha() {
@@ -1495,15 +1381,15 @@ function keepsWebpAlpha() {
       x.fillStyle = '#f0f';
       x.fillRect(0, 0, 2, 2);
       x.drawImage(img, 0, 0);
-      const [r, g, bl] = x.getImageData(0, 0, 1, 1).data;
-      resolve(r === 255 && g === 0 && bl === 255);      // the magenta showed through
+      const [r, g, b] = x.getImageData(0, 0, 1, 1).data;
+      resolve(r === 255 && g === 0 && b === 255);        // the magenta showed through
     };
     img.src = url;
   });
   return webpAlpha;
 }
 
-async function encodeCut(canvas) {
+async function encodeAlpha(canvas) {
   if (await keepsWebpAlpha()) {
     const out = canvas.toDataURL('image/webp', 0.92);
     if (out.startsWith('data:image/webp')) return out;
@@ -1511,70 +1397,25 @@ async function encodeCut(canvas) {
   return canvas.toDataURL('image/png');
 }
 
-/** Photo in, sticker out — or '' when the photo has no background to remove. */
-function cutOut(src, edge = 340) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onerror = () => resolve('');
-    img.onload = async () => {
-      try {
-        const scale = Math.min(1, edge / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * scale));
-        const h = Math.max(1, Math.round(img.height * scale));
-        const c = document.createElement('canvas');
-        c.width = w; c.height = h;
-        const ctx = c.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, w, h);
-        const px = ctx.getImageData(0, 0, w, h);
-        const cleared = carve(px, w, h);
-        // Too little taken and there was no background; too much and the piece
-        // went with it. Either way the photo itself is the better answer.
-        if (cleared < 0.05 || cleared > 0.965) { resolve(''); return; }
-        const trimmed = trimToPiece(px, w, h);
-        resolve(trimmed ? await encodeCut(trimmed) : '');
-      } catch { resolve(''); }
-    };
-    img.src = src;
-  });
+/**
+ * Which sticker stands for a colour. One sticker per colour, in the same order,
+ * follows the colour the customer picked — the rule the photos already use.
+ */
+function stickerIndexFor(item, variantId) {
+  if (!item || item.stickers.length !== item.variants.length) return 0;
+  const i = item.variants.findIndex((v) => v.id === variantId);
+  return i < 0 ? 0 : i;
 }
 
-/** Cutting is slow, so photos queue up and the page repaints as each is done. */
-function queueCut(src) {
-  if (!src || CUT_CACHE.has(src) || cutQueue.includes(src)) return;
-  cutQueue.push(src);
-  runCuts();
-}
-
-async function runCuts() {
-  if (cutting) return;
-  cutting = true;
-  while (cutQueue.length) {
-    const src = cutQueue.shift();
-    CUT_CACHE.set(src, await cutOut(src));
-    if (typeof paint === 'function') paint();
-    const dlg = $('#dlg-piece');
-    if (dlg && dlg.open && typeof paintDraftImages === 'function') paintDraftImages();
-  }
-  cutting = false;
-}
-
-/** The seller's own sticker, else one we cut, else '' — the photo will do. */
-function stickerSrc(item, variantId) {
-  if (!item) return '';
-  const i = imageIndexFor(item, variantId);
-  const own = item.cutouts[i] || '';
-  if (own) return own;
-  const src = item.images[i] || item.images[0] || '';
-  if (!src || !item.autoCut) return '';
-  const done = CUT_CACHE.get(src);
-  if (done === undefined) { queueCut(src); return ''; }
-  return done;
-}
-
-/** What to lay on the canvas for a charm, and whether it is a cut-out. */
+/**
+ * What to lay on the canvas. A sticker is required on every new component, so
+ * the photo fallback is only ever reached by a component saved before stickers
+ * existed — better a square than an empty canvas.
+ */
 function charmArt(item, variantId) {
-  const cut = stickerSrc(item, variantId);
-  if (cut) return { src: cut, cut: true };
+  if (!item) return { src: '', cut: false };
+  const sticker = item.stickers[stickerIndexFor(item, variantId)] || item.stickers[0] || '';
+  if (sticker) return { src: sticker, cut: true };
   return { src: item.images[imageIndexFor(item, variantId)] || item.images[0] || '', cut: false };
 }
 
@@ -3011,7 +2852,7 @@ function shrinkSticker(file, edge = 340) {
         c.width = Math.max(1, Math.round(img.width * scale));
         c.height = Math.max(1, Math.round(img.height * scale));
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        resolve(await encodeCut(c));
+        resolve(await encodeAlpha(c));
       };
       img.src = reader.result;
     };
@@ -3020,33 +2861,26 @@ function shrinkSticker(file, edge = 340) {
 }
 
 function paintDraftImages() {
-  if (!S.draft.images.length) {
-    $('#piece-images').innerHTML =
-      '<span class="muted" style="font-size:12.5px">No photos yet — the emoji below is used instead.</span>';
-    return;
-  }
-  $('#piece-images').innerHTML = S.draft.images.map((src, i) => {
-    const own = S.draft.cutouts[i] || '';
-    let auto = '';
-    if (!own && S.draft.autoCut) {
-      auto = CUT_CACHE.get(src) === undefined ? (queueCut(src), '') : CUT_CACHE.get(src);
-    }
-    const shown = own || auto || src;
-    const note = own ? 'your sticker'
-      : !S.draft.autoCut ? 'photo as it is'
-      : auto ? 'cut out'
-      : CUT_CACHE.get(src) === '' ? 'could not cut — photo used'
-      : 'cutting…';
-    return `<figure>
-      <div class="thumb${own || auto ? ' checks' : ''}"><img src="${esc(shown)}" alt=""></div>
-      <figcaption>${note}</figcaption>
-      <div class="row">${own
-        ? `<button type="button" data-uncut="${i}" title="Go back to the cut-out we make">undo</button>`
-        : `<label title="Upload a transparent PNG for this photo">sticker<input type="file"
-             accept="image/png,image/webp" data-sticker="${i}" hidden></label>`}</div>
-      <button type="button" class="kill" data-shot="${i}" aria-label="Remove photo ${i + 1}">×</button>
-    </figure>`;
-  }).join('');
+  $('#piece-images').innerHTML = S.draft.images.length
+    ? S.draft.images.map((src, i) => `<figure>
+        <div class="thumb"><img src="${esc(src)}" alt=""></div>
+        <button type="button" class="kill" data-shot="${i}" aria-label="Remove photo ${i + 1}">×</button>
+      </figure>`).join('')
+    : '<span class="muted" style="font-size:12.5px">No photos yet — the emoji below is used instead.</span>';
+}
+
+/** The transparent pictures, shown on a chequerboard so see-through looks it. */
+function paintDraftStickers() {
+  $('#piece-stickers').innerHTML = S.draft.stickers.length
+    ? S.draft.stickers.map((src, i) => {
+      const paired = S.draft.stickers.length === S.draft.variants.length ? S.draft.variants[i] : null;
+      return `<figure>
+        <div class="thumb checks"><img src="${esc(src)}" alt=""></div>
+        ${paired && paired.name ? `<figcaption>${esc(paired.name)}</figcaption>` : ''}
+        <button type="button" class="kill" data-sticker="${i}" aria-label="Remove sticker ${i + 1}">×</button>
+      </figure>`;
+    }).join('')
+    : '<span class="muted" style="font-size:12.5px">No stickers yet — one is needed before you can save.</span>';
 }
 
 /** The editor's wording follows what the component is sold by. */
@@ -3084,10 +2918,10 @@ function openPieceDialog(item) {
     || '<option value="">Add a section first</option>';
 
   S.draft = item
-    ? { images: [...item.images], cutouts: [...item.cutouts], autoCut: item.autoCut,
+    ? { images: [...item.images], stickers: [...item.stickers],
         glyph: item.images.length ? '' : item.glyph,
         soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })) }
-    : { images: [], cutouts: [], autoCut: true, glyph: '', soldBy: 'piece',
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece',
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
@@ -3102,15 +2936,14 @@ function openPieceDialog(item) {
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
     f.active.checked = item.active;
-    f.autoCut.checked = item.autoCut;
     f.soldBy.value = item.soldBy;
   } else {
     f.id.value = '';
-    f.autoCut.checked = true;
     f.soldBy.value = 'piece';
   }
   paintSoldBy();
   paintDraftImages();
+  paintDraftStickers();
   paintDraftVariants();
   $('#dlg-piece').showModal();
 }
@@ -3711,37 +3544,32 @@ function wirePieceDialog() {
 
   f.upload.addEventListener('change', async () => {
     for (const file of [...f.upload.files]) {
-      try { S.draft.images.push(await shrink(file)); S.draft.cutouts.push(''); }
+      try { S.draft.images.push(await shrink(file)); }
       catch (ex) { toast(ex.message, 'bad'); }
     }
     f.upload.value = '';
     paintDraftImages();
   });
-  f.autoCut.addEventListener('change', () => {
-    S.draft.autoCut = f.autoCut.checked;
-    paintDraftImages();
-  });
   $('#piece-images').addEventListener('click', (e) => {
     const kill = e.target.closest('button[data-shot]');
-    if (kill) {
-      const i = Number(kill.dataset.shot);
-      S.draft.images.splice(i, 1);
-      S.draft.cutouts.splice(i, 1);
-      paintDraftImages();
-      return;
-    }
-    const undo = e.target.closest('button[data-uncut]');
-    if (undo) {
-      S.draft.cutouts[Number(undo.dataset.uncut)] = '';
-      paintDraftImages();
-    }
-  });
-  $('#piece-images').addEventListener('change', async (e) => {
-    const input = e.target.closest('input[data-sticker]');
-    if (!input || !input.files[0]) return;
-    try { S.draft.cutouts[Number(input.dataset.sticker)] = await shrinkSticker(input.files[0]); }
-    catch (ex) { toast(ex.message, 'bad'); }
+    if (!kill) return;
+    S.draft.images.splice(Number(kill.dataset.shot), 1);
     paintDraftImages();
+  });
+
+  f.stickerUpload.addEventListener('change', async () => {
+    for (const file of [...f.stickerUpload.files]) {
+      try { S.draft.stickers.push(await shrinkSticker(file)); }
+      catch (ex) { toast(ex.message, 'bad'); }
+    }
+    f.stickerUpload.value = '';
+    paintDraftStickers();
+  });
+  $('#piece-stickers').addEventListener('click', (e) => {
+    const kill = e.target.closest('button[data-sticker]');
+    if (!kill) return;
+    S.draft.stickers.splice(Number(kill.dataset.sticker), 1);
+    paintDraftStickers();
   });
 
   $('#piece-soldby').addEventListener('change', (e) => {
@@ -3777,6 +3605,9 @@ function wirePieceDialog() {
       if (!name) throw new Error('Give the component a name.');
       if (!data.get('category')) throw new Error('Choose a section.');
       if (!Number.isFinite(price) || price < 0) throw new Error('The price must be zero or more.');
+      if (!S.draft.stickers.length) {
+        throw new Error('Add at least one sticker — that is what customers put on their design.');
+      }
       if (S.draft.variants.some((v) => !Number.isInteger(v.quantity) || v.quantity < 0)) {
         throw new Error('Every colour needs a whole-number quantity, zero or more.');
       }
@@ -3799,8 +3630,7 @@ function wirePieceDialog() {
         urgentFee: Number(data.get('urgentFee')) || 0,
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
-        cutouts: S.draft.cutouts.map((c) => c || ''),
-        autoCut: f.autoCut.checked,
+        stickers: S.draft.stickers,
         glyph: String(data.get('glyph') || '').trim() || '◇',
         variants: S.draft.variants.map((v, i) => ({
           id: v.id || `v${i}`,
@@ -3813,10 +3643,10 @@ function wirePieceDialog() {
         active: f.active.checked,
         order: id && itemOf(id) ? itemOf(id).order : S.items.length + 1,
       };
-      // A component is one document, and documents cap at 256 KiB. Hand-made
-      // stickers are the only thing here big enough to run into that.
+      // A component is one document, and documents cap at 256 KiB: the photos
+      // and the stickers together are the only things here big enough to reach it.
       if (JSON.stringify(doc).length > 240000) {
-        throw new Error('There is too much picture in this component to save. Remove a photo or one of your own stickers and try again.');
+        throw new Error('There is too much picture in this component to save. Remove a photo or a sticker and try again.');
       }
       const before = id ? itemOf(id) : null;
       await S.db.doc(`catalog/${id || 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)}`).set(doc);

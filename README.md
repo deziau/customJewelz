@@ -258,19 +258,19 @@ shopper's own tray, so no two numbers in the shop can disagree. Where a componen
 photo per colour, in the same order, the picture follows the colour the customer
 picks, in the shop and on the piece.
 
-**Cut-outs** — a photo is a rectangle: the piece, and the sheet it was shot on.
+**Stickers** — a photo is a rectangle: the piece, and the sheet it was shot on.
 Laid on the canvas that rectangle would cover whatever it overlaps, and a design
-would look like a stack of cards. So on the canvas each piece is drawn as a
-sticker with its background carved away and its margin trimmed off, with a soft
-shadow under it, and the finished design saved on the order is drawn the same
-way. The cut is made in the customer's own browser from the photo you uploaded —
-you do not have to prepare anything. In **Component repo → Edit**, each photo in
-the strip shows the cut-out itself on a chequerboard, which is exactly what the
-customer will see, and says which it is: *cut out*, *your sticker*, or *could not
-cut — photo used*. If a cut is wrong, upload your own transparent PNG for that
-photo, or turn *Cut the background out for the design area* off and the photo is
-used as it is. Photos in the collection and on the product page are never
-touched — those stay the pictures you took.
+would look like a stack of cards. So a component carries two sets of pictures,
+kept apart. **Photos** are what customers see in the collection and on the
+product page. **Stickers** are the same pieces cut out on a transparent
+background — PNGs you save with no backdrop — and they appear nowhere but the
+design canvas, where they get a soft shadow so a stack of them reads as one
+assembled piece; the design saved on the order is drawn the same way. At least
+one sticker is required before a component can be saved. Upload one per colour,
+in the same order as the colours, and the sticker follows the colour the
+customer picked, exactly as the photos do. In **Component repo → Edit** each
+sticker sits on a chequerboard: if you cannot see the chequers through it, that
+file still has a background.
 
 It keeps the catalogue, delivery areas, orders and settings in the artifact
 database rather than SQLite, so it needs no server at all. Differences worth
@@ -292,13 +292,11 @@ knowing:
   possible — the self-hosted build closes that window with a transaction.
 - Component artwork is a set of uploaded photos (or an emoji if you have none),
   shrunk in the browser so each component record stays small.
-- Cut-outs are made in the browser, on a canvas: no model and no network call.
-  That means they are good with the plain, evenly lit backgrounds product photos
-  usually have, and weaker on busy, dark or cluttered ones — where the studio
-  says so and the photo is used whole instead of a ruined cut. Nothing is stored
-  for an automatic cut-out; it is made again in each customer's browser and kept
-  in memory for that visit. A sticker you upload yourself *is* stored with the
-  component, which is why the editor refuses a component grown too big to save.
+- Stickers are files you supply; nothing removes a background for you. A
+  component saved before stickers existed falls back to its photo on the canvas
+  rather than showing nothing. Photos and stickers both live inside the
+  component's own record, which is why the editor refuses a component grown too
+  big to save — drop a picture and try again.
 
 ## Before going live
 
