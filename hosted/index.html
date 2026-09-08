@@ -266,7 +266,23 @@ h3 { font-size: 15px; }
 }
 .charm.on .lift { display: grid; }
 
-.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+
+/* Turning a piece: the arrows for a quick quarter-of-a-clock jump, the box for
+   the exact angle when a piece has to sit at 47°. */
+.angle { display: inline-flex; align-items: center; gap: 4px; }
+.angle-set {
+  display: inline-flex; align-items: center; gap: 1px;
+  border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface);
+  padding: 0 7px 0 3px; font-size: 12px; color: var(--muted);
+}
+.angle-set:focus-within { border-color: var(--accent); }
+.angle-set input {
+  width: 46px; border: none; background: none; padding: 5px 2px; text-align: right;
+  font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.angle-set input:focus-visible { outline: none; }
+.angle-set input:disabled { color: var(--muted); }
 
 /* ------------------------------------------------------------------- bill */
 
@@ -847,15 +863,25 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" data-view="round" aria-pressed="true">Round</button>
           <button type="button" data-view="straight" aria-pressed="false">Straight</button>
         </span>
-        <button class="tiny" data-tool="ccw">⟲</button>
-        <button class="tiny" data-tool="cw">⟳</button>
+        <span class="angle" role="group" aria-label="Turn the selected piece">
+          <button type="button" class="tiny" data-turn="-30"
+            title="30° anticlockwise" aria-label="Turn 30 degrees anticlockwise">⟲ 30°</button>
+          <span class="angle-set">
+            <input id="rot-val" type="number" min="0" max="359" step="1" inputmode="numeric"
+              aria-label="Angle of the selected piece, in degrees" disabled>
+            <span aria-hidden="true">°</span>
+          </span>
+          <button type="button" class="tiny" data-turn="30"
+            title="30° clockwise" aria-label="Turn 30 degrees clockwise">30° ⟳</button>
+        </span>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
         Drag a piece from your tray onto the canvas, then drag it again to position it.
-        Tap it to select — rotate or take it off with the controls above, or press Delete.
-        Anything you take off goes straight back to your tray.
+        Tap it to select, then turn it: the arrows jump 30° at a time, or type the exact
+        angle in the box. Take it off with the button above or the Delete key —
+        anything you take off goes straight back to your tray.
       </p>
     </div>
 
@@ -2091,10 +2117,34 @@ function addStrand(lenCm) {
   paint();
 }
 
+/** Degrees the way a protractor reads them: 0–359, never −45 or 400. */
+const wrapAngle = (deg) => ((Math.round(deg) % 360) + 360) % 360;
+
+const pickedCharm = () => S.charms.find((c) => c.uid === S.picked) || null;
+
+/** The angle box follows whatever is selected, and greys out when nothing is. */
+function paintTools() {
+  const box = $('#rot-val');
+  if (!box) return;
+  const c = pickedCharm();
+  box.disabled = !c;
+  // Leave it alone while it is being typed into, or the caret jumps.
+  if (document.activeElement !== box) box.value = c ? wrapAngle(c.rot || 0) : '';
+}
+
+/** Turning is the same act whether it came from an arrow or the box. */
+function turnPicked(deg, relative) {
+  const c = pickedCharm();
+  if (!c) { toast('Tap a piece on the canvas first.'); return; }
+  c.rot = wrapAngle(relative ? (c.rot || 0) + deg : deg);
+  paintStage();
+}
+
 function paintStage() {
   const stage = $('#stage');
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
+  paintTools();
   $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {
@@ -2172,6 +2222,7 @@ function startMove(ev, charm, node) {
   charm.z = ++S.zTop;
   node.style.zIndex = String(charm.z);
   $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
+  paintTools();
 
   const rect = $('#stage').getBoundingClientRect();
   const x0 = ev.clientX; const y0 = ev.clientY;
@@ -3471,11 +3522,25 @@ function wireDesign() {
     addStrand(len);
   });
 
+  $$('.tools button[data-turn]').forEach((b) => b.addEventListener('click',
+    () => turnPicked(Number(b.dataset.turn), true)));
+
+  const box = $('#rot-val');
+  box.addEventListener('input', () => {
+    const c = pickedCharm();
+    if (!c || box.value === '') return;
+    const typed = Number(box.value);
+    if (!Number.isFinite(typed)) return;
+    c.rot = wrapAngle(typed);
+    paintStage();
+  });
+  // Tidy the number up only once they are done with it.
+  box.addEventListener('blur', paintTools);
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); box.blur(); } });
+
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
-    const c = S.charms.find((x) => x.uid === S.picked);
-    if (!c) return toast('Tap a charm on the piece first.');
-    if (b.dataset.tool === 'ccw') c.rot -= 15;
-    if (b.dataset.tool === 'cw') c.rot += 15;
+    const c = pickedCharm();
+    if (!c) return toast('Tap a piece on the canvas first.');
     if (b.dataset.tool === 'front') c.z = ++S.zTop;
     if (b.dataset.tool === 'lift') return unplace(c.uid);
     paintStage();

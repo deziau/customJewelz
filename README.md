@@ -147,6 +147,12 @@ only what they picked can be placed, and each row counts down ("8 of 10 to
 place"). Taking a piece off the design puts it straight back in the tray. The
 bill charges for what is on the piece, never for what is still in the tray.
 
+**Turning a piece** is done in numbers, not by wrestling with a handle. Select
+it, and the tools under the canvas show its angle: the arrows either side jump
+30° at a time — a quarter of a clock face, which is how most kaleera hangings
+are spaced — and the box between them takes any exact angle you type, 0 to 359.
+Every piece carries its own angle, and the box always shows the one selected.
+
 **Nothing is a "base".** A chain, a bangle, a frame — whatever a piece is built
 around is just the first thing placed, and everything sits on the canvas the
 same way. Sections are only for browsing; none of them is privileged. The
