@@ -268,21 +268,18 @@ h3 { font-size: 15px; }
 
 .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
 
-/* Turning a piece: the arrows for a quick quarter-of-a-clock jump, the box for
-   the exact angle when a piece has to sit at 47°. */
+/* Turning a piece: tap an arrow for a 30° jump, hold it and the piece keeps
+   turning until you let go. The box between them reads the angle back. */
 .angle { display: inline-flex; align-items: center; gap: 4px; }
+.angle button { user-select: none; touch-action: none; }
+.angle button.spinning { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .angle-set {
-  display: inline-flex; align-items: center; gap: 1px;
-  border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface);
-  padding: 0 7px 0 3px; font-size: 12px; color: var(--muted);
+  display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 1px;
+  min-width: 58px; border: 1px solid var(--line-strong); border-radius: 8px;
+  background: var(--surface); padding: 5px 8px; font-size: 12px; color: var(--muted);
 }
-.angle-set:focus-within { border-color: var(--accent); }
-.angle-set input {
-  width: 46px; border: none; background: none; padding: 5px 2px; text-align: right;
-  font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink);
-}
-.angle-set input:focus-visible { outline: none; }
-.angle-set input:disabled { color: var(--muted); }
+.angle-set output { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.angle-set.off output { color: var(--muted); }
 
 /* ------------------------------------------------------------------- bill */
 
@@ -866,10 +863,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <span class="angle" role="group" aria-label="Turn the selected piece">
           <button type="button" class="tiny" data-turn="-30"
             title="30° anticlockwise" aria-label="Turn 30 degrees anticlockwise">⟲ 30°</button>
-          <span class="angle-set">
-            <input id="rot-val" type="number" min="0" max="359" step="1" inputmode="numeric"
-              aria-label="Angle of the selected piece, in degrees" disabled>
-            <span aria-hidden="true">°</span>
+          <span class="angle-set off" id="rot-wrap">
+            <output id="rot-val" aria-label="Angle of the selected piece, in degrees"
+              aria-live="off">—</output><span aria-hidden="true">°</span>
           </span>
           <button type="button" class="tiny" data-turn="30"
             title="30° clockwise" aria-label="Turn 30 degrees clockwise">30° ⟳</button>
@@ -879,9 +875,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
         Drag a piece from your tray onto the canvas, then drag it again to position it.
-        Tap it to select, then turn it: the arrows jump 30° at a time, or type the exact
-        angle in the box. Take it off with the button above or the Delete key —
-        anything you take off goes straight back to your tray.
+        Tap it to select, then turn it: tap an arrow for a 30° jump, or hold it down and
+        the piece keeps turning until you let go. The box reads the angle back.
+        Take it off with the button above or the Delete key — anything you take off goes
+        straight back to your tray.
       </p>
     </div>
 
@@ -2118,25 +2115,83 @@ function addStrand(lenCm) {
 }
 
 /** Degrees the way a protractor reads them: 0–359, never −45 or 400. */
-const wrapAngle = (deg) => ((Math.round(deg) % 360) + 360) % 360;
+const wrapAngle = (deg) => ((deg % 360) + 360) % 360;
 
 const pickedCharm = () => S.charms.find((c) => c.uid === S.picked) || null;
 
-/** The angle box follows whatever is selected, and greys out when nothing is. */
+/** How a charm sits on the canvas — written once, since a spin re-applies it
+ *  every frame without rebuilding anything. */
+function charmTransform(c) {
+  const item = itemOf(c.itemId);
+  return item && isLength(item) && c.lenCm
+    ? `translate(-50%,0) rotate(${hangAngle(c)}deg)`
+    : `translate(-50%,-50%) rotate(${c.rot || 0}deg)`;
+}
+
+/** The angle read-out follows whatever is selected, and dims when nothing is. */
 function paintTools() {
   const box = $('#rot-val');
   if (!box) return;
   const c = pickedCharm();
-  box.disabled = !c;
-  // Leave it alone while it is being typed into, or the caret jumps.
-  if (document.activeElement !== box) box.value = c ? wrapAngle(c.rot || 0) : '';
+  box.textContent = c ? Math.round(wrapAngle(c.rot || 0)) : '—';
+  $('#rot-wrap').classList.toggle('off', !c);
 }
 
-/** Turning is the same act whether it came from an arrow or the box. */
+/** Turning, however it was asked for. */
 function turnPicked(deg, relative) {
   const c = pickedCharm();
-  if (!c) { toast('Tap a piece on the canvas first.'); return; }
+  if (!c) { toast('Tap a piece on the canvas first.'); return false; }
   c.rot = wrapAngle(relative ? (c.rot || 0) + deg : deg);
+  paintStage();
+  return true;
+}
+
+/* Holding an arrow down turns the piece for as long as it is held: a slow
+   start, so a deliberate 30° tap is never overtaken, winding up to a speed
+   that carries a piece right round without waiting on it. */
+const SPIN_FROM = 70;      // degrees a second at the moment the hold takes over
+const SPIN_TO = 260;       // …and once it has been held a while
+const SPIN_WINDUP = 1200;  // milliseconds to reach full speed
+const SPIN_DELAY = 320;    // a press shorter than this is just a tap
+
+let spin = null;           // { dir, button, timer, raf, since, last }
+
+function spinFrame(now) {
+  if (!spin) return;
+  const c = pickedCharm();
+  if (!c) { stopSpin(); return; }
+  const held = now - spin.since;
+  const speed = SPIN_FROM + (SPIN_TO - SPIN_FROM) * Math.min(1, held / SPIN_WINDUP);
+  c.rot = wrapAngle((c.rot || 0) + spin.dir * speed * ((now - spin.last) / 1000));
+  spin.last = now;
+  // Only the piece being turned moves, so a spin costs one style write a frame.
+  const node = $(`.charm[data-uid="${c.uid}"]`);
+  if (node) node.style.transform = charmTransform(c);
+  paintTools();
+  spin.raf = requestAnimationFrame(spinFrame);
+}
+
+function startSpin(step, button) {
+  stopSpin();
+  // The jump happens on the way down, so a tap is a tap even on a slow finger.
+  if (!turnPicked(step, true)) return;
+  spin = { dir: Math.sign(step), button, timer: 0, raf: 0, since: 0, last: 0 };
+  spin.timer = setTimeout(() => {
+    if (!spin) return;
+    spin.since = performance.now();
+    spin.last = spin.since;
+    button.classList.add('spinning');
+    spin.raf = requestAnimationFrame(spinFrame);
+  }, SPIN_DELAY);
+}
+
+/** Letting go stops it exactly where it is — nothing snaps afterwards. */
+function stopSpin() {
+  if (!spin) return;
+  clearTimeout(spin.timer);
+  cancelAnimationFrame(spin.raf);
+  spin.button.classList.remove('spinning');
+  spin = null;
   paintStage();
 }
 
@@ -2164,7 +2219,7 @@ function paintStage() {
       const art = charmArt(item, c.variantId);
       const src = art.src;
       node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wide}%;height:${lenPct}%;z-index:${c.z};` +
-        `transform:translate(-50%,0) rotate(${hangAngle(c)}deg)`;
+        `transform:${charmTransform(c)}`;
       node.innerHTML = `<div class="run ${src ? '' : 'plain'}${art.cut ? ' cut' : ''}"${
         src ? ` style="background-image:url('${esc(src)}')"` : ''}></div>
         <span class="len">${fmtLen(c.lenCm)}</span>
@@ -2172,7 +2227,7 @@ function paintStage() {
     } else {
       const wPct = charmWidthPct(item) || c.w;
       node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wPct}%;aspect-ratio:1;z-index:${c.z};` +
-        `transform:translate(-50%,-50%) rotate(${c.rot}deg)`;
+        `transform:${charmTransform(c)}`;
       const art = charmArt(item, c.variantId);
       node.innerHTML = (art.src
         ? `<img class="${art.cut ? 'cut' : ''}" src="${esc(art.src)}" alt="">`
@@ -3522,21 +3577,22 @@ function wireDesign() {
     addStrand(len);
   });
 
-  $$('.tools button[data-turn]').forEach((b) => b.addEventListener('click',
-    () => turnPicked(Number(b.dataset.turn), true)));
-
-  const box = $('#rot-val');
-  box.addEventListener('input', () => {
-    const c = pickedCharm();
-    if (!c || box.value === '') return;
-    const typed = Number(box.value);
-    if (!Number.isFinite(typed)) return;
-    c.rot = wrapAngle(typed);
-    paintStage();
+  $$('.tools button[data-turn]').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();               // no text selection, no long-press menu
+      startSpin(Number(b.dataset.turn), b);
+    });
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
+    // A keyboard press is a plain 30° jump; holding the key repeats it.
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      turnPicked(Number(b.dataset.turn), true);
+    });
   });
-  // Tidy the number up only once they are done with it.
-  box.addEventListener('blur', paintTools);
-  box.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); box.blur(); } });
+  // Wherever the finger goes up — on the button, off it, or off the window.
+  for (const ev of ['pointerup', 'pointercancel']) window.addEventListener(ev, stopSpin);
+  window.addEventListener('blur', stopSpin);
 
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
     const c = pickedCharm();
