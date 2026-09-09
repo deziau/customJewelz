@@ -268,18 +268,11 @@ h3 { font-size: 15px; }
 
 .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
 
-/* Turning a piece: tap an arrow for a 30° jump, hold it and the piece keeps
-   turning until you let go. The box between them reads the angle back. */
+/* Turning a piece: tap an arrow to nudge it a degree, hold it and the piece
+   keeps turning until you let go. */
 .angle { display: inline-flex; align-items: center; gap: 4px; }
-.angle button { user-select: none; touch-action: none; }
+.angle button { user-select: none; touch-action: none; font-size: 14px; padding: 4px 11px; }
 .angle button.spinning { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.angle-set {
-  display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 1px;
-  min-width: 58px; border: 1px solid var(--line-strong); border-radius: 8px;
-  background: var(--surface); padding: 5px 8px; font-size: 12px; color: var(--muted);
-}
-.angle-set output { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); }
-.angle-set.off output { color: var(--muted); }
 
 /* ------------------------------------------------------------------- bill */
 
@@ -861,22 +854,20 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" data-view="straight" aria-pressed="false">Straight</button>
         </span>
         <span class="angle" role="group" aria-label="Turn the selected piece">
-          <button type="button" class="tiny" data-turn="-30"
-            title="30° anticlockwise" aria-label="Turn 30 degrees anticlockwise">⟲ 30°</button>
-          <span class="angle-set off" id="rot-wrap">
-            <output id="rot-val" aria-label="Angle of the selected piece, in degrees"
-              aria-live="off">—</output><span aria-hidden="true">°</span>
-          </span>
-          <button type="button" class="tiny" data-turn="30"
-            title="30° clockwise" aria-label="Turn 30 degrees clockwise">30° ⟳</button>
+          <button type="button" class="tiny" data-turn="-1"
+            title="Turn anticlockwise — hold to keep turning"
+            aria-label="Turn anticlockwise, hold to keep turning">⟲</button>
+          <button type="button" class="tiny" data-turn="1"
+            title="Turn clockwise — hold to keep turning"
+            aria-label="Turn clockwise, hold to keep turning">⟳</button>
         </span>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
       <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
         Drag a piece from your tray onto the canvas, then drag it again to position it.
-        Tap it to select, then turn it: tap an arrow for a 30° jump, or hold it down and
-        the piece keeps turning until you let go. The box reads the angle back.
+        Tap it to select, then turn it: tap an arrow to nudge it a degree, or hold it down
+        and the piece keeps turning until you let go.
         Take it off with the button above or the Delete key — anything you take off goes
         straight back to your tray.
       </p>
@@ -2128,15 +2119,6 @@ function charmTransform(c) {
     : `translate(-50%,-50%) rotate(${c.rot || 0}deg)`;
 }
 
-/** The angle read-out follows whatever is selected, and dims when nothing is. */
-function paintTools() {
-  const box = $('#rot-val');
-  if (!box) return;
-  const c = pickedCharm();
-  box.textContent = c ? Math.round(wrapAngle(c.rot || 0)) : '—';
-  $('#rot-wrap').classList.toggle('off', !c);
-}
-
 /** Turning, however it was asked for. */
 function turnPicked(deg, relative) {
   const c = pickedCharm();
@@ -2146,9 +2128,10 @@ function turnPicked(deg, relative) {
   return true;
 }
 
-/* Holding an arrow down turns the piece for as long as it is held: a slow
-   start, so a deliberate 30° tap is never overtaken, winding up to a speed
-   that carries a piece right round without waiting on it. */
+/* A tap nudges the piece a single degree, for the last little correction.
+   Holding takes over and turns it for as long as it is held: slowly at first,
+   so a hold can be stopped on any angle, winding up to a speed that carries a
+   piece right round without waiting on it. */
 const SPIN_FROM = 70;      // degrees a second at the moment the hold takes over
 const SPIN_TO = 260;       // …and once it has been held a while
 const SPIN_WINDUP = 1200;  // milliseconds to reach full speed
@@ -2167,7 +2150,6 @@ function spinFrame(now) {
   // Only the piece being turned moves, so a spin costs one style write a frame.
   const node = $(`.charm[data-uid="${c.uid}"]`);
   if (node) node.style.transform = charmTransform(c);
-  paintTools();
   spin.raf = requestAnimationFrame(spinFrame);
 }
 
@@ -2199,7 +2181,6 @@ function paintStage() {
   const stage = $('#stage');
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
-  paintTools();
   $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {
@@ -2277,7 +2258,6 @@ function startMove(ev, charm, node) {
   charm.z = ++S.zTop;
   node.style.zIndex = String(charm.z);
   $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
-  paintTools();
 
   const rect = $('#stage').getBoundingClientRect();
   const x0 = ev.clientX; const y0 = ev.clientY;
