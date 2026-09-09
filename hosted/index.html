@@ -844,8 +844,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <div class="stage-hint" id="hint">
           <h2>Start with the piece it hangs on</h2>
           <p class="muted">A chain, a bangle, a frame — whatever your piece is built around. Place it
-            here, then hang the rest on it.</p>
-          <button class="solid" id="hint-browse">Go to Browse</button>
+            here, then hang the rest on it. Pick pieces in <b>Browse</b>; they wait in your tray
+            on the left.</p>
         </div>
       </div>
       <div class="tools">
@@ -3527,7 +3527,6 @@ function wireDesign() {
       paintStage();
     }
   });
-  $('#hint-browse').addEventListener('click', () => setMode('browse'));
 
   $$('.viewswitch button').forEach((b) => b.addEventListener('click', () => {
     S.view = b.dataset.view;
