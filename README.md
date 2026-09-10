@@ -252,6 +252,19 @@ hanging piece, where they drop from a rail. The switch sits under the canvas,
 a faint guide shows which you are in, and the choice travels with the order and
 its picture.
 
+**SKUs give themselves out.** Adding a component in the studio, you never type
+a code: it is built from the section, the name and the number of that thing in
+that section — `CHARMS-BBYCLT-001` for the first baby cloth in Charms — and each
+colour hangs its own code off the end, `CHARMS-BBYCLT-001-BLUE`. A single short
+word is left alone (BLUE stays BLUE); anything longer is shortened the way a
+stock label is, first letter of each word then its consonants, so "Baby cloth"
+reads BBYCLT. The code appears in the dialog as you choose the section and type
+the name, and the numbers come from the codes already given out, so deleting the
+fourth of five never re-issues a number a printed label is still using. A saved
+component keeps its code even when it is renamed or moved, because orders and
+labels already carry it; **Renumber** in the editor re-derives it when you do
+want it to follow.
+
 Stock is counted **per colour** — each colour has its own SKU and count, so gold
 hearts running out does not hide the silver ones. Every count a customer sees
 is about one colour: a browse card warns per colour with just the count —

@@ -617,6 +617,19 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 /* ---------------------------------------------------- studio: variant rows */
 
+/* A SKU is read, not written: it comes from the section, the name and the
+   number of that thing in that section. */
+.sku-line {
+  display: flex; align-items: center; gap: 8px; min-height: 38px;
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface-2); color: var(--ink); font-size: 13.5px;
+}
+.sku-line output { flex: 1; overflow-wrap: anywhere; }
+.sku-cell {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  overflow-wrap: anywhere; line-height: 1.25;
+}
+
 .variant-rows { display: grid; gap: 7px; }
 .variant-row {
   display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1.2fr) 82px 34px;
@@ -1014,7 +1027,11 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <input type="hidden" name="id">
       <div class="pair">
         <label class="f"><span>Name *</span><input name="name" required></label>
-        <label class="f"><span>Base SKU</span><input name="sku" placeholder="auto"></label>
+        <label class="f"><span>SKU — given by the section and the name</span>
+          <span class="sku-line">
+            <output id="piece-sku" class="mono">—</output>
+            <button type="button" class="tiny" id="sku-renew" hidden>Renumber</button>
+          </span></label>
         <label class="f"><span>Section *</span><select name="category" id="piece-cat" required></select></label>
         <label class="f"><span>Sold by *</span><select name="soldBy" id="piece-soldby">
           <option value="piece">The piece — charms, bangles, frames</option>
@@ -2896,6 +2913,59 @@ function paintAdmin() {
 'use strict';
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/* ------------------------------------------------------------------ SKUs */
+
+/**
+ * Turns words into a label code. A single short word is left as it is — BLUE
+ * stays BLUE — and anything longer is shortened the way a stock label does:
+ * the first letter of each word, then its consonants, so "Baby cloth" reads
+ * BBYCLT. Digits are kept, so "8 mm hoop" reads 8MMHP.
+ */
+function code(text, max = 6) {
+  const words = String(text || '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ')
+    .split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  if (words.length === 1 && words[0].length <= max) return words[0];
+  return words.map((w) => w[0] + w.slice(1).replace(/[AEIOU]/g, '')).join('').slice(0, max);
+}
+
+const sectionCode = (catSlug) => code(sectionOf(catSlug).name) || 'ITEM';
+const nameCode = (name) => code(name) || 'NEW';
+const colourCode = (name) => code(name);
+
+/** CHRMS-BBYCLT-005 — section, piece, and its number within that section. */
+const buildSku = (catSlug, name, serial) =>
+  `${sectionCode(catSlug)}-${nameCode(name)}-${String(serial).padStart(3, '0')}`;
+
+/** A colour hangs its own code off the end: CHRMS-BBYCLT-005-BLUE. */
+const variantSku = (base, colour) => (colour ? `${base}-${colourCode(colour)}` : base);
+
+/**
+ * The next number free in a section. It reads the numbers already given out
+ * rather than counting rows, so deleting the fourth of five never hands out a
+ * number a printed label is still using.
+ */
+function nextSerial(catSlug, skipId) {
+  const code = sectionCode(catSlug);
+  const tail = new RegExp(`^${code}-[A-Z0-9]+-(\\d+)$`);
+  let top = 0;
+  for (const it of S.items) {
+    if (it.id === skipId) continue;
+    const m = tail.exec(String(it.sku || ''));
+    if (m) top = Math.max(top, Number(m[1]));
+  }
+  return top + 1;
+}
+
+/** The SKU this draft would be saved with, kept clear of the ones in use. */
+function assignSku(catSlug, name, skipId) {
+  const taken = new Set(S.items.filter((i) => i.id !== skipId).map((i) => i.sku));
+  let serial = nextSerial(catSlug, skipId);
+  let sku = buildSku(catSlug, name, serial);
+  while (taken.has(sku)) sku = buildSku(catSlug, name, ++serial);
+  return sku;
+}
 const saveSettings = (patch) => S.db.doc('meta/settings').set({ ...S.settings, ...patch });
 
 /* ------------------------------------------------------- component dialog */
@@ -2969,6 +3039,24 @@ function paintDraftStickers() {
     : '<span class="muted" style="font-size:12.5px">No stickers yet — one is needed before you can save.</span>';
 }
 
+/**
+ * A component keeps the SKU it was given, so labels already printed and orders
+ * already placed still match; a new one takes the next number in its section
+ * the moment the section or the name changes. **Renumber** re-derives an
+ * existing one when a piece has been moved or renamed for good.
+ */
+function paintSku() {
+  const f = $('#form-piece');
+  if (!S.draft.kept) {
+    S.draft.sku = assignSku(f.category.value, f.name.value, f.id.value || null);
+    S.draft.variants.forEach((v) => { v.sku = ''; });
+  }
+  $('#piece-sku').textContent = S.draft.sku || '—';
+  const renew = $('#sku-renew');
+  renew.hidden = !S.draft.kept;
+  paintDraftVariants();
+}
+
 /** The editor's wording follows what the component is sold by. */
 function paintSoldBy() {
   const byLength = S.draft.soldBy === 'length';
@@ -2984,7 +3072,7 @@ function paintDraftVariants() {
     <div class="variant-row" data-i="${i}">
       <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
       <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
-      <input value="${esc(v.sku)}" placeholder="SKU" data-f="sku">
+      <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name))}</span>
       <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '10' : '1'}"
         value="${v.quantity}" data-f="quantity"
         aria-label="${S.draft.soldBy === 'length' ? 'Stock in centimetres' : 'Quantity'}"
@@ -3005,15 +3093,14 @@ function openPieceDialog(item) {
 
   S.draft = item
     ? { images: [...item.images], stickers: [...item.stickers],
-        glyph: item.images.length ? '' : item.glyph,
+        glyph: item.images.length ? '' : item.glyph, sku: item.sku, kept: Boolean(item.sku),
         soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })) }
-    : { images: [], stickers: [], glyph: '', soldBy: 'piece',
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false,
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
     f.id.value = item.id;
     f.name.value = item.name;
-    f.sku.value = item.sku;
     f.category.value = item.category;
     f.price.value = item.price;
     f.widthMm.value = item.widthMm || '';
@@ -3028,6 +3115,7 @@ function openPieceDialog(item) {
     f.soldBy.value = 'piece';
   }
   paintSoldBy();
+  paintSku();
   paintDraftImages();
   paintDraftStickers();
   paintDraftVariants();
@@ -3677,6 +3765,14 @@ function wirePieceDialog() {
     paintSoldBy();
   });
 
+  f.name.addEventListener('input', paintSku);
+  f.category.addEventListener('change', paintSku);
+  $('#sku-renew').addEventListener('click', () => {
+    S.draft.kept = false;          // from here on it follows the section and name
+    paintSku();
+    toast('Renumbered from the section and name.', 'good');
+  });
+
   $('#variant-add').addEventListener('click', () => {
     S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: '', swatch: '#c9a227', sku: '', quantity: 0 });
     paintDraftVariants();
@@ -3690,8 +3786,14 @@ function wirePieceDialog() {
   $('#piece-variants').addEventListener('input', (e) => {
     const field = e.target.dataset.f;
     if (!field) return;
-    const row = S.draft.variants[Number(e.target.closest('.variant-row').dataset.i)];
+    const rowNode = e.target.closest('.variant-row');
+    const row = S.draft.variants[Number(rowNode.dataset.i)];
     row[field] = field === 'quantity' ? Math.max(0, parseInt(e.target.value, 10) || 0) : e.target.value;
+    // Only the one cell is rewritten, so the colour name keeps its caret.
+    if (field === 'name') {
+      const cell = rowNode.querySelector('[data-sku-cell]');
+      if (cell) cell.textContent = row.sku || variantSku(S.draft.sku, row.name);
+    }
   });
 
   f.addEventListener('submit', guard(async (e) => {
@@ -3717,7 +3819,8 @@ function wirePieceDialog() {
       }
 
       const id = data.get('id');
-      const baseSku = String(data.get('sku') || '').trim() || `SKU-${Date.now().toString(36).toUpperCase()}`;
+      // Settled by the dialog as the section and name were chosen.
+      const baseSku = S.draft.sku || assignSku(data.get('category'), name, id || null);
       const doc = {
         name,
         sku: baseSku,
@@ -3736,7 +3839,7 @@ function wirePieceDialog() {
           id: v.id || `v${i}`,
           name: v.name.trim(),
           swatch: v.swatch || '',
-          sku: (v.sku || '').trim() || (v.name.trim() ? `${baseSku}-${slug(v.name).toUpperCase()}` : baseSku),
+          sku: (v.sku || '').trim() || variantSku(baseSku, v.name.trim()),
           quantity: v.quantity,
           restockEta: v.restockEta || '',
         })),
