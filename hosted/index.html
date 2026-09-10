@@ -2942,18 +2942,21 @@ const buildSku = (catSlug, name, serial) =>
 const variantSku = (base, colour) => (colour ? `${base}-${colourCode(colour)}` : base);
 
 /**
- * The next number free in a section. It reads the numbers already given out
- * rather than counting rows, so deleting the fourth of five never hands out a
- * number a printed label is still using.
+ * The next number free for this piece in this section. It counts the kinds of
+ * one thing — the second baby feet is 002, while the first baby cloth after it
+ * starts again at 001 — and it reads the numbers already given out rather than
+ * counting rows, so deleting one never hands out a number a printed label is
+ * still using.
  */
-function nextSerial(catSlug, skipId) {
-  const code = sectionCode(catSlug);
-  const tail = new RegExp(`^${code}-[A-Z0-9]+-(\\d+)$`);
+function nextSerial(catSlug, name, skipId) {
+  const stem = `${sectionCode(catSlug)}-${nameCode(name)}-`;
   let top = 0;
   for (const it of S.items) {
     if (it.id === skipId) continue;
-    const m = tail.exec(String(it.sku || ''));
-    if (m) top = Math.max(top, Number(m[1]));
+    const sku = String(it.sku || '');
+    if (!sku.startsWith(stem)) continue;
+    const n = Number(sku.slice(stem.length));
+    if (Number.isInteger(n)) top = Math.max(top, n);
   }
   return top + 1;
 }
@@ -2961,7 +2964,7 @@ function nextSerial(catSlug, skipId) {
 /** The SKU this draft would be saved with, kept clear of the ones in use. */
 function assignSku(catSlug, name, skipId) {
   const taken = new Set(S.items.filter((i) => i.id !== skipId).map((i) => i.sku));
-  let serial = nextSerial(catSlug, skipId);
+  let serial = nextSerial(catSlug, name, skipId);
   let sku = buildSku(catSlug, name, serial);
   while (taken.has(sku)) sku = buildSku(catSlug, name, ++serial);
   return sku;

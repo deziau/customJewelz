@@ -253,9 +253,13 @@ a faint guide shows which you are in, and the choice travels with the order and
 its picture.
 
 **SKUs give themselves out.** Adding a component in the studio, you never type
-a code: it is built from the section, the name and the number of that thing in
-that section — `CHARMS-BBYCLT-001` for the first baby cloth in Charms — and each
-colour hangs its own code off the end, `CHARMS-BBYCLT-001-BLUE`. A single short
+a code: it is built from the section, the name and the number of that *kind* of
+piece — `CHARMS-BBYCLT-001` for the first baby cloth in Charms — and each colour
+hangs its own code off the end, `CHARMS-BBYCLT-001-BLUE`. The count runs per
+kind, not per section: a second baby feet is `CHARMS-BBYFT-002`, and a baby
+cloth entered after it still starts at `CHARMS-BBYCLT-001`. Two names that
+shorten to the same code share one run of numbers, which is usually what you
+want — "Baby cloth" and "Baby cloth pink" are 001 and 002 of the same family. A single short
 word is left alone (BLUE stays BLUE); anything longer is shortened the way a
 stock label is, first letter of each word then its consonants, so "Baby cloth"
 reads BBYCLT. The code appears in the dialog as you choose the section and type
