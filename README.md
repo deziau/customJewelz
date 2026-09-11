@@ -259,6 +259,15 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
+**A strand is drawn to scale.** The editor asks how many centimetres of chain
+the sticker shows, and the canvas repeats that tile at exactly that length: a
+sticker of 4 cm makes five repeats on a 20 cm strand and ten on a 40 cm one, so
+the links stay the size of real links however long a customer cuts it. The
+strand is drawn as wide as the chain really is, beside charms drawn at their own
+millimetres — a 2 mm chain next to a 74 mm kada looks like a 2 mm chain next to a
+74 mm kada — except that a strand stops narrowing at about nine pixels, because
+below that true scale is a hairline and no use to anybody.
+
 **A length is stocked in metres.** The studio types 2.5 for two and a half; the
 app keeps it to the centimetre underneath, because that is how it is cut. Under
 a metre of any colour and the editor says so before you save — it can still be

@@ -1048,6 +1048,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f" id="height-field"><span>Height (mm)</span>
           <input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
+        <label class="f" id="tile-field" hidden><span>Chain shown in the sticker (cm) *</span>
+          <input name="tileCm" type="number" min="0.5" step="0.5" placeholder="4"></label>
         <label class="f"><span>Urgent restock fee — 0 to not offer it</span>
           <input name="urgentFee" type="number" min="0" step="0.01" value="0"></label>
         <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
@@ -1080,7 +1082,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           canvas, so pieces overlap like real ones instead of covering each other with squares.
           Every component needs at least one. Upload one sticker per colour, in the same order as the
           colours below, and the sticker follows the colour they picked. The chequerboard behind each
-          tile is see-through: if you cannot see it, that file still has a background.</p>
+          tile is see-through: if you cannot see it, that file still has a background. For a component
+          sold by length, the sticker is repeated down the strand, so say above how many centimetres of
+          it the picture shows — that is what keeps the links their real size whatever length is cut.</p>
       </fieldset>
 
       <fieldset>
@@ -1354,6 +1358,9 @@ function normalize(id, d) {
     width: Number(d.width) || 86,
     widthMm: Number(d.widthMm) || 0,
     heightMm: Number(d.heightMm) || 0,
+    // For a length: how many centimetres of it the sticker actually shows, so
+    // the canvas can repeat that tile at its true size.
+    tileCm: Number(d.tileCm) || 0,
     urgentFee: Number(d.urgentFee) || 0,
     // 'piece' components are counted; 'length' ones (chain, cord, ribbon) are
     // priced per metre and stocked in centimetres.
@@ -2230,13 +2237,21 @@ function paintStage() {
       // its pin: straight down on a kaleera, outward from the hoop on a necklace.
       const span = stageMm() || 400;
       const lenPct = clamp((c.lenCm * 10 / span) * 100, 2, 96);
-      const wide = clamp(((item.widthMm || 4) / span) * 100 * 2.5, 1.2, 8);
+      // The strand is as wide as the chain really is — until true scale would
+      // draw a 2 mm chain three pixels across, where it stops narrowing and is
+      // held at something the eye can follow.
+      const floor = (MIN_STRAND_PX / ($('#stage').clientWidth || 640)) * 100;
+      const wide = Math.max(((item.widthMm || 2) / span) * 100, floor);
       const art = charmArt(item, c.variantId);
       const src = art.src;
+      // Repeating the sticker at the length it shows is what makes a chain read
+      // as a chain: ten tiles of 4 cm make 40 cm, at the size of real links.
+      const tile = tileHeightPct(item, c.lenCm);
       node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wide}%;height:${lenPct}%;z-index:${c.z};` +
         `transform:${charmTransform(c)}`;
       node.innerHTML = `<div class="run ${src ? '' : 'plain'}${art.cut ? ' cut' : ''}"${
-        src ? ` style="background-image:url('${esc(src)}')"` : ''}></div>
+        src ? ` style="background-image:url('${esc(src)}');${
+          tile ? `background-size:100% ${tile}%` : ''}"` : ''}></div>
         <span class="len">${fmtLen(c.lenCm)}</span>
         <button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
     } else {
@@ -2256,6 +2271,20 @@ function paintStage() {
     node.addEventListener('pointerdown', (e) => startMove(e, c, node));
     stage.append(node);
   }
+}
+
+/**
+ * How tall one repeat of a strand's sticker should be, as a percentage of the
+ * whole strand. A sticker showing 4 cm of chain, on a 40 cm strand, is a tenth
+ * of it — which is what keeps the links their real size however long the strand
+ * is cut. Without a stated length we fall back to the picture's own shape.
+ */
+/* Below this a strand is a hairline: true to scale and no use to anybody. */
+const MIN_STRAND_PX = 9;
+
+function tileHeightPct(item, lenCm) {
+  if (!item.tileCm || !lenCm) return 0;
+  return clamp((item.tileCm / lenCm) * 100, 1, 100);
 }
 
 /**
@@ -3144,6 +3173,9 @@ function paintSoldBy() {
   // they want, and only how wide it runs is ours to state.
   $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs' : 'Width (mm)';
   $('#height-field').hidden = byLength;
+  // A strand is drawn by repeating its sticker, so we have to know how much of
+  // the chain one sticker shows or the links come out any size at all.
+  $('#tile-field').hidden = !byLength;
   $('#variant-hint').textContent = byLength
     ? 'Stock is held in metres per colour — 12.5 is twelve and a half, and it is cut to the centimetre.'
     : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
@@ -3207,6 +3239,7 @@ function openPieceDialog(item) {
     f.price.value = item.price;
     f.widthMm.value = item.widthMm || '';
     f.heightMm.value = item.heightMm || '';
+    f.tileCm.value = item.tileCm || '';
     f.urgentFee.value = item.urgentFee || 0;
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
@@ -3937,6 +3970,11 @@ function wirePieceDialog() {
       if (!S.draft.stickers.length) {
         throw new Error('Add at least one sticker — that is what customers put on their design.');
       }
+      const soldByLength = data.get('soldBy') === 'length';
+      const tileCm = Number(data.get('tileCm')) || 0;
+      if (soldByLength && !(tileCm > 0)) {
+        throw new Error('Say how many centimetres of chain the sticker shows — the design area repeats it at that size.');
+      }
       if (S.draft.variants.some((v) => !Number.isInteger(v.quantity) || v.quantity < 0)) {
         throw new Error('Every colour needs a whole-number quantity, zero or more.');
       }
@@ -3953,10 +3991,11 @@ function wirePieceDialog() {
         sku: baseSku,
         category: data.get('category'),
         price,
-        soldBy: data.get('soldBy') === 'length' ? 'length' : 'piece',
+        soldBy: soldByLength ? 'length' : 'piece',
         width: (id && itemOf(id) ? itemOf(id).width : 86),
         widthMm: Number(data.get('widthMm')) || 0,
-        heightMm: data.get('soldBy') === 'length' ? 0 : Number(data.get('heightMm')) || 0,
+        heightMm: soldByLength ? 0 : Number(data.get('heightMm')) || 0,
+        tileCm: soldByLength ? tileCm : 0,
         urgentFee: Number(data.get('urgentFee')) || 0,
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
@@ -4090,14 +4129,15 @@ async function renderSnapshot(size = 560) {
     const strand = async (item, c) => {
       const span = stageMm() || 400;
       const len = size * clamp((c.lenCm * 10 / span), 0.02, 0.96);
-      const wide = size * clamp(((item.widthMm || 4) / span) * 2.5, 0.012, 0.08);
+      const wide = Math.max(size * ((item.widthMm || 2) / span), (MIN_STRAND_PX / 640) * size);
       const src = charmArt(item, c.variantId).src;
       ctx.save();
       ctx.translate(size * c.x / 100, size * c.y / 100);
       ctx.rotate((hangAngle(c) * Math.PI) / 180);
       if (src) {
         const img = await loadImage(src);
-        const tile = wide * (img.height / img.width || 1);
+        const pct = tileHeightPct(item, c.lenCm);
+        const tile = pct ? (len * pct) / 100 : wide * (img.height / img.width || 1);
         for (let y = 0; y < len; y += tile) {
           ctx.drawImage(img, -wide / 2, y, wide, Math.min(tile, len - y));
         }
