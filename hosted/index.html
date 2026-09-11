@@ -289,6 +289,8 @@ h3 { font-size: 15px; }
 /* Turning a piece: tap an arrow to nudge it a degree, hold it and the piece
    keeps turning until you let go. */
 .angle { display: inline-flex; align-items: center; gap: 4px; }
+.spacing { display: inline-flex; align-items: center; gap: 4px; }
+.spacing[hidden] { display: none; }
 .angle button { user-select: none; touch-action: none; font-size: 14px; padding: 4px 11px; }
 .angle button.spinning { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
@@ -948,6 +950,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" class="tiny" data-zoomer="in" aria-label="Zoom in">+</button>
           <button type="button" class="tiny" id="zoom-fit" data-zoomer="fit" hidden>Fit</button>
         </span>
+        <span class="spacing" id="spacing" role="group"
+          aria-label="Space between the hangings" hidden>
+          <button type="button" class="tiny" data-space="-1"
+            title="Bring the hangings closer together">Hangings closer</button>
+          <button type="button" class="tiny" data-space="1"
+            title="Spread the hangings further apart">Hangings wider</button>
+        </span>
         <button class="tiny" id="start-again">Start a piece</button>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
@@ -956,6 +965,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         Drag a piece from your tray onto the canvas, then drag it again to position it.
         Tap it to select, then turn it: tap an arrow to nudge it a degree, or hold it down
         and the piece keeps turning until you let go.
+        When something hangs off a base, <b>Hangings closer</b> and <b>Hangings wider</b>
+        change the space between them — on a bangle they walk along its edge, and the
+        formation stays centred either way.
         Take it off with the button above or the Delete key — anything you take off goes
         straight back to your tray. The canvas shows everything at its real size; − and + zoom in
         and out, the label in between comes back to actual size, and <b>Fit</b> appears when
@@ -2276,6 +2288,9 @@ function sayIfItOverflows() {
 /** Taking something off returns it to the tray — it was never charged. */
 function unplace(uid) {
   S.charms = S.charms.filter((c) => c.uid !== uid);
+  // Whatever hung off it is loose now; it keeps its place, it just stops moving
+  // with a base that is no longer there.
+  for (const c of S.charms) if (c.base === uid) { delete c.base; delete c.u; }
   if (S.picked === uid) S.picked = null;
   paint();
 }
@@ -2413,6 +2428,7 @@ function paintStage() {
   paintGuide();
   paintGrid();
   paintScaleNote();
+  paintSpacing();
   $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {
@@ -4024,6 +4040,76 @@ function spacedAlong(n, from, to) {
   return Array.from({ length: n }, (_, i) => from + step * (i + 0.5));
 }
 
+/* ------------------------------------ hangings that follow their base */
+
+/** Where the hangings sit along the base: an arc for a bangle, otherwise a run. */
+const ARC_MID = 90;
+const ARC_HALF = 50;
+const hangingsOf = (uid) => S.charms.filter((c) => c.base === uid);
+const baseOf = (c) => (c && c.base ? S.charms.find((x) => x.uid === c.base) : null);
+
+/** The base whose spacing the buttons act on: the one in hand, or the only one. */
+function spacingBase() {
+  const c = pickedCharm();
+  if (c && hangingsOf(c.uid).length) return c;
+  const b = baseOf(c);
+  if (b) return b;
+  const all = S.charms.filter((x) => hangingsOf(x.uid).length);
+  return all.length === 1 ? all[0] : null;
+}
+
+/** One hanging's spot on its base, for a formation of the given width. */
+function hangPoint(base, u) {
+  const item = itemOf(base.itemId);
+  const box = item ? charmSizePct(item) : { w: 10, h: 10 };
+  const spread = base.spread == null ? 1 : base.spread;
+  if (base.baseKind === 'chain') {
+    const span = stageMm() || 400;
+    const lenPct = (((base.lenCm || 0) * 10) / span) * 100;
+    return { x: base.x + lenPct / 2 + u * (lenPct / 2) * spread, y: base.y };
+  }
+  if (base.baseKind === 'arc') {
+    // Round base, so widening walks the hangings along the bangle's own edge.
+    const t = ((ARC_MID + u * ARC_HALF * spread) * Math.PI) / 180;
+    return { x: base.x - (box.w / 2) * Math.cos(t), y: base.y + (box.h / 2) * Math.sin(t) };
+  }
+  return { x: base.x + u * ((box.w * 0.66) / 2) * spread, y: base.y + box.h / 2 };
+}
+
+/** Put every hanging back where its base says it belongs. */
+function placeHangings(base) {
+  for (const c of hangingsOf(base.uid)) {
+    const at = hangPoint(base, c.u || 0);
+    c.x = at.x;
+    c.y = at.y;
+  }
+}
+
+/** How wide the formation can open: a bangle has more edge than a chain has run. */
+const spreadMax = (base) => (base.baseKind === 'arc' ? 1.8 : 1);
+
+/** Wider or closer, in even steps, always staying centred on the base. */
+function respace(dir) {
+  const base = spacingBase();
+  if (!base) return toast('Tap the piece the hangings sit on first.');
+  if (hangingsOf(base.uid).length < 2) return toast('There is only one hanging to space.');
+  const was = base.spread == null ? 1 : base.spread;
+  const now = clamp(was * (dir > 0 ? 1.15 : 1 / 1.15), 0.06, spreadMax(base));
+  if (Math.abs(now - was) < 0.0005) {
+    return toast(dir > 0 ? 'They are as far apart as the base allows.'
+      : 'They are as close together as they go.');
+  }
+  base.spread = now;
+  placeHangings(base);
+  paint();
+}
+
+function paintSpacing() {
+  const box = $('#spacing');
+  if (!box) return;
+  box.hidden = !S.charms.some((c) => hangingsOf(c.uid).length > 1);
+}
+
 function layOutPiece() {
   const st = S.start;
   const chains = trayChains();
@@ -4040,15 +4126,16 @@ function layOutPiece() {
     // Hangings follow the lower edge: on a round bangle that is an arc, on a
     // wider-than-tall frame a straight run.
     const round = Math.abs(box.w - box.h) / Math.max(box.w, box.h) < 0.25;
-    const pins = spacedAlong(st.hangs.length, round ? 40 : 0, round ? 140 : 1);
+    const base = made[0];
+    base.baseKind = round ? 'arc' : 'run';
+    base.spread = 1;
+    const pins = spacedAlong(st.hangs.length, 0, 1);
     st.hangs.forEach((h, i) => {
       const row = chains[h.chain] || chains[0];
       if (!row) return;
-      const t = pins[i];
-      const x = round ? 50 + (box.w / 2) * Math.cos((t * Math.PI) / 180) * -1
-        : 50 - (box.w * 0.66) / 2 + box.w * 0.66 * t;
-      const y = round ? baseY + (box.h / 2) * Math.sin((t * Math.PI) / 180) : baseY + box.h / 2;
-      made.push(newCharm(row, { x, y, lenCm: h.len }));
+      const u = (pins[i] - 0.5) * 2;
+      const at = hangPoint(base, u);
+      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, u }));
     });
   } else if (st.kind.drops) {
     // A drop is a chain hanging straight down with a charm on the end.
@@ -4072,14 +4159,17 @@ function layOutPiece() {
     const y = 22;
     const x0 = 50 - lenPct / 2;
     // Rotated a quarter turn so it runs left to right across the canvas.
-    made.push(newCharm(st.base, { x: x0, y, lenCm: st.baseLen, rot: 270 }));
-    const from = st.spread === 'centre' ? 1 / 3 : 0;
-    const to = st.spread === 'centre' ? 2 / 3 : 1;
-    const pins = spacedAlong(st.hangs.length, from, to);
+    const base = newCharm(st.base, { x: x0, y, lenCm: st.baseLen, rot: 270 });
+    base.baseKind = 'chain';
+    base.spread = st.spread === 'centre' ? 1 / 3 : 1;
+    made.push(base);
+    const pins = spacedAlong(st.hangs.length, 0, 1);
     st.hangs.forEach((h, i) => {
       const row = chains[h.chain] || chains[0];
       if (!row) return;
-      made.push(newCharm(row, { x: x0 + lenPct * pins[i], y, lenCm: h.len }));
+      const u = (pins[i] - 0.5) * 2;
+      const at = hangPoint(base, u);
+      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, u }));
     });
   }
 
@@ -4476,6 +4566,9 @@ function wireDesign() {
   // Wherever the finger goes up — on the button, off it, or off the window.
   for (const ev of ['pointerup', 'pointercancel']) window.addEventListener(ev, stopSpin);
   window.addEventListener('blur', stopSpin);
+
+  $$('.tools button[data-space]').forEach((b) => b.addEventListener('click',
+    () => respace(Number(b.dataset.space))));
 
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
     const c = pickedCharm();

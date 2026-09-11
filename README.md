@@ -161,6 +161,16 @@ and zooms out if the whole thing needs more room. Everything it places can be
 moved, turned or taken off afterwards; it is a starting point, not a template.
 **Start a piece** under the canvas reopens it at any time.
 
+Whatever it lays out, the hangings stay tied to the base they hang from, so the
+space between them is still adjustable afterwards: **Hangings closer** and
+**Hangings wider** under the canvas open and tighten the formation a step at a
+time, always keeping it centred on the base. On a bangle they follow the bangle's
+own edge — widening walks them further around the arc rather than off it, and it
+stops at the ends of that arc; on a chain they spread along the chain and no
+further than its ends. Tap the base, or any of its hangings, to say which
+formation the buttons act on when there is more than one. Dragging a hanging by
+hand still works; taking the base off cuts the tie and leaves everything loose.
+
 The canvas carries a **centimetre grid**, drawn at its own scale so a square is
 a square centimetre of real jewellery, with every fifth line a little stronger.
 
