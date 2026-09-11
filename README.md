@@ -259,6 +259,14 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
+**Everything on the canvas is drawn at the size it really is.** A charm is laid
+down at the width and height entered for it — a 10 mm bell beside a 70 mm frame
+is a tenth of its width, not a thumbnail beside a thumbnail — and the whole
+piece scales together so the largest thing on it fills about two thirds of the
+canvas. The design saved with an order is drawn the same way. Since a sticker is
+stretched to those measurements, crop it tight to the piece: an empty margin is
+drawn along with it.
+
 **A strand is drawn to scale.** The editor asks how many centimetres of chain
 the sticker shows, and the canvas repeats that tile at exactly that length: a
 sticker of 4 cm makes five repeats on a 20 cm strand and ten on a 40 cm one, so

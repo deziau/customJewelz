@@ -253,7 +253,11 @@ h3 { font-size: 15px; }
   color: var(--muted); padding: 5px 13px; border-radius: 999px; cursor: pointer;
 }
 .viewswitch button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
-.charm img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.charm img {
+  /* The box is the piece's stated width by its stated height, so the sticker
+     fills it rather than being letterboxed into a square. */
+  width: 100%; height: 100%; object-fit: fill; pointer-events: none; -webkit-user-drag: none;
+}
 .charm .glyph { display: grid; place-items: center; width: 100%; height: 100%; line-height: 1; }
 /* A cut-out has no square of background around it, so it can overlap its
    neighbours; the shadow is what makes the stack read as one assembled piece. */
@@ -1082,7 +1086,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           canvas, so pieces overlap like real ones instead of covering each other with squares.
           Every component needs at least one. Upload one sticker per colour, in the same order as the
           colours below, and the sticker follows the colour they picked. The chequerboard behind each
-          tile is see-through: if you cannot see it, that file still has a background. For a component
+          tile is see-through: if you cannot see it, that file still has a background. Crop a sticker
+          tight to the piece: the design area draws it at exactly the width and height entered above,
+          and any empty margin is drawn along with it. For a component
           sold by length, the sticker is repeated down the strand, so say above how many centimetres of
           it the picture shows — that is what keeps the links their real size whatever length is cut.</p>
       </fieldset>
@@ -2048,10 +2054,27 @@ function stageMm() {
   return span;
 }
 
-function charmWidthPct(item) {
+/**
+ * How big a charm sits on the canvas, as a percentage of it — its stated width
+ * by its stated height, to the same scale as everything else on the piece. The
+ * stage is square, so a percentage means the same number of pixels either way.
+ * A component with no measurements falls back to the old fixed width.
+ */
+function charmSizePct(item) {
   const span = stageMm();
-  if (span && hasSize(item)) return clamp((longestMm(item) / span) * 100, 1.5, 60);
-  return clamp((item.width / ($('#stage').clientWidth || 600)) * 100, 3, 60);
+  if (span && hasSize(item)) {
+    return {
+      w: clamp((item.widthMm / span) * 100, 0.4, 96),
+      h: clamp((item.heightMm / span) * 100, 0.4, 96),
+    };
+  }
+  const guess = clamp((item.width / ($('#stage').clientWidth || 600)) * 100, 3, 60);
+  return { w: guess, h: guess };
+}
+
+/** The width alone, for the few places that only need to scale the stage. */
+function charmWidthPct(item) {
+  return charmSizePct(item).w;
 }
 
 function fanOut(x, y) {
@@ -2253,9 +2276,10 @@ function paintStage() {
         <span class="len">${fmtLen(c.lenCm)}</span>
         <button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
     } else {
-      const wPct = charmWidthPct(item) || c.w;
-      node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wPct}%;aspect-ratio:1;z-index:${c.z};` +
-        `transform:${charmTransform(c)}`;
+      const box = charmSizePct(item);
+      const wPct = box.w || c.w;
+      node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wPct}%;height:${box.h || wPct}%;` +
+        `z-index:${c.z};transform:${charmTransform(c)}`;
       const art = charmArt(item, c.variantId);
       node.innerHTML = (art.src
         ? `<img class="${art.cut ? 'cut' : ''}" src="${esc(art.src)}" alt="">`
@@ -4103,17 +4127,15 @@ async function renderSnapshot(size = 560) {
     ctx.fillStyle = ground;
     ctx.fillRect(0, 0, size, size);
 
-    const draw = async (item, variantId, cx, cy, w, rot) => {
+    const draw = async (item, variantId, cx, cy, w, h, rot) => {
       const src = charmArt(item, variantId).src;
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate((rot || 0) * Math.PI / 180);
       if (src) {
-        // Fitted inside the square the canvas gives it, exactly as the screen
-        // does — a cut-out is rarely square, and must not be stretched.
+        // The piece's own millimetres, exactly as the screen draws them.
         const img = await loadImage(src);
-        const k = Math.min(w / img.width, w / img.height);
-        ctx.drawImage(img, -(img.width * k) / 2, -(img.height * k) / 2, img.width * k, img.height * k);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
       } else {
         ctx.fillStyle = '#241b26';
         ctx.font = `${Math.round(w * 0.8)}px serif`;
@@ -4151,8 +4173,9 @@ async function renderSnapshot(size = 560) {
       if (!item) continue;
       if (isLength(item) && c.lenCm) await strand(item, c);
       else {
-        const wPct = charmWidthPct(item) || c.w;
-        await draw(item, c.variantId, size * c.x / 100, size * c.y / 100, size * wPct / 100, c.rot);
+        const box = charmSizePct(item);
+        await draw(item, c.variantId, size * c.x / 100, size * c.y / 100,
+          size * (box.w || c.w) / 100, size * (box.h || c.w) / 100, c.rot);
       }
     }
 
