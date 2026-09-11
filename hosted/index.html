@@ -2457,11 +2457,16 @@ function startMove(ev, charm, node) {
     charm.y = clamp(oy + ((e.clientY - y0) / rect.height) * 100, 2, 98);
     node.style.left = charm.x + '%';
     node.style.top = charm.y + '%';
+    // An untouched strand falls away from the middle, so moving it changes the
+    // way it hangs. Showing that as it happens is the whole point: leaving it
+    // stale meant the swing arrived later, at the next repaint, looking like a
+    // rotate button had turned it a quarter of the way round.
+    node.style.transform = charmTransform(charm);
   };
   const up = () => {
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
-    if (!moved) paintStage();
+    paintStage();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
