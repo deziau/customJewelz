@@ -259,6 +259,16 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
+A component **sold by length** is drawn by repeating its sticker down the
+strand, so a sticker photographed a few degrees off plumb would stack into a
+staircase rather than a chain. The studio straightens it for you: it works out
+which way the chain actually runs — the long axis of everything in the picture
+that is not transparent — turns it upright, and trims the empty margin so one
+tile meets the next. It happens when the sticker is uploaded, and again if you
+switch *Sold by* to Length after uploading; the studio says by how much it
+turned. A sticker with no clear direction, a round charm say, is left alone, and
+so is every sticker on a component sold by the piece.
+
 **A length is stocked in metres.** The studio types 2.5 for two and a half; the
 app keeps it to the centimetre underneath, because that is how it is cut. Under
 a metre of any colour and the editor says so before you save — it can still be

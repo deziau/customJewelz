@@ -1080,7 +1080,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           canvas, so pieces overlap like real ones instead of covering each other with squares.
           Every component needs at least one. Upload one sticker per colour, in the same order as the
           colours below, and the sticker follows the colour they picked. The chequerboard behind each
-          tile is see-through: if you cannot see it, that file still has a background.</p>
+          tile is see-through: if you cannot see it, that file still has a background.
+          A component sold by length is repeated down the strand to make a chain, so its sticker is
+          turned upright for you if it was photographed a few degrees off plumb, and its empty margin
+          trimmed, to keep one tile meeting the next.</p>
       </fieldset>
 
       <fieldset>
@@ -3073,6 +3076,117 @@ function shrink(file, edge = 300) {
   });
 }
 
+/* ------------------------------------------------- straightening a strand */
+
+/**
+ * A chain is drawn on the canvas by repeating its sticker down the strand, so a
+ * sticker photographed a few degrees off plumb stacks into a staircase instead
+ * of a chain. This finds which way the chain actually runs — the long axis of
+ * everything that is not transparent — turns it upright, and trims the empty
+ * margin so one tile meets the next.
+ *
+ * Only components sold by length go through it: a charm is meant to sit however
+ * it was photographed.
+ */
+function straightenStrand(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve({ src, turned: 0 });
+    img.onload = () => {
+      try { resolve(uprightFrom(img, src)); } catch { resolve({ src, turned: 0 }); }
+    };
+    img.src = src;
+  });
+}
+
+function uprightFrom(img, src) {
+  const w = img.width;
+  const h = img.height;
+  const read = document.createElement('canvas');
+  read.width = w;
+  read.height = h;
+  const rc = read.getContext('2d', { willReadFrequently: true });
+  rc.drawImage(img, 0, 0);
+  const d = rc.getImageData(0, 0, w, h).data;
+
+  // Where the chain is, as a cloud of solid-enough pixels.
+  let n = 0; let sx = 0; let sy = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 90) { n += 1; sx += x; sy += y; }
+    }
+  }
+  if (n < 40) return { src, turned: 0 };          // nothing solid enough to judge
+  const cx = sx / n;
+  const cy = sy / n;
+
+  // Second moments give the direction the cloud is longest in.
+  let u20 = 0; let u02 = 0; let u11 = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] <= 90) continue;
+      const dx = x - cx;
+      const dy = y - cy;
+      u20 += dx * dx; u02 += dy * dy; u11 += dx * dy;
+    }
+  }
+  u20 /= n; u02 /= n; u11 /= n;
+  const spread = Math.sqrt(4 * u11 * u11 + (u20 - u02) * (u20 - u02));
+  const long = (u20 + u02 + spread) / 2;
+  const short = (u20 + u02 - spread) / 2;
+  // A round-ish sticker has no direction to straighten.
+  if (!(short > 0) || long / short < 1.6) return { src, turned: 0 };
+
+  const axis = 0.5 * Math.atan2(2 * u11, u20 - u02) * 180 / Math.PI;
+  let turn = 90 - axis;                           // bring that axis upright
+  turn = ((turn + 90) % 180 + 180) % 180 - 90;    // the shorter way round
+  if (Math.abs(turn) < 0.5) return { src, turned: 0 };
+
+  const rad = turn * Math.PI / 180;
+  const box = Math.ceil(Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad)));
+  const tall = Math.ceil(Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad)));
+  const spun = document.createElement('canvas');
+  spun.width = box;
+  spun.height = tall;
+  const sc = spun.getContext('2d', { willReadFrequently: true });
+  sc.translate(box / 2, tall / 2);
+  sc.rotate(rad);
+  sc.drawImage(img, -w / 2, -h / 2);
+
+  const cropped = trimAlpha(spun, sc);
+  return { src: cropped || spun, turned: turn, canvas: true };
+}
+
+/** Cuts the empty border away, so a repeated tile has no gap between copies. */
+function trimAlpha(canvas, ctx) {
+  const { width: w, height: h } = canvas;
+  const d = ctx.getImageData(0, 0, w, h).data;
+  let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  const out = document.createElement('canvas');
+  out.width = x1 - x0 + 1;
+  out.height = y1 - y0 + 1;
+  out.getContext('2d').drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+
+/** Straightens one sticker if it needs it, and says by how much. */
+async function uprightSticker(src) {
+  const done = await straightenStrand(src);
+  if (!done.turned || !done.canvas) return { src, turned: 0 };
+  return { src: await encodeAlpha(done.src), turned: done.turned };
+}
+
 /** The same shrink, for a sticker the seller made: transparency must survive. */
 function shrinkSticker(file, edge = 340) {
   return new Promise((resolve, reject) => {
@@ -3869,8 +3983,15 @@ function wirePieceDialog() {
 
   f.stickerUpload.addEventListener('change', async () => {
     for (const file of [...f.stickerUpload.files]) {
-      try { S.draft.stickers.push(await shrinkSticker(file)); }
-      catch (ex) { toast(ex.message, 'bad'); }
+      try {
+        const shrunk = await shrinkSticker(file);
+        if (S.draft.soldBy !== 'length') { S.draft.stickers.push(shrunk); continue; }
+        const up = await uprightSticker(shrunk);
+        S.draft.stickers.push(up.src);
+        if (up.turned) {
+          toast(`Straightened by ${Math.abs(up.turned).toFixed(1)}° so it repeats as one chain.`, 'good');
+        }
+      } catch (ex) { toast(ex.message, 'bad'); }
     }
     f.stickerUpload.value = '';
     paintDraftStickers();
@@ -3882,10 +4003,21 @@ function wirePieceDialog() {
     paintDraftStickers();
   });
 
-  $('#piece-soldby').addEventListener('change', (e) => {
+  $('#piece-soldby').addEventListener('change', guard(async (e) => {
     S.draft.soldBy = e.target.value;
     paintSoldBy();
-  });
+    // Stickers uploaded while this was a piece have never been straightened.
+    if (S.draft.soldBy !== 'length' || !S.draft.stickers.length) return;
+    let turned = 0;
+    for (let i = 0; i < S.draft.stickers.length; i++) {
+      const up = await uprightSticker(S.draft.stickers[i]);
+      if (up.turned) { S.draft.stickers[i] = up.src; turned += 1; }
+    }
+    if (turned) {
+      toast(`${turned} sticker${turned === 1 ? '' : 's'} straightened for a chain.`, 'good');
+      paintDraftStickers();
+    }
+  }));
 
   f.name.addEventListener('input', paintSku);
   f.category.addEventListener('change', paintSku);
