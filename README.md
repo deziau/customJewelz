@@ -147,6 +147,11 @@ only what they picked can be placed, and each row counts down ("8 of 10 to
 place"). Taking a piece off the design puts it straight back in the tray. The
 bill charges for what is on the piece, never for what is still in the tray.
 
+A strand on a round piece falls away from the middle by default, but the first
+time it is turned by hand the angle becomes the customer's: it keeps it when the
+strand is moved, selected, or picked up again, instead of swinging back to its
+radius. A few pixels of wobble while tapping no longer counts as a drag either.
+
 **Turning a piece** is two arrows and nothing else — no number to read, none to
 type. **Tap** one and the piece moves a single degree, for the last small
 correction. **Hold** it — past half a second — and the piece keeps

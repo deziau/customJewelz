@@ -1297,7 +1297,7 @@ const S = {
   zones: [],
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
-  charms: [],          // everything on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
+  charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm, turned }]
   picked: null,
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
@@ -2275,6 +2275,12 @@ function charmTransform(c) {
 function turnPicked(deg, relative) {
   const c = pickedCharm();
   if (!c) { toast('Tap a piece on the canvas first.'); return false; }
+  // The first turn takes the angle it is hanging at right now, so the piece
+  // carries on from where it looks rather than snapping somewhere else.
+  if (c.lenCm && !c.turned) {
+    c.rot = wrapAngle(hangAngle(c));
+    c.turned = true;
+  }
   c.rot = wrapAngle(relative ? (c.rot || 0) + deg : deg);
   paintStage();
   return true;
@@ -2402,10 +2408,15 @@ function tileHeightPct(item, lenCm) {
  * from the centre, which is how a hoop of tassels actually sits.
  */
 function hangAngle(c) {
-  if (S.view === 'straight') return c.rot || 0;
-  const angle = (Math.atan2(c.y - 50, c.x - 50) * 180) / Math.PI - 90;
-  return angle + (c.rot || 0);
+  // Turned by hand once, and the angle is the customer's: it no longer swings
+  // about when the strand is nudged, which used to look like a jump every time
+  // they picked it up again.
+  if (c.turned || S.view === 'straight') return c.rot || 0;
+  return radialAngle(c) + (c.rot || 0);
 }
+
+/** The way a strand falls away from the middle of a round piece. */
+const radialAngle = (c) => (Math.atan2(c.y - 50, c.x - 50) * 180) / Math.PI - 90;
 
 function paintGuide() {
   const stage = $('#stage');
@@ -2438,6 +2449,9 @@ function startMove(ev, charm, node) {
   let moved = false;
 
   const move = (e) => {
+    // A few pixels of wobble while tapping is not a drag. Without this a
+    // strand could swing to a new angle just from being selected.
+    if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
     moved = true;
     charm.x = clamp(ox + ((e.clientX - x0) / rect.width) * 100, 2, 98);
     charm.y = clamp(oy + ((e.clientY - y0) / rect.height) * 100, 2, 98);
@@ -2672,8 +2686,8 @@ async function submitOrder(form) {
     })),
     design: {
       view: S.view,
-      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm }) =>
-        ({ itemId, variantId, x, y, w, rot, z, lenCm })),
+      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, turned }) =>
+        ({ itemId, variantId, x, y, w, rot, z, lenCm, turned: Boolean(turned) })),
     },
     itemsTotal, shipping: ship, total: itemsTotal + ship,
     status: 'new',
@@ -4894,7 +4908,7 @@ async function startAmend(order) {
   S.charms = [...legacy, ...(d.charms || [])].map((c, k) => ({
     uid: `c${Date.now().toString(36)}${k}`,
     itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w,
-    rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm,
+    rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm, turned: Boolean(c.turned),
   }));
   S.zTop = S.charms.length + 1;
   S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };
