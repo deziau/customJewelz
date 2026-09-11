@@ -250,6 +250,8 @@ h3 { font-size: 15px; }
 /* The guide behind the piece: a hoop to hang things round, or a rail to hang
    them from. It is a drawing aid, never part of the order. */
 .stage-guide { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
+/* A centimetre grid to measure by: there to be read past, not looked at. */
+.stage-grid { position: absolute; inset: 0; pointer-events: none; color: var(--line-strong); opacity: .42; }
 
 .viewswitch { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; }
 .viewswitch button {
@@ -611,6 +613,34 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .placeable .nm { font-size: 12.5px; line-height: 1.25; }
 .placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .placeable.on { border-color: var(--accent); background: var(--accent-soft); }
+/* --------------------------------------------------- starting a piece off */
+
+#dlg-start { max-width: 620px; }
+.kinds { display: grid; gap: 9px; }
+.kind {
+  display: grid; gap: 3px; text-align: left; padding: 11px 13px; border-radius: 10px;
+  border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font: inherit;
+}
+.kind:hover { border-color: var(--accent); background: var(--accent-soft); }
+.kind b { font-size: 13.5px; }
+.kind span { font-size: 12.5px; color: var(--muted); }
+.hang-rows { display: grid; gap: 7px; }
+.hang-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 92px; gap: 8px; align-items: center;
+}
+.hang-row .n {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-align: right;
+}
+.hang-row select, .hang-row input { padding: 6px 8px; font-size: 13px; }
+.start-note {
+  padding: 10px 12px; border-radius: 9px; font-size: 13px; display: grid; gap: 8px;
+  background: var(--ochre-soft); color: var(--ochre);
+}
+.start-note b { color: var(--ink); }
+.start-sum { display: grid; gap: 4px; font-size: 13px; margin-top: 4px; }
+.start-sum > div { display: flex; justify-content: space-between; gap: 12px; }
+.start-sum .k { color: var(--muted); }
+
 /* Changing your mind happens here, beside the thing you changed it about. */
 .in-tray {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -894,6 +924,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <p class="muted">A chain, a bangle, a frame — whatever your piece is built around. Place it
             here, then hang the rest on it. Pick pieces in <b>Browse</b>; they wait in your tray
             on the left.</p>
+          <p class="muted" style="margin:0;font-size:12.5px">Not sure where to start? Use
+            <b>Start a piece</b> under the canvas and it will lay one out for you.</p>
         </div>
       </div>
       <div class="tools">
@@ -916,6 +948,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" class="tiny" data-zoomer="in" aria-label="Zoom in">+</button>
           <button type="button" class="tiny" id="zoom-fit" data-zoomer="fit" hidden>Fit</button>
         </span>
+        <button class="tiny" id="start-again">Start a piece</button>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
@@ -1008,6 +1041,17 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     </div>
   </div>
   <footer><button id="item-close">Keep browsing</button></footer>
+</dialog>
+
+<dialog id="dlg-start">
+  <header><h2 id="start-title">What are you making?</h2></header>
+  <div class="body" id="start-body"></div>
+  <footer>
+    <button id="start-back" hidden>Back</button>
+    <span style="flex:1"></span>
+    <button id="start-skip">I'll arrange it myself</button>
+    <button class="solid" id="start-next" hidden>Continue</button>
+  </footer>
 </dialog>
 
 <dialog id="dlg-leftover">
@@ -1319,6 +1363,8 @@ const S = {
   picked: null,
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
+  start: null,         // the "what are you making?" walk-through, while it runs
+  started: false,      // asked once a visit; the button under the canvas reopens it
   strandAsk: null,     // { itemId, variantId, x, y } while the length is being chosen
   zTop: 1,
   mode: 'browse',
@@ -2365,6 +2411,7 @@ function paintStage() {
   stage.style.transform = `scale(${S.zoom})`;
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
+  paintGrid();
   paintScaleNote();
   $('#hint').hidden = S.charms.length > 0;
 
@@ -2440,6 +2487,34 @@ function hangAngle(c) {
   return c.rot || 0;
 }
 
+/**
+ * A centimetre grid, drawn at the canvas's own scale so it measures what it
+ * covers: a square is a square centimetre of real jewellery, and every fifth
+ * line is a little stronger, the way graph paper marks its fives.
+ */
+function paintGrid() {
+  const stage = $('#stage-zoom');
+  $$('.stage-grid', stage).forEach((n) => n.remove());
+  const span = stageMm();
+  if (!span) return;
+  const step = (10 / span) * 100;               // one centimetre, as a percentage
+  if (step < 1.2) return;                       // too fine to read: leave it off
+  const lines = [];
+  for (let i = 1; i * step < 100; i += 1) {
+    const at = (i * step).toFixed(3);
+    const heavy = i % 5 === 0;
+    const w = heavy ? 0.55 : 0.3;
+    const o = heavy ? 0.5 : 0.28;
+    lines.push(`<line x1="${at}" y1="0" x2="${at}" y2="100" stroke-width="${w}" opacity="${o}"/>`);
+    lines.push(`<line x1="0" y1="${at}" x2="100" y2="${at}" stroke-width="${w}" opacity="${o}"/>`);
+  }
+  const grid = document.createElement('div');
+  grid.className = 'stage-grid';
+  grid.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%"
+      stroke="currentColor" vector-effect="non-scaling-stroke">${lines.join('')}</svg>`;
+  stage.prepend(grid);
+}
+
 function paintGuide() {
   const stage = $('#stage-zoom');
   $$('.stage-guide', stage).forEach((n) => n.remove());
@@ -2477,8 +2552,8 @@ function startMove(ev, charm, node) {
     moved = true;
     // Zoomed in, a piece has to travel further on screen to move as far on the
     // piece, or it would race away from the pointer.
-    charm.x = clamp(ox + ((e.clientX - x0) / (rect.width * S.zoom)) * 100, 2, 98);
-    charm.y = clamp(oy + ((e.clientY - y0) / (rect.height * S.zoom)) * 100, 2, 98);
+    charm.x = clamp(ox + ((e.clientX - x0) / (rect.width * S.zoom)) * 100, -40, 140);
+    charm.y = clamp(oy + ((e.clientY - y0) / (rect.height * S.zoom)) * 100, -40, 140);
     node.style.left = charm.x + '%';
     node.style.top = charm.y + '%';
   };
@@ -3753,6 +3828,403 @@ async function postUpdate(id, text) {
   toast('Update posted.', 'good');
 }
 
+
+/* ======================================================= starting a piece */
+
+/**
+ * Most customers arrive at the canvas with a tray full of pieces and no idea
+ * where to put the first one. This asks what they are making, asks the few
+ * things it cannot work out — which chain, how many hangings, how long — and
+ * lays the piece out for them. Everything it places can be moved afterwards;
+ * it is a starting point, not a template.
+ */
+const PIECE_KINDS = [
+  { id: 'bangle', name: 'Bangle with hangings',
+    what: 'A bangle with chains hanging from its lower edge.', base: 'piece', hangs: true,
+    prefer: 'bangle', view: 'round' },
+  { id: 'bracelet', name: 'Bracelet with hangings',
+    what: 'A length of chain worn round the wrist, with hangings along it.', base: 'chain',
+    hangs: true, view: 'straight' },
+  { id: 'necklace', name: 'Necklace with drops',
+    what: 'A longer chain with drops, usually gathered at the front.', base: 'chain',
+    hangs: true, view: 'straight', spread: 'centre' },
+  { id: 'kaleera', name: 'Kaleera',
+    what: 'A frame with long hangings, for a bride’s wrists.', base: 'piece', hangs: true,
+    prefer: 'frame', view: 'straight', long: true },
+  { id: 'charm', name: 'Single charm on a chain',
+    what: 'One charm on a short chain — for a bag, a keyring or a phone case.', base: 'chain',
+    view: 'straight', drops: 1 },
+  { id: 'earrings', name: 'A pair of earrings',
+    what: 'Two matching drops, side by side.', base: 'chain', view: 'straight', drops: 2 },
+  { id: 'free', name: 'Something else', what: 'Lay it out yourself on an empty canvas.' },
+];
+
+/* The rows are looked up again wherever an amount matters: a row captured when
+   the walk-through started would still be holding yesterday's number after the
+   customer adds to their tray halfway through. */
+const trayHeld = (row) => trayQty(row.itemId, row.variantId);
+
+const trayChains = () => trayRows().filter((r) => isLength(r.item));
+const trayPieces = () => trayRows().filter((r) => !isLength(r.item));
+
+/** Pieces that suit this kind of base come first; everything else still shows. */
+function baseChoices(kind) {
+  const rows = trayPieces();
+  if (!kind.prefer) return rows;
+  const fits = (r) => `${sectionOf(r.item.category).name} ${r.item.name}`
+    .toLowerCase().includes(kind.prefer);
+  return [...rows.filter(fits), ...rows.filter((r) => !fits(r))];
+}
+
+function openStart(force = false) {
+  if (!force && (S.charms.length || !S.tray.length || S.started)) return;
+  S.started = true;
+  const kinds = PIECE_KINDS.filter((k) => k.id === 'free'
+    || (k.base === 'chain' ? trayChains().length : trayPieces().length));
+  S.start = { step: 'kind', kinds, hangs: [] };
+  paintStart();
+  $('#dlg-start').showModal();
+}
+
+function paintStart() {
+  const st = S.start;
+  const body = $('#start-body');
+  $('#start-back').hidden = st.step === 'kind';
+  $('#start-next').hidden = st.step === 'kind';
+  $('#start-title').textContent = st.step === 'kind' ? 'What are you making?'
+    : st.kind.name;
+
+  if (st.step === 'kind') {
+    body.innerHTML = `<p class="muted" style="margin-top:0">Your tray has everything it needs —
+      tell me the shape of the piece and I'll lay a start out for you. You can move anything
+      afterwards.</p>
+      <div class="kinds">${st.kinds.map((k) => `<button class="kind" data-kind="${k.id}">
+        <b>${esc(k.name)}</b><span>${esc(k.what)}</span></button>`).join('')}</div>`;
+    return;
+  }
+
+  if (st.step === 'base') {
+    const rows = st.kind.base === 'chain' ? trayChains() : baseChoices(st.kind);
+    body.innerHTML = `<p class="muted" style="margin-top:0">Which piece is it built on?</p>
+      <div class="kinds">${rows.map((r, i) => `<button class="kind" data-base="${i}">
+        <b>${esc(label(r.item, r.variantId))}</b>
+        <span>${esc(amountLabel(r.item, trayHeld(r)))} in your tray · ${priceLabel(r.item)}</span>
+      </button>`).join('')}</div>`;
+    return;
+  }
+
+  if (st.step === 'shape') {
+    const chain = st.kind.base === 'chain';
+    body.innerHTML = `
+      ${chain ? `<label class="f"><span>How long is the ${esc(st.base.item.name.toLowerCase())}?
+        In centimetres — you have ${fmtLen(trayHeld(st.base))}.</span>
+        <input id="st-baselen" type="number" min="1" step="0.5" value="${st.baseLen}"></label>` : ''}
+      ${st.kind.drops ? `<label class="f"><span>Which charm hangs on the end?</span>
+        <select id="st-charm">${trayPieces().map((r, i) => `<option value="${i}"
+          ${st.charm === i ? 'selected' : ''}>${esc(label(r.item, r.variantId))}</option>`).join('')}
+        </select></label>` : `<label class="f"><span>How many hangings?</span>
+        <input id="st-count" type="number" min="1" max="24" step="1" value="${st.count}"></label>`}
+      ${chain && !st.kind.drops ? `<div class="f"><span>Where do they sit?</span>
+        <div class="choices">
+          <label class="choice ${st.spread === 'all' ? 'on' : ''}">
+            <input type="radio" name="spread" value="all" ${st.spread === 'all' ? 'checked' : ''}>
+            <b>All the way along</b><span>Spaced evenly over the whole length.</span></label>
+          <label class="choice ${st.spread === 'centre' ? 'on' : ''}">
+            <input type="radio" name="spread" value="centre" ${st.spread === 'centre' ? 'checked' : ''}>
+            <b>Gathered in the middle</b><span>Across the middle third, as a front piece.</span></label>
+        </div></div>` : ''}`;
+    return;
+  }
+
+  if (st.step === 'hangs') {
+    const chains = trayChains();
+    body.innerHTML = `<p class="muted" style="margin-top:0">${chains.length > 1
+      ? 'Which chain hangs where, left to right, and how long is each?'
+      : 'How long is each hanging?'} Lengths are in centimetres.</p>
+      <div class="hang-rows">${st.hangs.map((h, i) => `
+        <div class="hang-row" data-i="${i}">
+          <span class="n">${i + 1}</span>
+          ${chains.length > 1
+            ? `<select data-f="chain">${chains.map((c, k) => `<option value="${k}"
+                 ${k === h.chain ? 'selected' : ''}>${esc(label(c.item, c.variantId))}</option>`).join('')}</select>`
+            : `<span style="font-size:13px">${esc(label(chains[0].item, chains[0].variantId))}</span>`}
+          <input data-f="len" type="number" min="1" step="0.5" value="${h.len}">
+        </div>`).join('')}</div>
+      <p class="muted" style="font-size:12.5px">Change the first length and the rest follow, unless
+        you have already set them yourself.</p>`;
+    return;
+  }
+
+  if (st.step === 'check') {
+    const need = chainNeeds();
+    const short = need.filter((n) => n.shortBy > 0);
+    body.innerHTML = `
+      <div class="start-sum">${need.map((n) => `<div><span class="k">${esc(n.name)}</span>
+        <span>${fmtLen(n.want)} needed · ${fmtLen(n.have)} in your tray</span></div>`).join('')}
+        ${st.base && !isLength(st.base.item) ? `<div><span class="k">${esc(label(st.base.item, st.base.variantId))}</span>
+          <span>1 needed · ${trayHeld(st.base)} in your tray</span></div>` : ''}
+      </div>
+      ${short.length ? `<div class="start-note" style="margin-top:12px">
+        <span>Your tray is short of <b>${short.map((n) => `${fmtLen(n.shortBy)} of ${esc(n.name)}`).join('</b>, <b>')}</b>.
+          Shorten the design to fit what you have, or add the rest to your tray —
+          ${short.every((n) => n.canAdd >= n.shortBy)
+            ? 'we have enough in the repo.'
+            : `the repo can only spare ${short.map((n) => fmtLen(n.canAdd)).join(', ')}.`}</span>
+        <div class="act-strip">
+          <button class="tiny" id="st-shorten">Shorten to fit</button>
+          <button class="tiny solid" id="st-add"
+            ${short.every((n) => n.canAdd >= n.shortBy) ? '' : 'disabled'}>Add to my tray</button>
+        </div>
+      </div>` : `<p class="muted" style="margin:12px 0 0">Your tray covers it. Press
+        <b>Lay it out</b> and everything lands on the canvas, evenly spaced and centred —
+        move anything you like afterwards.</p>`}`;
+    $('#start-next').textContent = short.length ? 'Lay out what fits' : 'Lay it out';
+    $('#start-next').disabled = Boolean(short.length);
+    return;
+  }
+}
+
+/** How much of each chain the design asks for, against what the tray holds. */
+function chainNeeds() {
+  const st = S.start;
+  const want = new Map();
+  const add = (row, cm) => {
+    const key = `${row.itemId}::${row.variantId}`;
+    const at = want.get(key) || { row, name: label(row.item, row.variantId), want: 0 };
+    at.want += cm;
+    want.set(key, at);
+  };
+  if (st.base && isLength(st.base.item)) add(st.base, st.baseLen * (st.kind.drops || 1));
+  const chains = trayChains();
+  for (const h of st.hangs) {
+    const row = chains[h.chain] || chains[0];
+    if (row) add(row, h.len);
+  }
+  return [...want.values()].map((n) => {
+    const have = trayHeld(n.row);
+    return { ...n, have, shortBy: Math.max(0, n.want - have),
+      canAdd: addable(n.row.item, n.row.variantId) };
+  });
+}
+
+/* ------------------------------------------------------------ the layout */
+
+function newCharm(row, extra) {
+  return {
+    uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    itemId: row.itemId, variantId: row.variantId,
+    w: charmWidthPct(row.item), rot: 0, z: ++S.zTop, ...extra,
+  };
+}
+
+/** Evenly spaced points, centred on the middle of whatever they sit along. */
+function spacedAlong(n, from, to) {
+  if (n === 1) return [(from + to) / 2];
+  const step = (to - from) / n;
+  return Array.from({ length: n }, (_, i) => from + step * (i + 0.5));
+}
+
+function layOutPiece() {
+  const st = S.start;
+  const chains = trayChains();
+  const made = [];
+  S.view = st.kind.view || 'round';
+  $$('.viewswitch button').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.view === S.view)));
+
+  if (st.kind.base === 'piece') {
+    // The base sits above centre so its hangings have the canvas below them.
+    const box = charmSizePct(st.base.item);
+    const baseY = st.kind.long ? 26 : 40;
+    made.push(newCharm(st.base, { x: 50, y: baseY }));
+    // Hangings follow the lower edge: on a round bangle that is an arc, on a
+    // wider-than-tall frame a straight run.
+    const round = Math.abs(box.w - box.h) / Math.max(box.w, box.h) < 0.25;
+    const pins = spacedAlong(st.hangs.length, round ? 40 : 0, round ? 140 : 1);
+    st.hangs.forEach((h, i) => {
+      const row = chains[h.chain] || chains[0];
+      if (!row) return;
+      const t = pins[i];
+      const x = round ? 50 + (box.w / 2) * Math.cos((t * Math.PI) / 180) * -1
+        : 50 - (box.w * 0.66) / 2 + box.w * 0.66 * t;
+      const y = round ? baseY + (box.h / 2) * Math.sin((t * Math.PI) / 180) : baseY + box.h / 2;
+      made.push(newCharm(row, { x, y, lenCm: h.len }));
+    });
+  } else if (st.kind.drops) {
+    // A drop is a chain hanging straight down with a charm on the end.
+    const span = stageMm() || 400;
+    const lenPct = (st.baseLen * 10 / span) * 100;
+    const piece = trayPieces()[st.charm] || trayPieces()[0];
+    const xs = st.kind.drops === 2 ? [38, 62] : [50];
+    for (const x of xs) {
+      made.push(newCharm(st.base, { x, y: 16, lenCm: st.baseLen }));
+      if (piece) {
+        const box = charmSizePct(piece.item);
+        made.push(newCharm(piece, { x, y: 16 + lenPct + box.h / 2 }));
+      }
+    }
+  } else {
+    // A chain base lies across the canvas, and the hangings drop from it.
+    const span = stageMm() || 400;
+    // Laid out at life size and left to run past the edge if it must: the
+    // zoom at the end brings the whole thing into view without distorting it.
+    const lenPct = (st.baseLen * 10 / span) * 100;
+    const y = 22;
+    const x0 = 50 - lenPct / 2;
+    // Rotated a quarter turn so it runs left to right across the canvas.
+    made.push(newCharm(st.base, { x: x0, y, lenCm: st.baseLen, rot: 270 }));
+    const from = st.spread === 'centre' ? 1 / 3 : 0;
+    const to = st.spread === 'centre' ? 2 / 3 : 1;
+    const pins = spacedAlong(st.hangs.length, from, to);
+    st.hangs.forEach((h, i) => {
+      const row = chains[h.chain] || chains[0];
+      if (!row) return;
+      made.push(newCharm(row, { x: x0 + lenPct * pins[i], y, lenCm: h.len }));
+    });
+  }
+
+  S.charms = made;
+  S.picked = null;
+  S.zoom = 1;
+  if (overflows()) setZoom(fitZoom());
+  paint();
+  toast(`${st.kind.name} laid out — move anything you like.`, 'good');
+}
+
+function wireStart() {
+  const dlg = $('#dlg-start');
+  $('#start-skip').addEventListener('click', () => dlg.close());
+  $('#start-again').addEventListener('click', () => openStart(true));
+  $('#start-back').addEventListener('click', () => {
+    const order = ['kind', 'base', 'shape', 'hangs', 'check'];
+    const at = order.indexOf(S.start.step);
+    S.start.step = order[Math.max(0, at - 1)];
+    if (S.start.step === 'hangs' && S.start.kind.drops) S.start.step = 'shape';
+    paintStart();
+  });
+
+  $('#start-body').addEventListener('click', (e) => {
+    const kind = e.target.closest('[data-kind]');
+    if (kind) {
+      const k = PIECE_KINDS.find((x) => x.id === kind.dataset.kind);
+      if (k.id === 'free') { dlg.close(); return; }
+      S.start.kind = k;
+      S.start.spread = k.spread || 'all';
+      S.start.count = 3;
+      S.start.charm = 0;
+      const rows = k.base === 'chain' ? trayChains() : baseChoices(k);
+      S.start.base = rows[0];
+      S.start.baseLen = k.base === 'chain'
+        ? Math.min(k.id === 'necklace' ? 45 : k.id === 'charm' ? 8 : 18, trayHeld(rows[0]))
+        : 0;
+      S.start.step = rows.length > 1 ? 'base' : 'shape';
+      paintStart();
+      return;
+    }
+    const base = e.target.closest('[data-base]');
+    if (base) {
+      const rows = S.start.kind.base === 'chain' ? trayChains() : baseChoices(S.start.kind);
+      S.start.base = rows[Number(base.dataset.base)];
+      if (S.start.kind.base === 'chain') {
+        S.start.baseLen = Math.min(S.start.baseLen || 18, trayHeld(S.start.base));
+      }
+      S.start.step = 'shape';
+      paintStart();
+      return;
+    }
+    if (e.target.id === 'st-shorten') { shortenToFit(); return; }
+    if (e.target.id === 'st-add') { addTheShortfall(); }
+  });
+
+  $('#start-body').addEventListener('input', (e) => {
+    const st = S.start;
+    if (e.target.id === 'st-baselen') st.baseLen = Math.max(1, Number(e.target.value) || 1);
+    if (e.target.id === 'st-count') st.count = clamp(Math.round(Number(e.target.value) || 1), 1, 24);
+    if (e.target.id === 'st-charm') st.charm = Number(e.target.value);
+    if (e.target.name === 'spread') st.spread = e.target.value;
+    const row = e.target.closest('.hang-row');
+    if (row) {
+      const i = Number(row.dataset.i);
+      if (e.target.dataset.f === 'chain') st.hangs[i].chain = Number(e.target.value);
+      if (e.target.dataset.f === 'len') {
+        st.hangs[i].len = Math.max(1, Number(e.target.value) || 1);
+        st.hangs[i].own = true;
+        // The first length sets the tone for any the customer has not touched.
+        if (i === 0) st.hangs.forEach((h, k) => { if (k && !h.own) h.len = st.hangs[0].len; });
+        paintStart();
+      }
+    }
+  });
+  $('#start-body').addEventListener('change', (e) => {
+    if (e.target.name === 'spread') paintStart();
+  });
+
+  $('#start-next').addEventListener('click', () => {
+    const st = S.start;
+    if (st.step === 'shape') {
+      if (st.kind.drops) { st.hangs = []; st.step = 'check'; paintStart(); return; }
+      const chains = trayChains();
+      const keep = st.hangs.slice(0, st.count);
+      while (keep.length < st.count) {
+        keep.push({ chain: chains.length ? 0 : 0, len: keep[0] ? keep[0].len : 8, own: false });
+      }
+      st.hangs = keep;
+      st.step = 'hangs';
+      paintStart();
+      return;
+    }
+    if (st.step === 'hangs') { st.step = 'check'; paintStart(); return; }
+    if (st.step === 'check') { dlg.close(); layOutPiece(); }
+  });
+}
+
+/** Trim every hanging by the same share, until the tray covers the design. */
+function shortenToFit() {
+  const st = S.start;
+  const key = (r) => `${r.itemId}::${r.variantId}`;
+  const strands = st.kind.drops || 1;            // a pair of earrings needs two chains
+  for (let pass = 0; pass < 12; pass += 1) {
+    const short = chainNeeds().filter((n) => n.shortBy > 0);
+    if (!short.length) break;
+    const chains = trayChains();
+    for (const n of short) {
+      const k = key(n.row);
+      const mine = st.hangs.filter((h) => key(chains[h.chain] || chains[0]) === k);
+      const baseCm = st.base && key(st.base) === k ? st.baseLen * strands : 0;
+      if (!mine.length) {
+        // Only the base draws on this chain, so the base is what comes down.
+        if (baseCm) st.baseLen = Math.max(1, Math.floor(n.have / strands));
+        continue;
+      }
+      let room = n.have - baseCm;
+      if (room < mine.length) {
+        // The base alone would eat the tray: shorten it enough to leave the
+        // hangings at least a centimetre each.
+        st.baseLen = Math.max(1, Math.floor((n.have - mine.length) / strands));
+        room = n.have - st.baseLen * strands;
+      }
+      const hangTotal = mine.reduce((t, h) => t + h.len, 0);
+      const factor = room / hangTotal;
+      mine.forEach((h) => { h.len = Math.max(1, Math.floor(h.len * factor * 10) / 10); });
+    }
+  }
+  toast('Shortened to what your tray holds.', 'good');
+  paintStart();
+}
+
+/** Or put the missing centimetres in the tray, if the repo can spare them. */
+function addTheShortfall() {
+  for (const n of chainNeeds()) {
+    if (n.shortBy <= 0) continue;
+    const room = addable(n.row.item, n.row.variantId);
+    const take = Math.min(Math.ceil(n.shortBy), room);
+    if (take > 0) trayAdd(n.row.itemId, n.row.variantId, take);
+  }
+  paint();
+  toast('Added to your tray.', 'good');
+  paintStart();
+}
+
 /* -------------------------------------------------------------------- boot */
 
 function setMode(mode) {
@@ -3768,6 +4240,9 @@ function setMode(mode) {
   $('#boot').hidden = S.ready || mode === 'studio' || mode === 'mine';
   updateFab();
   paint();
+  // Arriving at an empty canvas with a full tray is the moment to ask what
+  // they are making; at any other time the button under the canvas does it.
+  if (mode === 'design') setTimeout(() => openStart(), 60);
 }
 
 /** The floating button only appears once its seated twin has scrolled away. */
@@ -5151,6 +5626,7 @@ wireTray();
 wireDesign();
 wireCheckout();
 wirePieceDialog();
+wireStart();
 wireShell();
 wireExtras();
 setMode('browse');

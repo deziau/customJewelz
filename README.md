@@ -142,6 +142,28 @@ panel header empties the lot. Nothing in the tray is charged or taken out of
 the repo, and neither control will take something below what is already on the
 design — it says to take it off the piece first.
 
+**Starting a piece.** Arriving at an empty canvas with a full tray, the app asks
+what is being made — *bangle with hangings, bracelet with hangings, necklace
+with drops, kaleera, a single charm on a chain, a pair of earrings*, or
+*something else* to lay it out by hand — and then asks only what it cannot work
+out: which chain, how many hangings, how long each one is, and (on a bracelet or
+necklace) whether they run the whole length or gather in the middle third. With
+more than one chain in the tray, each hanging picks its own, numbered left to
+right.
+
+Before it lays anything down it compares the design against the tray and says
+so if it falls short: *"Your tray is short of 22 cm of Gold Chain"* — with
+**Shorten to fit**, which trims every hanging by the same share until it fits,
+and **Add to my tray**, offered only when the repo can spare it. Then it places
+the piece: the base centred, the hangings evenly spaced and the formation
+centred on it — along the lower arc of a bangle, along the chain of a bracelet —
+and zooms out if the whole thing needs more room. Everything it places can be
+moved, turned or taken off afterwards; it is a starting point, not a template.
+**Start a piece** under the canvas reopens it at any time.
+
+The canvas carries a **centimetre grid**, drawn at its own scale so a square is
+a square centimetre of real jewellery, with every fifth line a little stronger.
+
 **Design** — the tray becomes the rail beside the canvas, largest piece first:
 only what they picked can be placed, and each row counts down ("8 of 10 to
 place"). Taking a piece off the design puts it straight back in the tray. The
