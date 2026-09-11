@@ -243,6 +243,10 @@ h3 { font-size: 15px; }
 }
 .charm.on .len { display: block; }
 
+/* Everything on the piece lives in this layer, and the zoom scales the layer:
+   pieces grow and draw apart together, the way a photograph enlarges. */
+.stage-zoom { position: absolute; inset: 0; transform-origin: 50% 50%; }
+
 /* The guide behind the piece: a hoop to hang things round, or a rail to hang
    them from. It is a drawing aid, never part of the order. */
 .stage-guide { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
@@ -884,6 +888,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
     <div class="stage-col">
       <div class="stage" id="stage">
+        <div class="stage-zoom" id="stage-zoom"></div>
         <div class="stage-hint" id="hint">
           <h2>Start with the piece it hangs on</h2>
           <p class="muted">A chain, a bangle, a frame — whatever your piece is built around. Place it
@@ -2121,8 +2126,11 @@ function strandRoom(c) {
  * made everything else appear to move whenever something new arrived.
  */
 function stageMm() {
-  return lifeMm() / S.zoom;
+  return lifeMm();
 }
+
+/** How much of the world the canvas is actually showing, once zoomed. */
+const viewMm = () => lifeMm() / S.zoom;
 
 /** The zoom that would bring the whole piece into view. */
 function fitZoom() {
@@ -2136,7 +2144,7 @@ function setZoom(z) {
 }
 
 /** True when something on the canvas runs past its edge at this zoom. */
-const overflows = () => contentMm() > stageMm() + 0.5;
+const overflows = () => contentMm() > viewMm() + 0.5;
 
 function paintScaleNote() {
   const note = $('#scale-note');
@@ -2170,6 +2178,9 @@ function charmSizePct(item) {
 function charmWidthPct(item) {
   return charmSizePct(item).w;
 }
+
+/** Where a point on the screen falls on the piece, once the zoom is undone. */
+const onPiece = (x, y) => ({ x: 50 + (x - 50) / S.zoom, y: 50 + (y - 50) / S.zoom });
 
 function fanOut(x, y) {
   for (let i = 0; i < 26; i += 1) {
@@ -2350,7 +2361,8 @@ function stopSpin() {
 }
 
 function paintStage() {
-  const stage = $('#stage');
+  const stage = $('#stage-zoom');
+  stage.style.transform = `scale(${S.zoom})`;
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
   paintScaleNote();
@@ -2429,7 +2441,7 @@ function hangAngle(c) {
 }
 
 function paintGuide() {
-  const stage = $('#stage');
+  const stage = $('#stage-zoom');
   $$('.stage-guide', stage).forEach((n) => n.remove());
   const guide = document.createElement('div');
   guide.className = 'stage-guide';
@@ -2463,8 +2475,10 @@ function startMove(ev, charm, node) {
     // strand could swing to a new angle just from being selected.
     if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
     moved = true;
-    charm.x = clamp(ox + ((e.clientX - x0) / rect.width) * 100, 2, 98);
-    charm.y = clamp(oy + ((e.clientY - y0) / rect.height) * 100, 2, 98);
+    // Zoomed in, a piece has to travel further on screen to move as far on the
+    // piece, or it would race away from the pointer.
+    charm.x = clamp(ox + ((e.clientX - x0) / (rect.width * S.zoom)) * 100, 2, 98);
+    charm.y = clamp(oy + ((e.clientY - y0) / (rect.height * S.zoom)) * 100, 2, 98);
     node.style.left = charm.x + '%';
     node.style.top = charm.y + '%';
   };
@@ -3925,10 +3939,11 @@ function wireDesign() {
     const [itemId, variantId] = String(e.dataTransfer.getData('text/plain')).split('::');
     if (!itemId) return;
     const r = stage.getBoundingClientRect();
-    place(itemId, variantId, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+    const spot = onPiece(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+    place(itemId, variantId, spot.x, spot.y);
   });
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target === stage || e.target.closest('.stage-hint')) {
+    if (e.target === stage || e.target.id === 'stage-zoom' || e.target.closest('.stage-hint')) {
       S.picked = null;
       paintStage();
     }
@@ -4325,6 +4340,12 @@ async function renderSnapshot(size = 560) {
       ctx.restore();
     };
 
+    // The same lens the customer was looking through.
+    ctx.save();
+    ctx.translate(size / 2, size / 2);
+    ctx.scale(S.zoom, S.zoom);
+    ctx.translate(-size / 2, -size / 2);
+
     for (const c of [...S.charms].sort((a, b) => a.z - b.z)) {
       const item = itemOf(c.itemId);
       if (!item) continue;
@@ -4335,6 +4356,7 @@ async function renderSnapshot(size = 560) {
           size * (box.w || c.w) / 100, size * (box.h || c.w) / 100, c.rot);
       }
     }
+    ctx.restore();
 
     // Documents cap at 256 KiB, so step the quality down until it comfortably fits.
     for (const q of [0.82, 0.7, 0.55, 0.4]) {

@@ -291,6 +291,10 @@ time something bigger arrived. The canvas holds whatever scale it is set to, and
 the tools underneath carry a zoom — − and + step it, the label between them
 (*Actual size*, or *125% of actual size*) comes back to life size, and **Fit**
 appears when something runs past the edge and brings the whole piece into view.
+The zoom works on the canvas the way it works on a photograph: pieces grow and
+draw apart together about the middle, and what falls outside the frame is simply
+outside the frame. Nothing on the piece moves — dragging keeps up with the
+pointer at any zoom — and the picture saved with an order shows the same view.
 A piece placed too big for the view is simply told: *"That runs past the canvas
 at this size — press Fit to bring it all into view."* The picture saved with an
 order **is** the canvas: the same scale, the same positions, the same angles, so
