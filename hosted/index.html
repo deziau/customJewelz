@@ -1297,7 +1297,7 @@ const S = {
   zones: [],
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
-  charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm, turned }]
+  charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
   picked: null,
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
@@ -2077,17 +2077,13 @@ function contentMm() {
 }
 
 /**
- * What fraction of the canvas a strand has in front of it: straight down from
- * its pin on a straight piece, or out to the edge along its own radius on a
- * round one — which is the direction it is actually drawn in.
+ * What fraction of the canvas a strand has in front of it: the distance from
+ * its pin to the edge, along the way it is actually hanging.
  */
 function strandRoom(c) {
-  if (S.view === 'straight') return Math.max(0.12, (100 - c.y) / 100) * 0.95;
-  let dx = c.x - 50;
-  let dy = c.y - 50;
-  if (!dx && !dy) dx = 1;                       // pinned dead centre: it runs right
-  const away = Math.hypot(dx, dy);
-  dx /= away; dy /= away;
+  const t = (hangAngle(c) * Math.PI) / 180;
+  const dx = -Math.sin(t);                      // the piece's own downward, turned
+  const dy = Math.cos(t);
   const toEdge = (pos, dir) => (dir > 0 ? (100 - pos) / dir : dir < 0 ? pos / -dir : Infinity);
   return Math.max(0.05, Math.min(toEdge(c.x, dx), toEdge(c.y, dy)) / 100) * 0.95;
 }
@@ -2275,12 +2271,6 @@ function charmTransform(c) {
 function turnPicked(deg, relative) {
   const c = pickedCharm();
   if (!c) { toast('Tap a piece on the canvas first.'); return false; }
-  // The first turn takes the angle it is hanging at right now, so the piece
-  // carries on from where it looks rather than snapping somewhere else.
-  if (c.lenCm && !c.turned) {
-    c.rot = wrapAngle(hangAngle(c));
-    c.turned = true;
-  }
   c.rot = wrapAngle(relative ? (c.rot || 0) + deg : deg);
   paintStage();
   return true;
@@ -2407,16 +2397,14 @@ function tileHeightPct(item, lenCm) {
  * Straight pieces hang everything downward; round ones let a strand fall away
  * from the centre, which is how a hoop of tassels actually sits.
  */
+/**
+ * A strand hangs from its pin, straight down, until the rotate arrows say
+ * otherwise — and nothing else ever changes that. It used to be derived from
+ * where the strand sat on a round piece, which meant moving one swung it.
+ */
 function hangAngle(c) {
-  // Turned by hand once, and the angle is the customer's: it no longer swings
-  // about when the strand is nudged, which used to look like a jump every time
-  // they picked it up again.
-  if (c.turned || S.view === 'straight') return c.rot || 0;
-  return radialAngle(c) + (c.rot || 0);
+  return c.rot || 0;
 }
-
-/** The way a strand falls away from the middle of a round piece. */
-const radialAngle = (c) => (Math.atan2(c.y - 50, c.x - 50) * 180) / Math.PI - 90;
 
 function paintGuide() {
   const stage = $('#stage');
@@ -2457,11 +2445,6 @@ function startMove(ev, charm, node) {
     charm.y = clamp(oy + ((e.clientY - y0) / rect.height) * 100, 2, 98);
     node.style.left = charm.x + '%';
     node.style.top = charm.y + '%';
-    // An untouched strand falls away from the middle, so moving it changes the
-    // way it hangs. Showing that as it happens is the whole point: leaving it
-    // stale meant the swing arrived later, at the next repaint, looking like a
-    // rotate button had turned it a quarter of the way round.
-    node.style.transform = charmTransform(charm);
   };
   const up = () => {
     window.removeEventListener('pointermove', move);
@@ -2691,8 +2674,8 @@ async function submitOrder(form) {
     })),
     design: {
       view: S.view,
-      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, turned }) =>
-        ({ itemId, variantId, x, y, w, rot, z, lenCm, turned: Boolean(turned) })),
+      charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm }) =>
+        ({ itemId, variantId, x, y, w, rot, z, lenCm })),
     },
     itemsTotal, shipping: ship, total: itemsTotal + ship,
     status: 'new',
@@ -4913,7 +4896,7 @@ async function startAmend(order) {
   S.charms = [...legacy, ...(d.charms || [])].map((c, k) => ({
     uid: `c${Date.now().toString(36)}${k}`,
     itemId: c.itemId, variantId: c.variantId, x: c.x, y: c.y, w: c.w,
-    rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm, turned: Boolean(c.turned),
+    rot: c.rot, z: c.z || k + 1, lenCm: c.lenCm,
   }));
   S.zTop = S.charms.length + 1;
   S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };

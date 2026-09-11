@@ -147,10 +147,11 @@ only what they picked can be placed, and each row counts down ("8 of 10 to
 place"). Taking a piece off the design puts it straight back in the tray. The
 bill charges for what is on the piece, never for what is still in the tray.
 
-A strand on a round piece falls away from the middle by default, but the first
-time it is turned by hand the angle becomes the customer's: it keeps it when the
-strand is moved, selected, or picked up again, instead of swinging back to its
-radius. A few pixels of wobble while tapping no longer counts as a drag either.
+A strand hangs straight down from its pin, and the only thing that ever changes
+that is the rotate arrows — not moving it, not selecting it, not switching
+between round and straight. Its angle used to be worked out from where it sat on
+a round piece, so positioning one swung it. A few pixels of wobble while tapping
+no longer counts as a drag either.
 
 **Turning a piece** is two arrows and nothing else — no number to read, none to
 type. **Tap** one and the piece moves a single degree, for the last small
@@ -252,11 +253,11 @@ against everything else — so five tassels of 8, 12, 18, 25 and 15 cm come off
 one 2 m reel and look like what they are. The tray tracks the metres left, and
 a hanging longer than what remains is refused with how much is left.
 
-**Two ways to see the piece.** *Round* for a necklace or bracelet, where
-hangings fall away from the hoop; *straight* for a kaleera, a keychain or any
-hanging piece, where they drop from a rail. The switch sits under the canvas,
-a faint guide shows which you are in, and the choice travels with the order and
-its picture.
+**Two ways to see the piece.** *Round* for a necklace or bracelet, drawn against
+a hoop; *straight* for a kaleera, a keychain or any hanging piece, drawn against
+a rail. The switch sits under the canvas, a faint guide shows which you are in,
+and the choice travels with the order and its picture. The guide is a drawing
+aid only — it never moves or turns anything itself.
 
 The studio's **Overview** opens on what the repo holds: how many components
 there are (with the number of colours across them), and how many pieces are in
