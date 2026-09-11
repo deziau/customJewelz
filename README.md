@@ -172,7 +172,10 @@ to **keep it for next time** or **discard it** before the order goes through.
 Use everything and the tray simply empties. Ordering requires an **account** —
 created with a name, email, phone and a PIN, and signed into with either the
 email or the phone. Signed-in customers get a **My orders** room showing every
-order they have placed, its status, and a picture of the piece they designed.
+order they have placed, its status, and a picture of the piece they designed —
+with **Change this design** and **Cancel this order** on the card itself, each
+counting down its own window ("54 min left to change it"), so nothing has to be
+opened to find out whether there is still time.
 
 A picture of the finished piece is rendered when the order is placed and
 travels with it: on the customer's confirmation and order list, as a thumbnail
@@ -258,6 +261,16 @@ a hoop; *straight* for a kaleera, a keychain or any hanging piece, drawn against
 a rail. The switch sits under the canvas, a faint guide shows which you are in,
 and the choice travels with the order and its picture. The guide is a drawing
 aid only — it never moves or turns anything itself.
+
+**A colour has two counts, and they are kept apart.** *In hand* is what is in
+the drawer, and it only comes down when an order is marked **Ready** and the
+pieces are actually pulled to be made — not when the order arrives. *Free to
+sell* is what is left once the orders still to be made have claimed theirs, and
+that is the number customers are offered. So an order for the last bangle leaves
+the repo showing 1 in hand, 1 for orders, 0 free to sell, and the shop showing
+it sold out. Marking that order Ready takes the bangle out of the drawer;
+putting it back to *Being made* puts the bangle back. Marking Ready when the
+drawer cannot cover it is refused.
 
 The studio's **Overview** opens on what the repo holds: how many components
 there are (with the number of colours across them), and how many pieces are in
