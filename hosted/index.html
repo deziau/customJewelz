@@ -271,6 +271,12 @@ h3 { font-size: 15px; }
 .charm.on .lift { display: grid; }
 
 .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+/* The canvas draws at life size until the piece outgrows it; this says which. */
+.scale-note {
+  font-size: 11.5px; color: var(--muted); padding: 0 4px; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.scale-note.shrunk { color: var(--ochre); font-weight: 600; }
 
 /* Turning a piece: tap an arrow to nudge it a degree, hold it and the piece
    keeps turning until you let go. */
@@ -883,6 +889,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             title="Turn clockwise — hold to keep turning"
             aria-label="Turn clockwise, hold to keep turning">⟳</button>
         </span>
+        <span class="scale-note" id="scale-note">Actual size</span>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
@@ -2034,8 +2041,17 @@ function paintPlaceRail() {
  * and the charm are both measured, the whole piece is drawn to scale — a 12 mm
  * heart on a 65 mm band looks like a 12 mm heart on a 65 mm band.
  */
+/**
+ * How many millimetres the canvas covers. A piece is never drawn larger than it
+ * is: while the design fits, the canvas stays at actual size, so a 65 mm bangle
+ * measures 65 mm on the screen. Only once something outgrows the canvas does
+ * the whole piece shrink together to hold it.
+ */
 function stageMm() {
-  let span = 0;
+  const px = $('#stage') ? $('#stage').clientWidth : 0;
+  // The canvas at true size: 96 pixels to the inch, the same convention the
+  // product page's centimetre rule leans on.
+  let span = (px || 640) / PX_PER_MM;
   // A kaleera's hangings are longer than its frame, so the stage has to grow to
   // hold the longest thing on it — otherwise 18 cm and 25 cm draw the same.
   for (const c of S.charms) {
@@ -2046,12 +2062,28 @@ function stageMm() {
       const room = S.view === 'straight' ? Math.max(0.12, (100 - c.y) / 100) * 0.95 : 0.45;
       span = Math.max(span, (c.lenCm * 10) / room);
     } else if (hasSize(item)) {
-      // The largest piece fills about two thirds, and everything else keeps
-      // its true proportion against it.
+      // A piece bigger than the canvas takes about two thirds of it, and
+      // everything else keeps its true proportion against it.
       span = Math.max(span, longestMm(item) / 0.66);
     }
   }
   return span;
+}
+
+/** What the canvas is showing against life size, as a percentage. */
+function stageScale() {
+  const px = ($('#stage') ? $('#stage').clientWidth : 0) || 640;
+  const span = stageMm();
+  return span ? (px / PX_PER_MM / span) * 100 : 100;
+}
+
+/** Says so when the piece has outgrown the canvas and is being shown smaller. */
+function paintScaleNote() {
+  const note = $('#scale-note');
+  if (!note) return;
+  const pct = stageScale();
+  note.textContent = pct >= 99.5 ? 'Actual size' : `${Math.round(pct)}% of actual size`;
+  note.classList.toggle('shrunk', pct < 99.5);
 }
 
 /**
@@ -2247,6 +2279,7 @@ function paintStage() {
   const stage = $('#stage');
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
+  paintScaleNote();
   $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {

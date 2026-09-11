@@ -260,11 +260,14 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
-**Everything on the canvas is drawn at the size it really is.** A charm is laid
-down at the width and height entered for it — a 10 mm bell beside a 70 mm frame
-is a tenth of its width, not a thumbnail beside a thumbnail — and the whole
-piece scales together so the largest thing on it fills about two thirds of the
-canvas. The design saved with an order is drawn the same way. Since a sticker is
+**Everything on the canvas is drawn at the size it really is** — and while the
+design fits, at life size: a 65 mm bangle measures 65 mm on the screen, on the
+same 96-pixels-to-the-inch convention the product page's centimetre rule uses.
+A charm is laid down at the width and height entered for it, so a 10 mm bell
+beside a 70 mm frame is a seventh of its width, not a thumbnail beside a
+thumbnail. Only when something outgrows the canvas — a 30 cm strand, say — does
+the whole piece shrink together to hold it, and the tools under the canvas say
+so: *Actual size*, or *43% of actual size*. The design saved with an order is drawn the same way. Since a sticker is
 stretched to those measurements, crop it tight to the piece: an empty margin is
 drawn along with it.
 
