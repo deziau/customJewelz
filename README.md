@@ -279,7 +279,11 @@ the tools underneath carry a zoom — − and + step it, the label between them
 appears when something runs past the edge and brings the whole piece into view.
 A piece placed too big for the view is simply told: *"That runs past the canvas
 at this size — press Fit to bring it all into view."* The picture saved with an
-order always holds the whole piece, whatever the customer was zoomed to. The design saved with an order is drawn the same way. Since a sticker is
+order **is** the canvas: the same scale, the same positions, the same angles, so
+what the customer pressed the button on is what the bench is asked to make.
+Because of that, ordering with something past the edge asks first — *"Part of
+your piece is off the canvas… bring it all into view?"* — rather than quietly
+cutting it out of the picture or quietly rescaling what they arranged. The design saved with an order is drawn the same way. Since a sticker is
 stretched to those measurements, crop it tight to the piece: an empty margin is
 drawn along with it.
 

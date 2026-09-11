@@ -2088,17 +2088,12 @@ function strandRoom(c) {
   return Math.max(0.05, Math.min(toEdge(c.x, dx), toEdge(c.y, dy)) / 100) * 0.95;
 }
 
-/* While the order's picture is drawn, the whole piece has to be in it whatever
-   the customer was zoomed to at the time. */
-let snapSpan = 0;
-
 /**
  * How many millimetres the canvas covers. It follows the zoom and nothing else:
  * adding a piece never rescales what is already on the canvas, which is what
  * made everything else appear to move whenever something new arrived.
  */
 function stageMm() {
-  if (snapSpan) return snapSpan;
   return lifeMm() / S.zoom;
 }
 
@@ -2556,8 +2551,15 @@ function leftovers() {
     .filter((r) => r.left > 0 && r.item);
 }
 
-function startOrder() {
+async function startOrder() {
   if (!S.charms.length) { toast('Put something on the piece first.', 'bad'); return; }
+  // The picture is exactly the canvas, so anything past the edge would be cut
+  // out of it. Say so while it can still be brought in.
+  if (overflows() && await ask('Part of your piece is off the canvas',
+    'The picture kept with your order is exactly what is on the canvas, so anything past the edge '
+    + 'will not be in it. Bring it all into view first?', 'Fit it in')) {
+    setZoom(fitZoom());
+  }
   if (!S.account) { openAuth('Sign in to place your order'); return; }
   const rest = leftovers();
   if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
@@ -4215,10 +4217,13 @@ const loadImage = (src) => new Promise((res, rej) => {
  * returns it as a data URL small enough to travel inside the order document.
  * Returns '' if anything goes wrong; an order must never fail over a picture.
  */
+/**
+ * The picture kept with the order is the canvas itself: same scale, same
+ * positions, same angles, so what the customer pressed the button on is what
+ * the bench is asked to make.
+ */
 async function renderSnapshot(size = 560) {
   try {
-    // Drawn to hold the whole piece, at life size when it fits.
-    snapSpan = Math.max(contentMm(), 640 / PX_PER_MM);
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -4291,8 +4296,6 @@ async function renderSnapshot(size = 560) {
     return '';
   } catch {
     return '';   // a tainted canvas or a missing image must not block the order
-  } finally {
-    snapSpan = 0;
   }
 }
 
