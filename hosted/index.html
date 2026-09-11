@@ -2716,14 +2716,43 @@ function stockTable(rows, blank) {
   </table></div>`;
 }
 
+/**
+ * What the repo holds, counted honestly: pieces are counted, lengths are
+ * measured, and the two are never added together. "In hand" is what should be
+ * in the drawer — free to sell plus whatever the open orders have claimed.
+ */
+function repoTotals() {
+  let inHand = 0;
+  let free = 0;
+  let lengthCm = 0;
+  let colours = 0;
+  for (const item of S.items) {
+    for (const v of item.variants) {
+      colours += 1;
+      const held = v.quantity + committedOf(item.id, v.id);
+      if (isLength(item)) lengthCm += held;
+      else { inHand += held; free += v.quantity; }
+    }
+  }
+  return { items: S.items.length, colours, inHand, free, lengthCm };
+}
+
 function viewOverview() {
   const b = buckets();
   const pick = pickList();
   const open = S.orders.filter((o) => OPEN_STATUS.includes(o.status)).length;
   const ready = S.orders.filter((o) => o.status === 'ready').length;
   const value = S.orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + (o.total || 0), 0);
+  const t = repoTotals();
   return `
     <div class="summary">
+      <button class="tile" data-go="repo"><span class="eyebrow">Components</span>
+        <b>${t.items}</b><span class="go">${t.colours === t.items
+          ? 'Open the repo →' : `${t.colours} colours in all →`}</span></button>
+      <button class="tile" data-go="repo"><span class="eyebrow">Pieces in hand</span>
+        <b>${t.inHand}</b><span class="go">${t.free === t.inHand
+          ? 'all free to sell' : `${t.free} free to sell`}${
+          t.lengthCm ? `, plus ${fmtLen(t.lengthCm)} of chain` : ''} →</span></button>
       <button class="tile" data-go="orders" data-filter="new"><span class="eyebrow">Orders to make</span>
         <b>${open}</b><span class="go">Open the order book →</span></button>
       <button class="tile" data-go="orders" data-filter="ready"><span class="eyebrow">Ready to hand over</span>

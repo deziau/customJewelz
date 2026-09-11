@@ -252,6 +252,13 @@ hanging piece, where they drop from a rail. The switch sits under the canvas,
 a faint guide shows which you are in, and the choice travels with the order and
 its picture.
 
+The studio's **Overview** opens on what the repo holds: how many components
+there are (with the number of colours across them), and how many pieces are in
+hand — what should be in the drawer — with how many of those are still free to
+sell once the open orders have claimed theirs. Chain is measured, not counted,
+so its metres are reported beside the piece count rather than added to it. Both
+tiles open the repo.
+
 **SKUs give themselves out.** Adding a component in the studio, you never type
 a code: it is built from the section, the name and the number of that *kind* of
 piece — `CHARMS-BBYCLT-001` for the first baby cloth in Charms — and each colour
