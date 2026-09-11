@@ -173,9 +173,10 @@ Use everything and the tray simply empties. Ordering requires an **account** —
 created with a name, email, phone and a PIN, and signed into with either the
 email or the phone. Signed-in customers get a **My orders** room showing every
 order they have placed, its status, and a picture of the piece they designed —
-with **Change this design** and **Cancel this order** on the card itself, each
-counting down its own window ("54 min left to change it"), so nothing has to be
-opened to find out whether there is still time.
+with **Edit order** and **Cancel order** in the card's top right and the time
+left directly under them ("54 min left to change or cancel"), so nothing has to
+be opened to find out whether there is still time. Both close an hour after the
+order is placed.
 
 A picture of the finished piece is rendered when the order is placed and
 travels with it: on the customer's confirmation and order list, as a thumbnail
@@ -191,12 +192,12 @@ because the customer reads it. The studio can also post a free-text update
 without changing the status. The whole history shows as a timeline on both
 sides.
 
-**Customers can change their mind, briefly.** Within one hour of ordering they
-can reopen the design: the order's components return to their tray, the design
+**Customers can change their mind, for an hour.** Within that hour they can
+reopen the design — the order's components return to their tray, the design
 loads back onto the canvas, and placing it again saves onto the *same* order
-number rather than making a second one. Within two hours they can cancel
-outright. Both windows show the time remaining. An order held open for changes
-releases its components back to the repo, so nothing is claimed twice.
+number rather than making a second one — or cancel outright. Both sit on the
+order card with the time remaining under them. An order held open for changes
+releases its claim on the repo, so nothing is counted twice.
 
 **Restock requests.** Whenever a customer cannot add another — the repo is
 empty, or they already hold every one we have in their tray — they are offered

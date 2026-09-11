@@ -719,8 +719,20 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 .orders-mine { max-width: 940px; margin: 0 auto; padding: 22px 22px 64px; display: grid; gap: 16px; }
 .order-card {
+  position: relative;
   display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+}
+/* The two controls sit where the eye goes first, with the clock under them. */
+.card-acts {
+  position: absolute; top: 14px; right: 14px;
+  display: grid; gap: 5px; justify-items: end; text-align: right;
+}
+.card-acts .row { display: flex; gap: 6px; }
+.order-card.has-acts .body { padding-right: 232px; }
+@media (max-width: 720px) {
+  .card-acts { position: static; justify-items: start; text-align: left; margin-top: 4px; }
+  .order-card.has-acts .body { padding-right: 0; }
 }
 .order-card .body { display: grid; gap: 7px; align-content: start; }
 .order-card .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
@@ -2776,7 +2788,8 @@ const DEFAULT_COMMENT = {
    arrives. Moving back out of these hands them to the drawer again. */
 const TAKEN_STATUS = ['ready', 'dispatched', 'done'];
 
-const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
+/* One hour to think again, for either kind of change. */
+const CANCEL_WINDOW_MS = 60 * 60 * 1000;
 const AMEND_WINDOW_MS = 60 * 60 * 1000;
 
 const msSince = (order) => Date.now() - new Date(order.createdAt).getTime();
@@ -3627,22 +3640,27 @@ function orderDetailHtml(o, asStudio) {
 }
 
 /** The customer's own controls, live only inside their change windows. */
-function customerActions(o) {
-  const bits = [];
-  if (canCustomerAmend(o)) {
-    bits.push(`<span class="act"><button class="tiny" data-cust="amend">Change this design</button>
-      <span class="window-note">${windowLeft(o, AMEND_WINDOW_MS)} left to change it</span></span>`);
-  }
-  if (canCustomerCancel(o)) {
-    bits.push(`<span class="act"><button class="tiny warnbtn" data-cust="cancel">Cancel this order</button>
-      <span class="window-note">${windowLeft(o, CANCEL_WINDOW_MS)} left to cancel it</span></span>`);
-  }
-  if (!bits.length) {
+/**
+ * The customer's own controls, live only inside their hour: the two buttons
+ * together, and under them the one thing they need to know — how long is left.
+ */
+function customerActions(o, corner = false) {
+  const canEdit = canCustomerAmend(o);
+  const canCancel = canCustomerCancel(o);
+  if (!canEdit && !canCancel) {
     if (o.status === 'cancelled') return '<p class="window-note" style="margin:0">This order was cancelled.</p>';
-    return `<p class="window-note" style="margin:0">Changes close 1 hour after ordering and cancelling
-      2 hours after. Call the studio if you need something changed now.</p>`;
+    return `<p class="window-note" style="margin:0">An order can be changed or cancelled for an hour
+      after it is placed. Call the studio if you need something changed now.</p>`;
   }
-  return `<div class="act-strip">${bits.join('')}</div>`;
+  const left = windowLeft(o, canEdit ? AMEND_WINDOW_MS : CANCEL_WINDOW_MS);
+  const what = canEdit && canCancel ? 'to change or cancel' : canEdit ? 'to change it' : 'to cancel it';
+  return `<div class="${corner ? 'card-acts' : 'act-strip'}">
+    <div class="row">
+      ${canEdit ? '<button class="tiny" data-cust="amend">Edit order</button>' : ''}
+      ${canCancel ? '<button class="tiny warnbtn" data-cust="cancel">Cancel order</button>' : ''}
+    </div>
+    <span class="window-note">${left} left ${what}</span>
+  </div>`;
 }
 
 function showOrder(o, asStudio = true) {
@@ -4482,16 +4500,16 @@ function paintMine() {
         <p class="muted" style="margin:6px 0 0">Everything you've ordered, newest first.
           We'll email ${esc(S.account.email)} as each one moves along.</p></div>
     </div>
-    ${mine.length ? mine.map((o) => `<article class="order-card" data-order="${esc(o.id)}"
+    ${mine.length ? mine.map((o) => `<article class="order-card${
+      canCustomerAmend(o) || canCustomerCancel(o) ? ' has-acts' : ''}" data-order="${esc(o.id)}"
       role="button" tabindex="0" style="cursor:pointer">
+      ${customerActions(o, true)}
       ${o.snapshot ? `<img class="snapshot" src="${esc(o.snapshot)}" alt="Your design for ${esc(o.no)}">`
         : '<div class="mini" style="width:100%;aspect-ratio:1">no image</div>'}
       <div class="body">
         <div class="row"><b class="mono">${esc(o.no)}</b>
           <span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span>
-          <span class="muted" style="font-size:12.5px">${esc(new Date(o.createdAt).toLocaleDateString())}</span>
-          ${canCustomerAmend(o) || canCustomerCancel(o)
-            ? '<span class="tag on">changes still open</span>' : ''}</div>
+          <span class="muted" style="font-size:12.5px">${esc(new Date(o.createdAt).toLocaleDateString())}</span></div>
         ${o.notes ? `<div class="note-card" style="font-size:12.5px">
           <div class="eyebrow">Your note</div>${esc(o.notes)}</div>` : ''}
         <div style="font-size:13px">${(o.items || []).map((i) =>
@@ -4502,7 +4520,6 @@ function paintMine() {
             <span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
           <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
         </div>
-        ${customerActions(o)}
       </div>
     </article>`).join('')
     : '<section class="panel"><p class="blank">No orders yet — design something you love.</p></section>'}`;
