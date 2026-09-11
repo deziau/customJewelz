@@ -631,6 +631,11 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 }
 
 .variant-rows { display: grid; gap: 7px; }
+.short-warn {
+  margin: 9px 0 0; padding: 8px 11px; border-radius: 8px; font-size: 12.5px;
+  background: var(--ochre-soft); color: var(--ochre);
+}
+.short-warn b { color: var(--ink); }
 .variant-row {
   display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1.2fr) 82px 34px;
   gap: 7px; align-items: center;
@@ -1081,6 +1086,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <fieldset>
         <legend>Colours &amp; stock</legend>
         <div class="variant-rows" id="piece-variants"></div>
+        <p class="short-warn" id="variant-warn" hidden></p>
         <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
           <button type="button" id="variant-add">Add a colour</button>
           <span class="muted" style="font-size:12.5px" id="variant-hint">Stock is counted per colour.
@@ -1480,6 +1486,12 @@ const cm = (mm) => (mm / 10).toLocaleString(undefined, { maximumFractionDigits: 
 
 /* ---- components sold by length ---- */
 const isLength = (item) => Boolean(item && item.soldBy === 'length');
+
+/* Lengths are held in centimetres, because that is the smallest piece anyone
+   cuts, but they are bought, sold and counted in metres — so the studio types
+   metres and the app keeps the centimetres. */
+const toMetres = (cmValue) => Math.round(Number(cmValue) || 0) / 100;
+const fromMetres = (m) => Math.max(0, Math.round((Number(m) || 0) * 100));
 
 /** Chain reads in centimetres up close and metres in bulk. */
 function fmtLen(cmValue) {
@@ -2702,9 +2714,13 @@ function stockRow({ item, v }) {
       ? `<span class="tag low">${show(committed)}</span>`
       : '<span class="muted">—</span>'}</td>
     <td class="r"><input class="cell-num ${v.quantity <= 0 ? 'out' : v.quantity < low ? 'low' : ''}"
-        type="number" min="0" step="${isLength(item) ? 10 : 1}" value="${v.quantity}"
-        data-f="qty" aria-label="Stock of ${esc(item.name)}${v.name ? ` in ${esc(v.name)}` : ''}">
-      <div class="unit">${isLength(item) ? 'cm' : (v.quantity <= 0 ? 'none left' : 'in stock')}</div></td>
+        type="number" min="0" step="${isLength(item) ? 0.1 : 1}"
+        value="${isLength(item) ? toMetres(v.quantity) : v.quantity}"
+        data-f="qty" aria-label="Stock of ${esc(item.name)}${v.name ? ` in ${esc(v.name)}` : ''}${
+          isLength(item) ? ', in metres' : ''}">
+      <div class="unit">${isLength(item)
+        ? (v.quantity <= 0 ? 'none left' : v.quantity < 100 ? 'm · under a metre' : 'm')
+        : (v.quantity <= 0 ? 'none left' : 'in stock')}</div></td>
     <td><div class="acts">
       <button class="tiny" data-act="edit">Edit</button>
       <button class="tiny warnbtn" data-act="del">Delete</button>
@@ -3129,7 +3145,7 @@ function paintSoldBy() {
   $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs' : 'Width (mm)';
   $('#height-field').hidden = byLength;
   $('#variant-hint').textContent = byLength
-    ? 'Stock is held in centimetres per colour — 1200 is twelve metres.'
+    ? 'Stock is held in metres per colour — 12.5 is twelve and a half, and it is cut to the centimetre.'
     : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
   paintDraftVariants();
 }
@@ -3140,13 +3156,32 @@ function paintDraftVariants() {
       <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
       <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
       <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name))}</span>
-      <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '10' : '1'}"
-        value="${v.quantity}" data-f="quantity"
-        aria-label="${S.draft.soldBy === 'length' ? 'Stock in centimetres' : 'Quantity'}"
-        title="${S.draft.soldBy === 'length' ? 'Stock in centimetres' : 'How many'}">
+      <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '0.1' : '1'}"
+        value="${S.draft.soldBy === 'length' ? toMetres(v.quantity) : v.quantity}" data-f="quantity"
+        aria-label="${S.draft.soldBy === 'length' ? 'Stock in metres' : 'Quantity'}"
+        title="${S.draft.soldBy === 'length' ? 'Stock in metres — 2.5 is two and a half' : 'How many'}">
       <button type="button" class="tiny warnbtn kill" data-kill="${i}"
         ${S.draft.variants.length === 1 ? 'disabled' : ''} aria-label="Remove colour">×</button>
     </div>`).join('');
+  paintShortLengths();
+}
+
+/**
+ * Less than a metre of something is a reel worth knowing about before it is
+ * saved: it is nearly out, and long hangings can no longer be cut from it.
+ */
+function paintShortLengths() {
+  const box = $('#variant-warn');
+  if (!box) return;
+  const short = S.draft.soldBy === 'length'
+    ? S.draft.variants.filter((v) => v.quantity > 0 && v.quantity < 100)
+    : [];
+  box.hidden = !short.length;
+  if (!short.length) return;
+  box.innerHTML = short
+    .map((v) => `<b>${esc(v.name || 'This one')}</b> ${fmtLen(v.quantity)}`).join(' · ')
+    + ` — under a metre. It can still be sold and cut, but it shows as low stock and
+       will not stretch to a long hanging.`;
 }
 
 function openPieceDialog(item) {
@@ -3234,8 +3269,13 @@ function wireAdmin() {
     }
 
     if (field === 'qty') {
-      const qty = Math.round(Number(e.target.value));
-      if (!Number.isInteger(qty) || qty < 0) { paintAdmin(); return toast('Stock must be zero or more.', 'bad'); }
+      // A length is typed in metres and kept in centimetres.
+      const typed = Number(e.target.value);
+      const qty = isLength(item) ? fromMetres(typed) : Math.round(typed);
+      if (!Number.isFinite(typed) || typed < 0 || !Number.isInteger(qty) || qty < 0) {
+        paintAdmin();
+        return toast('Stock must be zero or more.', 'bad');
+      }
       const delta = qty - v.quantity;
       if (!delta) return;
       await S.db.doc(`catalog/${item.id}`).update({
@@ -3870,7 +3910,12 @@ function wirePieceDialog() {
     if (!field) return;
     const rowNode = e.target.closest('.variant-row');
     const row = S.draft.variants[Number(rowNode.dataset.i)];
-    row[field] = field === 'quantity' ? Math.max(0, parseInt(e.target.value, 10) || 0) : e.target.value;
+    if (field === 'quantity') {
+      row.quantity = S.draft.soldBy === 'length'
+        ? fromMetres(e.target.value)
+        : Math.max(0, parseInt(e.target.value, 10) || 0);
+      paintShortLengths();
+    } else row[field] = e.target.value;
     // Only the one cell is rewritten, so the colour name keeps its caret.
     if (field === 'name') {
       const cell = rowNode.querySelector('[data-sku-cell]');

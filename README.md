@@ -259,6 +259,13 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
+**A length is stocked in metres.** The studio types 2.5 for two and a half; the
+app keeps it to the centimetre underneath, because that is how it is cut. Under
+a metre of any colour and the editor says so before you save — it can still be
+sold and cut, but it counts as low stock and will not stretch to a long hanging
+— and the repo table marks that cell "m · under a metre". Pieces are still
+whole numbers.
+
 A component **sold by length** is described by its width alone — the editor
 stops asking for a height, since the customer chooses how long a piece of it
 they want. Customers read it the same way: "2 mm wide" on the card, "2 mm wide
