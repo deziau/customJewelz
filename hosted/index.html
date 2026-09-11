@@ -1039,8 +1039,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         </select></label>
         <label class="f"><span id="price-label">Price *</span>
           <input name="price" type="number" min="0" step="0.01" required></label>
-        <label class="f"><span>Width (mm)</span><input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
-        <label class="f"><span>Height (mm)</span><input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
+        <label class="f"><span id="width-label">Width (mm)</span>
+          <input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
+        <label class="f" id="height-field"><span>Height (mm)</span>
+          <input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f"><span>Urgent restock fee — 0 to not offer it</span>
           <input name="urgentFee" type="number" min="0" step="0.01" value="0"></label>
         <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
@@ -1497,6 +1499,11 @@ const inches = (mm) => (mm / 25.4).toLocaleString(undefined, { maximumFractionDi
 
 /** "3.2 × 1.8 cm · 1.26 × 0.71 in" — both units, always. */
 function sizeLabel(item, short = false) {
+  if (isLength(item)) {
+    if (!item.widthMm) return '';
+    const wide = `${item.widthMm.toLocaleString(undefined, { maximumFractionDigits: 1 })} mm wide`;
+    return short ? wide : `${wide} · cut to the length you choose`;
+  }
   if (!hasSize(item)) return '';
   const metric = `${cm(item.widthMm)} × ${cm(item.heightMm)} cm`;
   return short ? metric : `${metric} · ${inches(item.widthMm)} × ${inches(item.heightMm)} in`;
@@ -1793,7 +1800,7 @@ function paintCatalogue() {
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
-        ${hasSize(i) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
+        ${sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
         <span class="price">${priceLabel(i)}</span>
         <span class="foot">${dots}</span>
       </span>
@@ -1854,9 +1861,7 @@ function paintSheet() {
   $('#item-title').textContent = item.name;
   $('#item-section').textContent = sectionOf(item.category).name;
   $('#item-price').textContent = priceLabel(item);
-  $('#item-size').textContent = hasSize(item)
-    ? sizeLabel(item)
-    : 'Measurements coming soon.';
+  $('#item-size').textContent = sizeLabel(item) || 'Measurements coming soon.';
   $('#item-desc').textContent = item.note || 'Handmade in the studio.';
   paintGallery(item);
 
@@ -2687,7 +2692,7 @@ function stockRow({ item, v }) {
       <br><span class="mono muted">${esc(v.sku || item.sku)}</span>${
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
-      hasSize(item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
+      sizeLabel(item, true) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
     <td class="r"><input class="cell-num" type="number" min="0" step="0.01" value="${item.price}"
         data-f="price" aria-label="Price for ${esc(item.name)}">
       <div class="unit">${isLength(item) ? 'per metre' : 'each'}${
@@ -3119,6 +3124,10 @@ function paintSku() {
 function paintSoldBy() {
   const byLength = S.draft.soldBy === 'length';
   $('#price-label').textContent = byLength ? 'Price per metre *' : 'Price *';
+  // A length has no height to give: the customer chooses how long a piece of it
+  // they want, and only how wide it runs is ours to state.
+  $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs' : 'Width (mm)';
+  $('#height-field').hidden = byLength;
   $('#variant-hint').textContent = byLength
     ? 'Stock is held in centimetres per colour — 1200 is twelve metres.'
     : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
@@ -3902,7 +3911,7 @@ function wirePieceDialog() {
         soldBy: data.get('soldBy') === 'length' ? 'length' : 'piece',
         width: (id && itemOf(id) ? itemOf(id).width : 86),
         widthMm: Number(data.get('widthMm')) || 0,
-        heightMm: Number(data.get('heightMm')) || 0,
+        heightMm: data.get('soldBy') === 'length' ? 0 : Number(data.get('heightMm')) || 0,
         urgentFee: Number(data.get('urgentFee')) || 0,
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
@@ -4529,7 +4538,7 @@ function restockPanel(groups, title, urgent) {
           <div>
             <b>${esc(g.itemName)}</b>${g.colour ? ` <span class="tag flat">${esc(g.colour)}</span>` : ''}
             <br><span class="mono muted">${esc(g.sku || '')}</span>
-            ${g.item && hasSize(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
+            ${g.item && sizeLabel(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
           </div>
           <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${
             g.requests.length} ${g.requests.length === 1 ? 'customer' : 'customers'} waiting</span>

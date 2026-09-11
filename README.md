@@ -259,6 +259,11 @@ sell once the open orders have claimed theirs. Chain is measured, not counted,
 so its metres are reported beside the piece count rather than added to it. Both
 tiles open the repo.
 
+A component **sold by length** is described by its width alone — the editor
+stops asking for a height, since the customer chooses how long a piece of it
+they want. Customers read it the same way: "2 mm wide" on the card, "2 mm wide
+· cut to the length you choose" on the product page.
+
 **SKUs give themselves out.** Adding a component in the studio, you never type
 a code: it is built from the section, the name and the number of that *kind* of
 piece — `CHARMS-BBYCLT-001` for the first baby cloth in Charms — and each colour
