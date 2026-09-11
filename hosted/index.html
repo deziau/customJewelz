@@ -2762,10 +2762,15 @@ function viewRepo() {
     <section class="panel">
       <header><h2>Component repo</h2><span class="spacer"></span>
         <input id="repo-find" placeholder="Search name, colour or SKU" style="width:220px">
+        <button id="repo-renumber">Renumber all SKUs</button>
         <button class="solid" id="repo-add">Add component</button></header>
       ${stockTable(stockRows(), 'Nothing in the repo yet — add your first component.')}
       <div class="pad" style="border-top:1px solid var(--line)">
-        <p class="muted" style="font-size:12.5px;margin:0">Price and stock are typed straight into the
+        <p class="muted" style="font-size:12.5px;margin:0"><b>SKUs are given out here</b>, from the
+          section, the name and the number of that kind of piece —
+          <span class="mono">CHARMS-BBYCLT-001</span>, and each colour hangs its own code off the end.
+          <b>Renumber all SKUs</b> re-derives the whole repo, for pieces added before the scheme or
+          under an older one. Price and stock are typed straight into the
           table — no need to open anything. <b>In hand</b> is what should be in the
           drawer right now. <b>For orders</b> is what the orders you still have to make will take out
           of it. <b>Free to sell</b> is the difference — the number customers see while browsing, and
@@ -2961,6 +2966,27 @@ function nextSerial(catSlug, name, skipId) {
   return top + 1;
 }
 
+/**
+ * Re-derives every component's code in one pass, for a repo filled in before
+ * the scheme existed or under an older one. Numbering follows the order pieces
+ * were added, so the oldest baby feet stays 001.
+ */
+function renumberedRepo() {
+  const runs = new Map();
+  return [...S.items]
+    .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+    .map((item) => {
+      const stem = `${sectionCode(item.category)}-${nameCode(item.name)}`;
+      const serial = (runs.get(stem) || 0) + 1;
+      runs.set(stem, serial);
+      const sku = `${stem}-${String(serial).padStart(3, '0')}`;
+      const variants = item.variants.map((v) => ({ ...v, sku: variantSku(sku, v.name.trim()) }));
+      const same = sku === item.sku && variants.every((v, i) => v.sku === item.variants[i].sku);
+      return same ? null : { item, sku, variants };
+    })
+    .filter(Boolean);
+}
+
 /** The SKU this draft would be saved with, kept clear of the ones in use. */
 function assignSku(catSlug, name, skipId) {
   const taken = new Set(S.items.filter((i) => i.id !== skipId).map((i) => i.sku));
@@ -3134,6 +3160,21 @@ function wireAdmin() {
     const q = e.target.value.toLowerCase();
     $$('.repo tbody tr', body).forEach((tr) => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
   });
+  $('#repo-renumber')?.addEventListener('click', guard(async () => {
+    const rows = renumberedRepo();
+    if (!rows.length) return toast('Every component already carries the code it should.', 'good');
+    const sample = rows.slice(0, 3)
+      .map((r) => `${r.item.sku || 'no code'} → ${r.sku}`).join(', ');
+    if (!await ask(`Renumber ${rows.length} component${rows.length === 1 ? '' : 's'}?`,
+      `Their codes are re-derived from the section and the name — ${sample}${
+        rows.length > 3 ? ', …' : ''}. Any label already printed with an old code will no longer match.`,
+      'Renumber them', true)) return;
+    for (const r of rows) {
+      await S.db.doc(`catalog/${r.item.id}`).update({ sku: r.sku, variants: r.variants });
+    }
+    toast(`${rows.length} component${rows.length === 1 ? '' : 's'} renumbered.`, 'good');
+  }));
+
   $('#repo-add')?.addEventListener('click', () => {
     if (!sections().length) return toast('Add a section first — charms, bangles, chains…', 'bad');
     openPieceDialog(null);
