@@ -271,10 +271,12 @@ h3 { font-size: 15px; }
 .charm.on .lift { display: grid; }
 
 .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
-/* The canvas draws at life size until the piece outgrows it; this says which. */
+/* The canvas draws at life size unless it is zoomed; this says which, and
+   clicking it comes back to life size. */
+.zoom { display: inline-flex; align-items: center; gap: 4px; }
 .scale-note {
-  font-size: 11.5px; color: var(--muted); padding: 0 4px; white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  min-width: 108px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 .scale-note.shrunk { color: var(--ochre); font-weight: 600; }
 
@@ -889,7 +891,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             title="Turn clockwise — hold to keep turning"
             aria-label="Turn clockwise, hold to keep turning">⟳</button>
         </span>
-        <span class="scale-note" id="scale-note">Actual size</span>
+        <span class="zoom" role="group" aria-label="Zoom">
+          <button type="button" class="tiny" data-zoomer="out" aria-label="Zoom out">−</button>
+          <button type="button" class="tiny scale-note" id="scale-note" data-zoomer="reset"
+            title="Back to actual size">Actual size</button>
+          <button type="button" class="tiny" data-zoomer="in" aria-label="Zoom in">+</button>
+          <button type="button" class="tiny" id="zoom-fit" data-zoomer="fit" hidden>Fit</button>
+        </span>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
@@ -898,7 +906,9 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         Tap it to select, then turn it: tap an arrow to nudge it a degree, or hold it down
         and the piece keeps turning until you let go.
         Take it off with the button above or the Delete key — anything you take off goes
-        straight back to your tray.
+        straight back to your tray. The canvas shows everything at its real size; − and + zoom in
+        and out, the label in between comes back to actual size, and <b>Fit</b> appears when
+        something runs past the edge.
       </p>
     </div>
 
@@ -1290,6 +1300,7 @@ const S = {
   charms: [],          // everything on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
   picked: null,
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
+  zoom: 1,             // 1 is life size; the canvas never rescales itself
   strandAsk: null,     // { itemId, variantId, x, y } while the length is being chosen
   zTop: 1,
   mode: 'browse',
@@ -2041,49 +2052,82 @@ function paintPlaceRail() {
  * and the charm are both measured, the whole piece is drawn to scale — a 12 mm
  * heart on a 65 mm band looks like a 12 mm heart on a 65 mm band.
  */
-/**
- * How many millimetres the canvas covers. A piece is never drawn larger than it
- * is: while the design fits, the canvas stays at actual size, so a 65 mm bangle
- * measures 65 mm on the screen. Only once something outgrows the canvas does
- * the whole piece shrink together to hold it.
- */
-function stageMm() {
-  const px = $('#stage') ? $('#stage').clientWidth : 0;
-  // The canvas at true size: 96 pixels to the inch, the same convention the
-  // product page's centimetre rule leans on.
-  let span = (px || 640) / PX_PER_MM;
-  // A kaleera's hangings are longer than its frame, so the stage has to grow to
-  // hold the longest thing on it — otherwise 18 cm and 25 cm draw the same.
+const stagePx = () => ($('#stage') ? $('#stage').clientWidth : 0) || 640;
+
+/** The canvas at life size: 96 pixels to the inch, the convention the product
+ *  page's centimetre rule leans on too. */
+const lifeMm = () => stagePx() / PX_PER_MM;
+
+const ZOOM_MIN = 0.15;
+const ZOOM_MAX = 4;
+
+/** How much room the piece on the canvas actually needs, in millimetres. */
+function contentMm() {
+  let need = 0;
   for (const c of S.charms) {
     const item = itemOf(c.itemId);
     if (!item) continue;
     if (c.lenCm) {
-      // Room left below the pin (straight) or out to the rim (round).
-      const room = S.view === 'straight' ? Math.max(0.12, (100 - c.y) / 100) * 0.95 : 0.45;
-      span = Math.max(span, (c.lenCm * 10) / room);
+      need = Math.max(need, (c.lenCm * 10) / strandRoom(c));
     } else if (hasSize(item)) {
-      // A piece bigger than the canvas takes about two thirds of it, and
-      // everything else keeps its true proportion against it.
-      span = Math.max(span, longestMm(item) / 0.66);
+      need = Math.max(need, longestMm(item) / 0.66);
     }
   }
-  return span;
+  return need;
 }
 
-/** What the canvas is showing against life size, as a percentage. */
-function stageScale() {
-  const px = ($('#stage') ? $('#stage').clientWidth : 0) || 640;
-  const span = stageMm();
-  return span ? (px / PX_PER_MM / span) * 100 : 100;
+/**
+ * What fraction of the canvas a strand has in front of it: straight down from
+ * its pin on a straight piece, or out to the edge along its own radius on a
+ * round one — which is the direction it is actually drawn in.
+ */
+function strandRoom(c) {
+  if (S.view === 'straight') return Math.max(0.12, (100 - c.y) / 100) * 0.95;
+  let dx = c.x - 50;
+  let dy = c.y - 50;
+  if (!dx && !dy) dx = 1;                       // pinned dead centre: it runs right
+  const away = Math.hypot(dx, dy);
+  dx /= away; dy /= away;
+  const toEdge = (pos, dir) => (dir > 0 ? (100 - pos) / dir : dir < 0 ? pos / -dir : Infinity);
+  return Math.max(0.05, Math.min(toEdge(c.x, dx), toEdge(c.y, dy)) / 100) * 0.95;
 }
 
-/** Says so when the piece has outgrown the canvas and is being shown smaller. */
+/* While the order's picture is drawn, the whole piece has to be in it whatever
+   the customer was zoomed to at the time. */
+let snapSpan = 0;
+
+/**
+ * How many millimetres the canvas covers. It follows the zoom and nothing else:
+ * adding a piece never rescales what is already on the canvas, which is what
+ * made everything else appear to move whenever something new arrived.
+ */
+function stageMm() {
+  if (snapSpan) return snapSpan;
+  return lifeMm() / S.zoom;
+}
+
+/** The zoom that would bring the whole piece into view. */
+function fitZoom() {
+  const need = contentMm();
+  return need ? clamp(lifeMm() / need, ZOOM_MIN, ZOOM_MAX) : 1;
+}
+
+function setZoom(z) {
+  S.zoom = clamp(z, ZOOM_MIN, ZOOM_MAX);
+  paintStage();
+}
+
+/** True when something on the canvas runs past its edge at this zoom. */
+const overflows = () => contentMm() > stageMm() + 0.5;
+
 function paintScaleNote() {
   const note = $('#scale-note');
   if (!note) return;
-  const pct = stageScale();
-  note.textContent = pct >= 99.5 ? 'Actual size' : `${Math.round(pct)}% of actual size`;
-  note.classList.toggle('shrunk', pct < 99.5);
+  const pct = Math.round(S.zoom * 100);
+  note.textContent = pct === 100 ? 'Actual size' : `${pct}% of actual size`;
+  note.classList.toggle('shrunk', pct !== 100);
+  const fit = $('#zoom-fit');
+  if (fit) fit.hidden = !overflows() && Math.abs(S.zoom - 1) < 0.01;
 }
 
 /**
@@ -2141,6 +2185,17 @@ function place(itemId, variantId, x, y) {
   });
   S.picked = S.charms[S.charms.length - 1].uid;
   paint();
+  sayIfItOverflows();
+}
+
+/**
+ * Nothing on the canvas is resized behind the customer's back, so a piece too
+ * big for the view simply runs past the edge — and is told about it once,
+ * with the one button that brings it back.
+ */
+function sayIfItOverflows() {
+  if (!overflows()) return;
+  toast('That runs past the canvas at this size — press Fit to bring it all into view.');
 }
 
 /** Taking something off returns it to the tray — it was never charged. */
@@ -2199,6 +2254,7 @@ function addStrand(lenCm) {
   S.picked = S.charms[S.charms.length - 1].uid;
   S.strandAsk = null;
   paint();
+  sayIfItOverflows();
 }
 
 /** Degrees the way a protractor reads them: 0–359, never −45 or 400. */
@@ -3853,6 +3909,14 @@ function wireDesign() {
     addStrand(len);
   });
 
+  $$('.tools button[data-zoomer]').forEach((b) => b.addEventListener('click', () => {
+    const how = b.dataset.zoomer;
+    if (how === 'in') setZoom(S.zoom * 1.25);
+    if (how === 'out') setZoom(S.zoom / 1.25);
+    if (how === 'reset') setZoom(1);
+    if (how === 'fit') setZoom(fitZoom());
+  }));
+
   $$('.tools button[data-turn]').forEach((b) => {
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();               // no text selection, no long-press menu
@@ -4151,6 +4215,8 @@ const loadImage = (src) => new Promise((res, rej) => {
  */
 async function renderSnapshot(size = 560) {
   try {
+    // Drawn to hold the whole piece, at life size when it fits.
+    snapSpan = Math.max(contentMm(), 640 / PX_PER_MM);
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -4223,6 +4289,8 @@ async function renderSnapshot(size = 560) {
     return '';
   } catch {
     return '';   // a tainted canvas or a missing image must not block the order
+  } finally {
+    snapSpan = 0;
   }
 }
 

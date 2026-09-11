@@ -265,9 +265,15 @@ design fits, at life size: a 65 mm bangle measures 65 mm on the screen, on the
 same 96-pixels-to-the-inch convention the product page's centimetre rule uses.
 A charm is laid down at the width and height entered for it, so a 10 mm bell
 beside a 70 mm frame is a seventh of its width, not a thumbnail beside a
-thumbnail. Only when something outgrows the canvas — a 30 cm strand, say — does
-the whole piece shrink together to hold it, and the tools under the canvas say
-so: *Actual size*, or *43% of actual size*. The design saved with an order is drawn the same way. Since a sticker is
+thumbnail. **Nothing is rescaled behind the customer's back**: adding a piece never
+changes the size or position of what is already down, which it used to, every
+time something bigger arrived. The canvas holds whatever scale it is set to, and
+the tools underneath carry a zoom — − and + step it, the label between them
+(*Actual size*, or *125% of actual size*) comes back to life size, and **Fit**
+appears when something runs past the edge and brings the whole piece into view.
+A piece placed too big for the view is simply told: *"That runs past the canvas
+at this size — press Fit to bring it all into view."* The picture saved with an
+order always holds the whole piece, whatever the customer was zoomed to. The design saved with an order is drawn the same way. Since a sticker is
 stretched to those measurements, crop it tight to the piece: an empty margin is
 drawn along with it.
 
