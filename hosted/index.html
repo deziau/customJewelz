@@ -2237,11 +2237,9 @@ function paintStage() {
       // its pin: straight down on a kaleera, outward from the hoop on a necklace.
       const span = stageMm() || 400;
       const lenPct = clamp((c.lenCm * 10 / span) * 100, 2, 96);
-      // The strand is as wide as the chain really is — until true scale would
-      // draw a 2 mm chain three pixels across, where it stops narrowing and is
-      // held at something the eye can follow.
-      const floor = (MIN_STRAND_PX / ($('#stage').clientWidth || 640)) * 100;
-      const wide = Math.max(((item.widthMm || 2) / span) * 100, floor);
+      // As wide as the seller said the chain is, to the same scale as every
+      // charm beside it. Nothing is padded for visibility: 2 mm is 2 mm.
+      const wide = ((item.widthMm || 2) / span) * 100;
       const art = charmArt(item, c.variantId);
       const src = art.src;
       // Repeating the sticker at the length it shows is what makes a chain read
@@ -2279,9 +2277,6 @@ function paintStage() {
  * of it — which is what keeps the links their real size however long the strand
  * is cut. Without a stated length we fall back to the picture's own shape.
  */
-/* Below this a strand is a hairline: true to scale and no use to anybody. */
-const MIN_STRAND_PX = 9;
-
 function tileHeightPct(item, lenCm) {
   if (!item.tileCm || !lenCm) return 0;
   return clamp((item.tileCm / lenCm) * 100, 1, 100);
@@ -3171,7 +3166,7 @@ function paintSoldBy() {
   $('#price-label').textContent = byLength ? 'Price per metre *' : 'Price *';
   // A length has no height to give: the customer chooses how long a piece of it
   // they want, and only how wide it runs is ours to state.
-  $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs' : 'Width (mm)';
+  $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs *' : 'Width (mm)';
   $('#height-field').hidden = byLength;
   // A strand is drawn by repeating its sticker, so we have to know how much of
   // the chain one sticker shows or the links come out any size at all.
@@ -3975,6 +3970,9 @@ function wirePieceDialog() {
       if (soldByLength && !(tileCm > 0)) {
         throw new Error('Say how many centimetres of chain the sticker shows — the design area repeats it at that size.');
       }
+      if (soldByLength && !(Number(data.get('widthMm')) > 0)) {
+        throw new Error('Give the width in millimetres — the design area draws the strand that wide.');
+      }
       if (S.draft.variants.some((v) => !Number.isInteger(v.quantity) || v.quantity < 0)) {
         throw new Error('Every colour needs a whole-number quantity, zero or more.');
       }
@@ -4129,7 +4127,7 @@ async function renderSnapshot(size = 560) {
     const strand = async (item, c) => {
       const span = stageMm() || 400;
       const len = size * clamp((c.lenCm * 10 / span), 0.02, 0.96);
-      const wide = Math.max(size * ((item.widthMm || 2) / span), (MIN_STRAND_PX / 640) * size);
+      const wide = size * ((item.widthMm || 2) / span);
       const src = charmArt(item, c.variantId).src;
       ctx.save();
       ctx.translate(size * c.x / 100, size * c.y / 100);
