@@ -2196,10 +2196,10 @@ function turnPicked(deg, relative) {
    Holding takes over and turns it for as long as it is held: slowly at first,
    so a hold can be stopped on any angle, winding up to a speed that carries a
    piece right round without waiting on it. */
-const SPIN_FROM = 70;      // degrees a second at the moment the hold takes over
+const SPIN_FROM = 12;      // degrees a second at the moment the hold takes over
 const SPIN_TO = 260;       // …and once it has been held a while
-const SPIN_WINDUP = 1200;  // milliseconds to reach full speed
-const SPIN_DELAY = 320;    // a press shorter than this is just a tap
+const SPIN_WINDUP = 1400;  // milliseconds to reach full speed
+const SPIN_DELAY = 550;    // a press shorter than this is just a tap, and only a tap
 
 let spin = null;           // { dir, button, timer, raf, since, last }
 
@@ -2208,7 +2208,9 @@ function spinFrame(now) {
   const c = pickedCharm();
   if (!c) { stopSpin(); return; }
   const held = now - spin.since;
-  const speed = SPIN_FROM + (SPIN_TO - SPIN_FROM) * Math.min(1, held / SPIN_WINDUP);
+  // Squared, so the hold creeps away from the tap rather than jolting off it.
+  const wound = Math.min(1, held / SPIN_WINDUP) ** 2;
+  const speed = SPIN_FROM + (SPIN_TO - SPIN_FROM) * wound;
   c.rot = wrapAngle((c.rot || 0) + spin.dir * speed * ((now - spin.last) / 1000));
   spin.last = now;
   // Only the piece being turned moves, so a spin costs one style write a frame.

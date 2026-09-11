@@ -149,9 +149,10 @@ bill charges for what is on the piece, never for what is still in the tray.
 
 **Turning a piece** is two arrows and nothing else — no number to read, none to
 type. **Tap** one and the piece moves a single degree, for the last small
-correction. **Hold** it and the piece keeps turning, slowly at first and winding
-up to about a full turn in two seconds; let go and it stops exactly where it is,
-at whatever angle that happened to be. Every piece keeps its own angle.
+correction. **Hold** it — past half a second — and the piece keeps
+turning, creeping away from that first degree and winding up to about a full
+turn in two and a half seconds; let go and it stops exactly where it is, at
+whatever angle that happened to be. Every piece keeps its own angle.
 
 **Nothing is a "base".** A chain, a bangle, a frame — whatever a piece is built
 around is just the first thing placed, and everything sits on the canvas the
