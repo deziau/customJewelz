@@ -530,20 +530,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
 }
 .gallery .main img { width: 78%; height: 78%; object-fit: contain; }
-/* True-size mode: the photo is drawn at the piece's real millimetres. */
-.gallery .main.measured { place-items: center; padding: 14px; }
-.gallery .main.measured img { width: auto; height: auto; object-fit: contain; flex: none; }
 
 .zoombar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .zoombar button { padding: 4px 10px; }
 .zoombar output { font-family: var(--mono); font-size: 12px; min-width: 46px; text-align: center; }
-.zoombar .rule {
-  display: inline-flex; align-items: flex-end; gap: 5px; margin-left: auto;
-  font-size: 11px; color: var(--muted); white-space: nowrap;
-}
-.zoombar .rule i {
-  display: block; height: 8px; border: 1px solid var(--muted); border-top: none;
-}
 .size-line { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .card .size { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -1020,8 +1010,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
           <output id="zoom-out-val">100%</output>
           <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
-          <button type="button" class="tiny" data-zoom="reset">Actual size</button>
-          <span class="rule" id="item-rule"></span>
+          <button type="button" class="tiny" data-zoom="reset">Fit the frame</button>
         </div>
         <div class="thumbs" id="item-thumbs"></div>
       </div>
@@ -1582,9 +1571,9 @@ function sectionOf(slugValue) {
    all sit on the canvas the same way, and whichever one you place first is
    simply the thing the rest hangs on. */
 
-/* Browsers treat 96 CSS pixels as an inch, which is what every "actual size"
-   feature leans on. It is an approximation of the real screen, so the sheet
-   also draws a centimetre rule the eye can check against. */
+/* Browsers treat 96 CSS pixels as an inch, which is what the canvas's "actual
+   size" leans on. It is an approximation of the real screen, so the canvas also
+   carries a centimetre grid the eye can check against. */
 const PX_PER_MM = 96 / 25.4;
 const hasSize = (item) => Boolean(item && item.widthMm && item.heightMm);
 const longestMm = (item) => Math.max(item.widthMm || 0, item.heightMm || 0);
@@ -1943,33 +1932,30 @@ function paintCatalogue() {
 /* ----------------------------------------------------------- product sheet */
 
 /**
- * Draws the photo at the piece's real size when we know its millimetres, with
- * a zoom and a centimetre rule beside it; falls back to a contained thumbnail
- * for anything not measured yet.
+ * Shows the photo as it was taken, filling the frame. It used to be drawn at
+ * the piece's real millimetres, which shrank a big clear photo of a small charm
+ * down to almost nothing; the measurements are written beside it instead. Zoom
+ * magnifies the picture from there, the way any photo zooms.
  */
 function paintGallery(item) {
   const main = $('#item-main');
   const bar = $('#item-zoom');
   const src = item.images[S.sheet.image] || item.images[0];
+  main.className = 'main';
 
-  if (!hasSize(item) || !src) {
-    main.className = 'main';
+  if (!src) {
     main.innerHTML = shotHtml(item, S.sheet.image);
     bar.hidden = true;
     return;
   }
 
   const zoom = S.sheet.zoom || 1;
-  const w = item.widthMm * PX_PER_MM * zoom;
-  const h = item.heightMm * PX_PER_MM * zoom;
-  main.className = 'main measured';
+  const side = 78 * zoom;                       // 78% of the frame is the fit
   main.innerHTML = `<img src="${esc(src)}" alt="${esc(item.name)}"
-    style="width:${w}px;height:${h}px">`;
+    style="width:${side}%;height:${side}%">`;
 
   bar.hidden = false;
   $('#zoom-out-val').textContent = `${Math.round(zoom * 100)}%`;
-  const ruleWidth = 10 * PX_PER_MM * zoom;
-  $('#item-rule').innerHTML = `<i style="width:${ruleWidth}px"></i><span>1 cm</span>`;
 }
 
 function openSheet(itemId) {
@@ -2144,8 +2130,7 @@ function paintPlaceRail() {
  */
 const stagePx = () => ($('#stage') ? $('#stage').clientWidth : 0) || 640;
 
-/** The canvas at life size: 96 pixels to the inch, the convention the product
- *  page's centimetre rule leans on too. */
+/** The canvas at life size: 96 pixels to the inch. */
 const lifeMm = () => stagePx() / PX_PER_MM;
 
 const ZOOM_MIN = 0.15;

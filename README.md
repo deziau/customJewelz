@@ -269,14 +269,17 @@ says it is.
 
 **Every component carries its real size**, in millimetres, entered once in the
 studio. Customers see it in both units — "1.2 × 1.2 cm · 0.47 × 0.47 in" — on
-the card and the product page, and the product photo is drawn at that true
-size, with zoom controls and a centimetre rule beside it to check against. When
+the card and the product page. The **product photo is shown as it was taken**,
+filling its frame, with zoom to look closer: a clear photo of a 3 mm jump ring
+is worth seeing, and drawing it three millimetres wide was not. The
+measurements sit beside the picture, in words, where they read properly. When
 both a base and a charm are measured, the design canvas draws them to scale to
-each other, so a 12 mm heart on a 65 mm band looks like one.
+each other, so a 12 mm heart on a 65 mm band looks like one — scale belongs to
+the canvas, where pieces are compared against each other.
 
-True size assumes the browser convention of 96 pixels to the inch. That is what
-every "actual size" feature relies on and it is close on most screens, but it
-is an approximation of the real display — hence the rule.
+Life size on the canvas assumes the browser convention of 96 pixels to the
+inch. It is close on most screens but an approximation of the real display —
+hence the centimetre grid to check against.
 
 **Components sold by length.** A component can be sold by the piece or by
 length — chain, cord, ribbon. A length component is priced **per metre**,
@@ -314,7 +317,7 @@ tiles open the repo.
 
 **Everything on the canvas is drawn at the size it really is** — and while the
 design fits, at life size: a 65 mm bangle measures 65 mm on the screen, on the
-same 96-pixels-to-the-inch convention the product page's centimetre rule uses.
+same 96-pixels-to-the-inch convention the centimetre grid is drawn on.
 A charm is laid down at the width and height entered for it, so a 10 mm bell
 beside a 70 mm frame is a seventh of its width, not a thumbnail beside a
 thumbnail. **Nothing is rescaled behind the customer's back**: adding a piece never
