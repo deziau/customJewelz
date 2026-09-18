@@ -187,8 +187,16 @@ further than its ends. Tap the base, or any of its hangings, to say which
 formation the buttons act on when there is more than one. Dragging a hanging by
 hand still works; taking the base off cuts the tie and leaves everything loose.
 
-The canvas carries a **centimetre grid**, drawn at its own scale so a square is
-a square centimetre of real jewellery, with every fifth line a little stronger.
+**A rule down two edges, and room to scroll.** The canvas is ruled along its top
+and left edges in centimetres, numbered, with millimetre ticks appearing as soon
+as a millimetre is wide enough to see and the numbering thinning to every five
+centimetres when it is not. The rule reads the canvas itself, so it follows both
+the zoom and the scroll: at any magnification, what it says is what the piece
+measures. The grid behind the piece does the same — centimetre squares at arm's
+length, millimetres once you are close — and the canvas scrolls up, down and
+sideways whenever the zoom makes it bigger than the window, by scrollbar, wheel
+or finger. Zooming holds whatever is in the middle of the view in the middle of
+the view.
 
 **Design** — the tray becomes the rail beside the canvas, largest piece first:
 only what they picked can be placed, and each row counts down ("8 of 10 to
