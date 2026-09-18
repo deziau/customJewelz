@@ -2249,6 +2249,17 @@ const ZOOM_MAX = 4;
 /** How much room the piece on the canvas actually needs, in millimetres. */
 function contentMm() {
   let need = 0;
+  // How far apart the pieces have been dragged counts as well as how big they
+  // are — something pulled well below the canvas still has to fit in a Fit.
+  if (S.charms.length) {
+    // Measured from the canvas's own edges outwards, so a piece still on the
+    // canvas asks for nothing extra and one dragged below it asks for exactly
+    // the room it has taken.
+    const at = S.charms.flatMap((c) => [c.x, c.y]);
+    const lo = Math.min(0, ...at);
+    const hi = Math.max(100, ...at);
+    need = ((hi - lo) / 100) * lifeMm();
+  }
   for (const c of S.charms) {
     const item = itemOf(c.itemId);
     if (!item) continue;
@@ -2307,6 +2318,29 @@ function setZoom(z) {
   const k = pan.offsetWidth / was;
   stage.scrollLeft = pan.offsetLeft + midX * k - stage.clientWidth / 2;
   stage.scrollTop = pan.offsetTop + midY * k - stage.clientHeight / 2;
+  paintGrid();
+  paintRulers();
+}
+
+/**
+ * Pull back far enough to see the lot, then look at the middle of it — a piece
+ * dragged well below the canvas is found by the same button that shrinks to it.
+ */
+function showEverything() {
+  setZoom(fitZoom());
+  const stage = $('#stage');
+  const pan = $('#stage-pan');
+  if (!stage || !pan || !S.charms.length) return;
+  const side = pan.offsetWidth || 1;
+  const mid = (vals) => {
+    const lo = Math.min(0, ...vals);
+    const hi = Math.max(100, ...vals);
+    return (lo + hi) / 2;
+  };
+  const midX = mid(S.charms.map((c) => c.x));
+  const midY = mid(S.charms.map((c) => c.y));
+  stage.scrollLeft = pan.offsetLeft + (midX / 100) * side - stage.clientWidth / 2;
+  stage.scrollTop = pan.offsetTop + (midY / 100) * side - stage.clientHeight / 2;
   paintGrid();
   paintRulers();
 }
@@ -2578,14 +2612,38 @@ function stopSpin() {
   paintStage();
 }
 
-function paintStage() {
-  const stage = $('#stage-zoom');
+/**
+ * The canvas square, and the room around it. Nothing fences a piece in, so
+ * whatever has been dragged off the canvas is given scrollable room of its own
+ * — you can always scroll to a piece and carry on dragging it.
+ */
+function sizeField() {
+  const stage = $('#stage');
   const pan = $('#stage-pan');
-  // The canvas is one square that grows with the zoom. Everything on it is
-  // placed as a percentage of that square, so the picture enlarges whole.
+  if (!stage || !pan) return;
   const side = Math.round((stagePx() || 640) * S.zoom);
   pan.style.width = `${side}px`;
   pan.style.height = `${side}px`;
+
+  const xs = S.charms.map((c) => c.x);
+  const ys = S.charms.map((c) => c.y);
+  const lowX = Math.min(0, ...xs); const highX = Math.max(100, ...xs);
+  const lowY = Math.min(0, ...ys); const highY = Math.max(100, ...ys);
+  const out = (v) => Math.round((Math.abs(v) / 100) * side) + 60;
+
+  // While everything is on the canvas and the canvas fits, it simply sits in
+  // the middle. Once a piece has been pulled outside, that side is given the
+  // room it has taken, so it can be scrolled to and dragged further.
+  const loose = (lo, hi, span) => (lo < 0 || hi > 100 || side > span
+    ? [`${out(lo)}px`, `${out(hi - 100)}px`] : ['auto', 'auto']);
+  const [ml, mr] = loose(lowX, highX, stage.clientWidth);
+  const [mt, mb] = loose(lowY, highY, stage.clientHeight);
+  pan.style.margin = `${mt} ${mr} ${mb} ${ml}`;
+}
+
+function paintStage() {
+  const stage = $('#stage-zoom');
+  sizeField();
   $$('.charm', stage).forEach((n) => n.remove());
   paintGuide();
   paintGrid();
@@ -2823,36 +2881,60 @@ function startMove(ev, charm, node) {
     if (c) n.style.zIndex = String(c.z);
   });
 
-  const rect = $('#stage-pan').getBoundingClientRect();
+  // Everything is worked out from where the pointer is on the canvas *now*, so
+  // the drag survives the canvas scrolling under it.
+  const grab = onPiece(ev.clientX, ev.clientY);
   const x0 = ev.clientX; const y0 = ev.clientY;
-  const from = group.map((c) => ({ c, x: c.x, y: c.y }));
-  // The group moves as one: the whole formation stops at the edge together,
-  // rather than each piece flattening against it and losing its spacing.
-  const lowX = Math.min(...from.map((o) => o.x));
-  const highX = Math.max(...from.map((o) => o.x));
-  const lowY = Math.min(...from.map((o) => o.y));
-  const highY = Math.max(...from.map((o) => o.y));
+  const from = group.map((c) => ({ c, dx: c.x - grab.x, dy: c.y - grab.y }));
   let moved = false;
+  let at = { x: ev.clientX, y: ev.clientY };
+  let roll = 0;
 
-  const move = (e) => {
-    // A few pixels of wobble while tapping is not a drag. Without this a
-    // strand could swing to a new angle just from being selected.
-    if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
-    moved = true;
-    // Zoomed in, a piece has to travel further on screen to move as far on the
-    // piece, or it would race away from the pointer.
-    const dx = clamp(((e.clientX - x0) / rect.width) * 100, -40 - lowX, 140 - highX);
-    const dy = clamp(((e.clientY - y0) / rect.height) * 100, -40 - lowY, 140 - highY);
+  const put = () => {
+    const now = onPiece(at.x, at.y);
     for (const o of from) {
-      o.c.x = o.x + dx;
-      o.c.y = o.y + dy;
+      o.c.x = now.x + o.dx;
+      o.c.y = now.y + o.dy;
       const n = nodes.get(o.c.uid);
       if (!n) continue;
       n.style.left = o.c.x + '%';
       n.style.top = o.c.y + '%';
     }
   };
+
+  // Held against an edge, the canvas walks under the piece — that is what lets
+  // a hanging be pulled further down than the window is tall.
+  const EDGE = 40;
+  const creep = () => {
+    roll = 0;
+    const stage = $('#stage');
+    const r = stage.getBoundingClientRect();
+    const push = (near, far) => (near < EDGE ? -Math.min(18, EDGE - near)
+      : far < EDGE ? Math.min(18, EDGE - far) : 0);
+    const sx = push(at.x - r.left, r.right - at.x);
+    const sy = push(at.y - r.top, r.bottom - at.y);
+    if (!moved || (!sx && !sy)) return;
+    sizeField();                      // make room to scroll into first
+    stage.scrollLeft += sx;
+    stage.scrollTop += sy;
+    put();
+    paintGrid();
+    paintRulers();
+    roll = requestAnimationFrame(creep);
+  };
+
+  const move = (e) => {
+    // A few pixels of wobble while tapping is not a drag. Without this a
+    // strand could swing to a new angle just from being selected.
+    if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
+    moved = true;
+    at = { x: e.clientX, y: e.clientY };
+    put();
+    sizeField();
+    if (!roll) roll = requestAnimationFrame(creep);
+  };
   const up = () => {
+    cancelAnimationFrame(roll);
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     paintStage();
@@ -4873,7 +4955,7 @@ function wireDesign() {
     if (how === 'in') setZoom(S.zoom * 1.25);
     if (how === 'out') setZoom(S.zoom / 1.25);
     if (how === 'reset') setZoom(1);
-    if (how === 'fit') setZoom(fitZoom());
+    if (how === 'fit') showEverything();
   }));
 
   $$('.tools button[data-turn]').forEach((b) => {

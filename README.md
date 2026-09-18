@@ -213,6 +213,15 @@ The canvas scrolls up, down and sideways whenever the zoom makes it bigger than
 the window — scrollbar, wheel or finger — and zooming holds whatever is in the
 middle of the view in the middle of the view.
 
+**Nothing is fenced in.** A piece can be dragged as far below or beside the
+canvas as the real thing hangs: hold it against an edge and the canvas walks
+along under it, and the scrollable area grows to keep whatever has been dragged
+out there reachable, so the next drag carries on from where the last one
+stopped. **Fit** pulls back far enough to show the lot and looks at the middle
+of it, so a piece pulled half a metre below the canvas is one button away from
+being found again. The dashed square still marks the canvas proper — the part
+the order's picture is taken of.
+
 **Design** — the tray becomes the rail beside the canvas, **grouped by section**
 in the studio's own order and largest piece first inside each, with a count of
 what is still to place beside every heading. Only what they picked can be
