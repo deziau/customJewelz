@@ -151,6 +151,13 @@ necklace) whether they run the whole length or gather in the middle third. With
 more than one chain in the tray, each hanging picks its own, numbered left to
 right.
 
+It asks which piece the design is built on **only when that is a real choice**.
+A bangle is built on a bangle, so only bangles are offered — the charms in the
+tray are not candidates — and with one bangle in the tray, or five of the same
+one, the question is skipped entirely. Two different bangles, or two colours of
+one, and it asks. A kind with nothing of its sort in the tray (a kaleera with no
+frame) falls back to offering every piece rather than an empty list.
+
 Before it lays anything down it compares the design against the tray and says
 so if it falls short: *"Your tray is short of 22 cm of Gold Chain"* — with
 **Shorten to fit**, which trims every hanging by the same share until it fits,

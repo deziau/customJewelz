@@ -4165,13 +4165,29 @@ const trayHeld = (row) => trayQty(row.itemId, row.variantId);
 const trayChains = () => trayRows().filter((r) => isLength(r.item));
 const trayPieces = () => trayRows().filter((r) => !isLength(r.item));
 
-/** Pieces that suit this kind of base come first; everything else still shows. */
+/**
+ * What this kind of piece can be built on. A bangle is built on a bangle, so
+ * that is all the list offers — charms in the tray are not candidates. Only if
+ * the tray holds nothing of the sort does it fall back to every piece in it,
+ * rather than offering an empty list.
+ */
 function baseChoices(kind) {
   const rows = trayPieces();
   if (!kind.prefer) return rows;
   const fits = (r) => `${sectionOf(r.item.category).name} ${r.item.name}`
     .toLowerCase().includes(kind.prefer);
-  return [...rows.filter(fits), ...rows.filter((r) => !fits(r))];
+  const suited = rows.filter(fits);
+  return suited.length ? suited : rows;
+}
+
+/**
+ * Whether to ask which one it is built on. Two of the same bangle is not a
+ * choice — only genuinely different pieces are, so five bangles of one kind go
+ * straight past this question.
+ */
+function needsBasePick(kind) {
+  const rows = kind.base === 'chain' ? trayChains() : baseChoices(kind);
+  return new Set(rows.map((r) => `${r.itemId}::${r.variantId}`)).size > 1;
 }
 
 function openStart(force = false) {
@@ -4498,7 +4514,7 @@ function wireStart() {
       S.start.baseLen = k.base === 'chain'
         ? Math.min(k.id === 'necklace' ? 45 : k.id === 'charm' ? 8 : 18, trayHeld(rows[0]))
         : 0;
-      S.start.step = rows.length > 1 ? 'base' : 'shape';
+      S.start.step = needsBasePick(k) ? 'base' : 'shape';
       paintStart();
       return;
     }
