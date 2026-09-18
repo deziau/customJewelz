@@ -302,6 +302,14 @@ length — chain, cord, ribbon. A length component is priced **per metre**,
 stocked in centimetres, and bought by the metre rather than by the count: the
 product page asks *how much*, not *how many*, and prices it live.
 
+**Sold by follows the section.** Choosing the section in the component form
+sets *Sold by* to match it: a section that already holds components follows what
+those are sold by, and an empty one is read from its name — *Chains & tassels*,
+*Silk cord* or *Ribbon* start by the metre, *Charms*, *Pendants* and *Bangles* by
+the piece. It is a head start, not a rule: the *Sold by* box still decides, and
+a change made there by hand sticks. Opening an existing component never touches
+its own setting.
+
 In the design room a length becomes **hangings**. Dropping chain onto a piece
 asks how long that hanging should be, and each one draws to its true length
 against everything else — so five tassels of 8, 12, 18, 25 and 15 cm come off

@@ -1580,6 +1580,21 @@ function sections() {
   return Array.isArray(S.settings.sections) ? S.settings.sections : [];
 }
 
+/* Things a section of this name is measured out by the metre: chain, cord and
+   the rest. A section that already holds components is better evidence than its
+   name, so the name is only read when the section is still empty. */
+const LENGTH_NAMES = /\b(chain|chains|cord|cords|ribbon|ribbons|tassel|tassels|thread|threads|lace|laces|string|strings|wire|wires|rope|ropes|braid|braids|elastic|tape|twine)\b/i;
+
+/** How a component in this section is most likely sold. */
+function soldByForSection(slugValue) {
+  const inIt = S.items.filter((i) => i.category === slugValue);
+  if (inIt.length) {
+    const byLength = inIt.filter((i) => i.soldBy === 'length').length;
+    return byLength * 2 > inIt.length ? 'length' : 'piece';
+  }
+  return LENGTH_NAMES.test(sectionOf(slugValue).name) ? 'length' : 'piece';
+}
+
 function sectionOf(slugValue) {
   return sections().find((c) => c.slug === slugValue) || { slug: slugValue, name: slugValue || 'Other', kind: 'attachment' };
 }
@@ -3583,7 +3598,8 @@ function openPieceDialog(item) {
   } else {
     f.id.value = '';
     f.canFlip.checked = false;
-    f.soldBy.value = 'piece';
+    S.draft.soldBy = soldByForSection(f.category.value);
+    f.soldBy.value = S.draft.soldBy;
   }
   paintSoldBy();
   paintSku();
@@ -4778,7 +4794,20 @@ function wirePieceDialog() {
   });
 
   f.name.addEventListener('input', paintSku);
-  f.category.addEventListener('change', paintSku);
+  // Picking the section says how the thing is sold: chain by the metre, charms
+  // by the piece. It is only a head start — the Sold by box still decides, and
+  // changing it by hand afterwards sticks.
+  f.category.addEventListener('change', () => {
+    paintSku();
+    const want = soldByForSection(f.category.value);
+    if (want === S.draft.soldBy) return;
+    S.draft.soldBy = want;
+    f.soldBy.value = want;
+    paintSoldBy();
+    toast(want === 'length'
+      ? `${sectionOf(f.category.value).name} is sold by length — change it below if this one is not.`
+      : `${sectionOf(f.category.value).name} is sold by the piece — change it below if this one is not.`);
+  });
   $('#sku-renew').addEventListener('click', () => {
     S.draft.kept = false;          // from here on it follows the section and name
     paintSku();
