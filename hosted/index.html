@@ -623,12 +623,31 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .tray-line .sub { font-size: 11.5px; color: var(--muted); }
 .tray-line.spent { opacity: .55; }
 
-.place-list { display: grid; gap: 9px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
-.placeable {
-  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center;
-  border: 1px solid var(--line); border-radius: 9px; padding: 8px; cursor: grab;
-  background: var(--surface); transition: border-color .14s, transform .1s;
+.place-list { display: grid; gap: 14px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
+/* The tray, section by section, so a long tray can still be read at a glance. */
+.rail-section { display: grid; gap: 8px; }
+.rail-section h3 {
+  display: flex; align-items: baseline; gap: 8px; margin: 0; font-family: var(--body);
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); position: sticky; top: -12px; z-index: 1;
+  background: var(--surface); padding: 4px 0 3px;
 }
+.rail-section h3 span { margin-left: auto; font-weight: 500; letter-spacing: .02em;
+  text-transform: none; font-size: 10.5px; }
+.placeable {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 6px 10px;
+  align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 8px;
+  cursor: grab; background: var(--surface); transition: border-color .14s, transform .1s;
+}
+.placeable .shot { grid-row: span 2; }
+.placeable .who { grid-column: 2; }
+.placeable .place-btn {
+  grid-column: 2 / -1; width: 100%; padding: 5px 10px; font-size: 11.5px; font-weight: 700;
+  border-radius: 7px; border-color: var(--accent); color: var(--accent);
+  background: var(--accent-soft);
+}
+.placeable .place-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.placeable .place-btn:disabled { opacity: .4; }
 .placeable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .placeable:active { cursor: grabbing; }
 .placeable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -995,25 +1014,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
       </div>
-      <p class="muted" style="font-size:12.5px;text-align:center;max-width:58ch">
-        Drag a piece from your tray onto the canvas, then drag it again to position it.
-        Tap it to select, then turn it: tap an arrow to nudge it a degree, or hold it down
-        and the piece keeps turning until you let go.
-        The rule along the top and left edges reads the canvas in centimetres, down to
-        millimetres once you are close enough, and the canvas scrolls up, down and
-        sideways when the piece is bigger than the window.
-        Hold <b>Shift</b> (or use <b>Select more</b> on a phone) and tap to select several
-        pieces at once — dragging any of them moves the whole group, keeping its spacing.
-        A piece the studio marked as flippable shows a <b>Flip</b> button when it is selected,
-        which mirrors it left to right without changing its angle.
-        When something hangs off a base, <b>Hangings closer</b> and <b>Hangings wider</b>
-        change the space between them — on a bangle they walk along its edge, and the
-        formation stays centred either way.
-        Take it off with the button above or the Delete key — anything you take off goes
-        straight back to your tray. The canvas shows everything at its real size; − and + zoom in
-        and out, the label in between comes back to actual size, and <b>Fit</b> appears when
-        something runs past the edge.
-      </p>
     </div>
 
     <div class="rail">
@@ -2168,32 +2168,62 @@ function paintTrayPip() {
 /* -------------------------------------------------------------- place rail */
 
 function paintPlaceRail() {
+  const rail = $('#place-rail');
   const rows = trayRows();
   if (!rows.length) {
-    $('#place-rail').innerHTML = `<div class="empty-rail">
+    rail.innerHTML = `<div class="empty-rail">
       <p class="muted" style="margin:0">Your tray is empty, so there's nothing to place yet.</p>
       <button class="solid" id="rail-browse">Browse the collection</button></div>`;
     return;
   }
-  // Largest first, so the piece most people build on is at the top.
-  rows.sort((a, b) => longestMm(b.item) - longestMm(a.item));
-  $('#place-rail').innerHTML = `<div class="place-list">${rows.map((r) => {
-    const left = toPlace(r.itemId, r.variantId);
-    return `<div class="placeable ${left <= 0 ? 'done' : ''}"
-      data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
-      draggable="${left > 0}" tabindex="0" role="button"
-      title="${esc(r.item.note || r.item.name)}">
-      <span class="shot">${shotHtml(r.item, r.variantId)}</span>
-      <span>
-        <span class="nm">${esc(r.item.name)}${r.variant && r.variant.name
-          ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
-        <span class="sub">${left > 0
-          ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
-          : 'all placed'}</span>
-      </span>
-      ${trayControls(r.item)}
-    </div>`;
-  }).join('')}</div>`;
+  // Placing a piece repaints the rail; without this the list would jump back to
+  // the top every time, and the next piece would be somewhere else.
+  const list = $('.place-list', rail);
+  const wasAt = list ? list.scrollTop : 0;
+
+  // Section by section, in the studio's own order, and largest first inside each.
+  const order = new Map(sections().map((c, i) => [c.slug, i]));
+  const groups = new Map();
+  for (const r of rows) {
+    const slug = r.item.category || '';
+    if (!groups.has(slug)) groups.set(slug, []);
+    groups.get(slug).push(r);
+  }
+  const blocks = [...groups.entries()]
+    .sort((a, b) => (order.has(a[0]) ? order.get(a[0]) : 99) - (order.has(b[0]) ? order.get(b[0]) : 99))
+    .map(([slug, list2]) => {
+      list2.sort((a, b) => longestMm(b.item) - longestMm(a.item));
+      const waiting = list2.filter((r) => toPlace(r.itemId, r.variantId) > 0).length;
+      return `<div class="rail-section">
+        <h3>${esc(sectionOf(slug).name)}
+          <span>${waiting ? `${waiting} to place` : 'all placed'}</span></h3>
+        ${list2.map(railRow).join('')}
+      </div>`;
+    });
+
+  rail.innerHTML = `<div class="place-list">${blocks.join('')}</div>`;
+  const now = $('.place-list', rail);
+  if (now) now.scrollTop = wasAt;
+}
+
+/** One piece waiting in the tray. */
+function railRow(r) {
+  const left = toPlace(r.itemId, r.variantId);
+  return `<div class="placeable ${left <= 0 ? 'done' : ''}"
+    data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
+    draggable="${left > 0}" title="${esc(r.item.note || r.item.name)}">
+    <span class="shot">${shotHtml(r.item, r.variantId)}</span>
+    <span class="who">
+      <span class="nm">${esc(r.item.name)}${r.variant && r.variant.name
+        ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
+      <span class="sub">${left > 0
+        ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
+        : 'all placed'}</span>
+    </span>
+    ${trayControls(r.item)}
+    <button type="button" class="place-btn" data-place ${left > 0 ? '' : 'disabled'}
+      title="Put one of these on the canvas">Place on canvas</button>
+  </div>`;
 }
 
 /* ------------------------------------------------------------------ stage */
@@ -4712,9 +4742,13 @@ function adjustTray(itemId, variantId, action) {
 /** The three controls, wherever they are shown. */
 function trayControls(item) {
   const unit = isLength(item) ? '10 cm' : 'one';
+  // − and + are about the tray: how much of it you are buying. Placing on the
+  // canvas is its own button, below.
   return `<span class="tray-ctl">
-    <button type="button" data-tray="less" title="${unit} less" aria-label="${unit} less">−</button>
-    <button type="button" data-tray="more" title="${unit} more" aria-label="${unit} more">+</button>
+    <button type="button" data-tray="less" title="${unit} less in your tray"
+      aria-label="${unit} less in your tray">−</button>
+    <button type="button" data-tray="more" title="${unit} more in your tray"
+      aria-label="${unit} more in your tray">+</button>
     <button type="button" data-tray="drop" class="drop" title="Take out of your tray"
       aria-label="Take out of your tray">×</button>
   </span>`;
@@ -4722,10 +4756,16 @@ function trayControls(item) {
 
 /** Returns true when the click was a tray control rather than a placement. */
 function handleTrayControl(e) {
+  const row = e.target.closest('.placeable');
+  if (!row) return false;
+  if (e.target.closest('button[data-place]')) {
+    e.stopPropagation();
+    if (!row.classList.contains('done')) place(row.dataset.item, row.dataset.variant, 50, 50);
+    return true;
+  }
   const btn = e.target.closest('button[data-tray]');
   if (!btn) return false;
   e.stopPropagation();
-  const row = btn.closest('.placeable');
   adjustTray(row.dataset.item, row.dataset.variant, btn.dataset.tray);
   return true;
 }
@@ -4738,6 +4778,7 @@ function wireDesign() {
   };
   $('#place-rail').addEventListener('click', (e) => {
     if (e.target.id === 'rail-browse') return setMode('browse');
+    if (e.target.closest('[data-place]')) { handleTrayControl(e); return; }
     // Everything inside the control cluster is a dead zone for placing, so a
     // near-miss on a small button never quietly adds a piece to the design.
     if (e.target.closest('.tray-ctl')) { handleTrayControl(e); return; }

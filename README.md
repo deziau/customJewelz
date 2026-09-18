@@ -206,10 +206,18 @@ The canvas scrolls up, down and sideways whenever the zoom makes it bigger than
 the window — scrollbar, wheel or finger — and zooming holds whatever is in the
 middle of the view in the middle of the view.
 
-**Design** — the tray becomes the rail beside the canvas, largest piece first:
-only what they picked can be placed, and each row counts down ("8 of 10 to
-place"). Taking a piece off the design puts it straight back in the tray. The
-bill charges for what is on the piece, never for what is still in the tray.
+**Design** — the tray becomes the rail beside the canvas, **grouped by section**
+in the studio's own order and largest piece first inside each, with a count of
+what is still to place beside every heading. Only what they picked can be
+placed, and each row counts down ("8 of 10 to place"). Taking a piece off the
+design puts it straight back in the tray. The bill charges for what is on the
+piece, never for what is still in the tray.
+
+Each row separates the two things a row can mean: **− and +** change how much of
+that piece is *in the tray* — what they are buying — while **Place on canvas**
+puts one of them *on the design*. Dragging a row onto the canvas still works for
+anyone who prefers it, and placing a piece leaves the rail scrolled exactly
+where it was, so the next piece is still under the cursor.
 
 A strand hangs straight down from its pin, and the only thing that ever changes
 that is the rotate arrows — not moving it, not selecting it, not switching
