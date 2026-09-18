@@ -213,27 +213,55 @@ The canvas scrolls up, down and sideways whenever the zoom makes it bigger than
 the window — scrollbar, wheel or finger — and zooming holds whatever is in the
 middle of the view in the middle of the view.
 
+**A piece lands where you are looking.** Anything added from the tray goes to
+clear space inside the visible part of the canvas — never on top of what is
+already there, and never off-screen because the canvas happens to be scrolled
+somewhere else. Dropped by hand it lands where it was dropped, unless that spot
+is taken.
+
+**Pieces can be fixed to one another.** Lay a chain across a bangle, or a charm
+on a chain, and **Fix to…** ties them together: from then on moving either one
+moves both, however many are fixed in the chain of them. **Unfix** lets the
+piece go again, to be moved on its own. Hangings the walk-through lays out start
+fixed to the piece they hang from.
+
+**The tools know what is in hand.** The row under the canvas is grouped by what
+each button acts on, and a group with nothing to act on is not there at all: the
+piece's own tools (turn, flip, fix, bring forward, take off) appear when a piece
+is picked and name it; **Round / Straight** only for a chain, since it means
+nothing to a charm or a bangle; **Hangings closer / wider** only for something
+with hangings on it; and the canvas's own tools — zoom, fit, select more, start
+a piece — always.
+
+**The bench is as big as you want it.** Drag the canvas's bottom-right corner,
+or use **Bench ↔ + / ↕ + / − / Reset** beneath it, to make the working area
+wider, taller or both, up to the room the screen has. The size is remembered
+between visits, and comes back inside the screen if you open it on a smaller one.
+
 **Nothing is fenced in.** A piece can be dragged as far below or beside the
 canvas as the real thing hangs: hold it against an edge and the canvas walks
 along under it, and the scrollable area grows to keep whatever has been dragged
 out there reachable, so the next drag carries on from where the last one
-stopped. **Fit** pulls back far enough to show the lot and looks at the middle
+stopped. While it travels, the outline and the × come off it, so nothing is
+drawn over what is being lined up. **Fit** pulls back far enough to show the lot and looks at the middle
 of it, so a piece pulled half a metre below the canvas is one button away from
 being found again. The dashed square still marks the canvas proper — the part
 the order's picture is taken of.
 
-**Design** — the tray becomes the rail beside the canvas, **grouped by section**
-in the studio's own order and largest piece first inside each, with a count of
-what is still to place beside every heading. Only what they picked can be
-placed, and each row counts down ("8 of 10 to place"). Taking a piece off the
-design puts it straight back in the tray. The bill charges for what is on the
-piece, never for what is still in the tray.
+**Design** — the tray becomes the rail beside the canvas, with **a tab per
+section** (Charms, Pendants, Chains…) so only one kind of piece is in front of
+you at a time, each tab carrying a count of what is still to place. The pieces
+are compact cards laid out in as many columns as the rail is wide enough to
+hold, so a wide screen shows a row of them and a phone shows fewer. Taking a
+piece off the design puts it straight back in the tray, and the bill charges for
+what is on the piece, never for what is still in the tray.
 
-Each row separates the two things a row can mean: **− and +** change how much of
-that piece is *in the tray* — what they are buying — while **Place on canvas**
-puts one of them *on the design*. Dragging a row onto the canvas still works for
-anyone who prefers it, and placing a piece leaves the rail scrolled exactly
-where it was, so the next piece is still under the cursor.
+Every card carries **the two counts, each labelled**: **In tray** — how much of
+it you are buying — and **On design** — how much of it is on the canvas. Both
+have their own − and +, so adding to the tray and laying one out are never the
+same gesture: the design + drops another one into clear space on the canvas, and
+its − takes the last one back off. Dragging a card onto the canvas still works,
+and placing a piece leaves the rail exactly where it was scrolled.
 
 A strand hangs straight down from its pin, and the only thing that ever changes
 that is the rotate arrows — not moving it, not selecting it, not switching

@@ -210,9 +210,14 @@ h3 { font-size: 15px; }
 
 /* The canvas with a rule down two of its edges, like a drawing board. */
 .stage-wrap {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 18px auto;
-  width: 100%; max-width: 664px; color: var(--muted);
+  display: grid; grid-template-columns: 22px auto; grid-template-rows: 18px auto;
+  width: max-content; max-width: 100%; color: var(--muted);
 }
+.stage-size {
+  grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; justify-content: flex-end;
+  padding-top: 6px; font-size: 10.5px; color: var(--muted);
+}
+.stage-size button { padding: 2px 8px; font-size: 11px; }
 .ruler { position: relative; overflow: hidden; }
 .ruler svg { display: block; }
 .ruler-x { grid-column: 2; grid-row: 1; align-self: end; }
@@ -222,9 +227,12 @@ h3 { font-size: 15px; }
   font-size: 9px; letter-spacing: .04em;
 }
 .stage {
-  position: relative; width: 100%; max-width: 640px; aspect-ratio: 1;
+  position: relative; width: 640px; height: 640px; max-width: 100%;
   border: 1px solid var(--line); border-radius: var(--radius); overflow: scroll;
   display: flex; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  /* Drag the corner to make the bench as big as the screen allows — wider,
+     taller, or both. The size is remembered. */
+  resize: both; min-width: 240px; min-height: 240px;
   background:
     radial-gradient(ellipse at 50% 42%, var(--velvet-1) 0%, var(--velvet-2) 78%),
     var(--velvet-2);
@@ -303,6 +311,14 @@ h3 { font-size: 15px; }
    neighbours; the shadow is what makes the stack read as one assembled piece. */
 .charm img.cut, .charm .run.cut { filter: drop-shadow(0 2px 3px rgba(38, 22, 32, .34)); }
 .charm.on { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 5px; }
+/* Mid-drag nothing is drawn around the piece — you are lining it up by eye. */
+.charm.moving { outline: none !important; }
+.charm.moving .lift, .charm.moving .len { display: none !important; }
+/* A piece fixed to another is marked, so it is clear why they travel together. */
+.charm.pinned::after {
+  content: "⚯"; position: absolute; left: -6px; top: -8px; font-size: 11px; line-height: 1;
+  color: var(--accent); opacity: .8; pointer-events: none;
+}
 .charm .lift {
   position: absolute; top: -11px; right: -11px; width: 23px; height: 23px; border-radius: 50%;
   border: none; background: var(--crimson); color: #fff; font-size: 15px; line-height: 1;
@@ -310,7 +326,18 @@ h3 { font-size: 15px; }
 }
 .charm.on .lift { display: grid; }
 
-.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+/* One cluster per thing the buttons act on, so it is always clear what a
+   button will change: the piece in hand, the chain, its hangings, the canvas. */
+.tool-group {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 4px 6px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+}
+.tool-group[hidden] { display: none; }
+.tool-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); padding-right: 2px;
+}
 /* The canvas draws at life size unless it is zoomed; this says which, and
    clicking it comes back to life size. */
 .zoom { display: inline-flex; align-items: center; gap: 4px; }
@@ -623,41 +650,64 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .tray-line .sub { font-size: 11.5px; color: var(--muted); }
 .tray-line.spent { opacity: .55; }
 
-.place-list { display: grid; gap: 14px; padding: 12px 14px 14px; max-height: 56vh; overflow: auto; }
-/* The tray, section by section, so a long tray can still be read at a glance. */
-.rail-section { display: grid; gap: 8px; }
-.rail-section h3 {
-  display: flex; align-items: baseline; gap: 8px; margin: 0; font-family: var(--body);
-  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--muted); position: sticky; top: -12px; z-index: 1;
-  background: var(--surface); padding: 4px 0 3px;
+/* Tabs for the sections in the tray, so only one kind of piece shows at a time. */
+.rail-tabs { display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 12px 0; }
+.rail-tabs button {
+  font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--muted);
+  display: inline-flex; align-items: center; gap: 5px;
 }
-.rail-section h3 span { margin-left: auto; font-weight: 500; letter-spacing: .02em;
-  text-transform: none; font-size: 10.5px; }
+.rail-tabs button[aria-selected="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+.rail-tabs button span {
+  font-family: var(--mono); font-size: 10px; background: var(--surface); border-radius: 999px;
+  padding: 0 5px;
+}
+
+/* As many pieces to a row as the rail is wide enough to hold. */
+.place-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 8px; padding: 10px 12px 14px; max-height: 56vh; overflow: auto;
+}
 .placeable {
-  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 6px 10px;
-  align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 8px;
-  cursor: grab; background: var(--surface); transition: border-color .14s, transform .1s;
+  position: relative; display: grid; gap: 4px; justify-items: center; text-align: center;
+  border: 1px solid var(--line); border-radius: 9px; padding: 8px 6px 7px; cursor: grab;
+  background: var(--surface); transition: border-color .14s, transform .1s;
 }
-.placeable .shot { grid-row: span 2; }
-.placeable .who { grid-column: 2; }
-.placeable .place-btn {
-  grid-column: 2 / -1; width: 100%; padding: 5px 10px; font-size: 11.5px; font-weight: 700;
-  border-radius: 7px; border-color: var(--accent); color: var(--accent);
-  background: var(--accent-soft);
-}
-.placeable .place-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
-.placeable .place-btn:disabled { opacity: .4; }
 .placeable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .placeable:active { cursor: grabbing; }
 .placeable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.placeable.done { opacity: .45; cursor: not-allowed; }
-.placeable .shot { width: 46px; height: 46px; display: grid; place-items: center; }
-.placeable .shot img { max-width: 100%; max-height: 46px; object-fit: contain; }
-.placeable .shot .glyph { font-size: 28px; line-height: 1; }
-.placeable .nm { font-size: 12.5px; line-height: 1.25; }
-.placeable .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.placeable.on { border-color: var(--accent); background: var(--accent-soft); }
+.placeable.full { opacity: .72; }
+.placeable .shot { width: 44px; height: 44px; display: grid; place-items: center; }
+.placeable .shot img { max-width: 100%; max-height: 44px; object-fit: contain; }
+.placeable .shot .glyph { font-size: 26px; line-height: 1; }
+.placeable .nm {
+  font-size: 11.5px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.placeable .drop {
+  position: absolute; top: 3px; right: 3px; width: 19px; height: 19px; padding: 0;
+  border-radius: 999px; font-size: 12px; line-height: 1; color: var(--muted);
+  border-color: transparent; background: none; opacity: 0; transition: opacity .12s;
+}
+.placeable:hover .drop, .placeable .drop:focus-visible { opacity: 1; }
+/* The two things a number can mean here, each labelled: what you are buying,
+   and what is on the design. */
+.step {
+  display: grid; grid-template-columns: repeat(3, auto); align-items: center; gap: 3px;
+  justify-content: center;
+}
+.step .step-label {
+  grid-column: 1 / -1; font-size: 8.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.step button { width: 21px; height: 21px; padding: 0; border-radius: 6px; font-size: 13px; line-height: 1; }
+.step b { font-family: var(--mono); font-size: 11.5px; min-width: 30px; }
+.step[data-for="design"] button {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+}
+.step[data-for="design"] button:disabled { opacity: .35; }
 /* --------------------------------------------------- starting a piece off */
 
 #dlg-start { max-width: 620px; }
@@ -978,41 +1028,66 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             <b>Start a piece</b> under the canvas and it will lay one out for you.</p>
         </div>
       </div>
+        <div class="stage-size">
+          <span>Bench</span>
+          <button type="button" class="tiny" data-bench="wider" title="Wider">↔ +</button>
+          <button type="button" class="tiny" data-bench="taller" title="Taller">↕ +</button>
+          <button type="button" class="tiny" data-bench="smaller" title="Smaller">−</button>
+          <button type="button" class="tiny" data-bench="reset" title="Back to the default size">Reset</button>
+        </div>
       </div>
       <div class="tools">
-        <span class="viewswitch" role="group" aria-label="How the piece hangs">
-          <button type="button" data-view="round" aria-pressed="true">Round</button>
-          <button type="button" data-view="straight" aria-pressed="false">Straight</button>
+        <!-- What the piece in hand can do. Nothing here is shown until
+             something is selected, and each group knows what it applies to. -->
+        <span class="tool-group" id="g-piece" hidden>
+          <span class="tool-label" id="sel-what">Piece</span>
+          <span class="angle" role="group" aria-label="Turn the selected piece">
+            <button type="button" class="tiny" data-turn="-1"
+              title="Turn anticlockwise — hold to keep turning"
+              aria-label="Turn anticlockwise, hold to keep turning">⟲</button>
+            <button type="button" class="tiny" data-turn="1"
+              title="Turn clockwise — hold to keep turning"
+              aria-label="Turn clockwise, hold to keep turning">⟳</button>
+          </span>
+          <button type="button" class="tiny" id="flip" data-tool="flip" hidden
+            title="Mirror it left to right">Flip</button>
+          <button type="button" class="tiny" id="fix" data-tool="fix" hidden>Fix in place</button>
+          <button type="button" class="tiny" data-tool="front">Bring forward</button>
+          <button type="button" class="tiny warnbtn" data-tool="lift">Take off</button>
         </span>
-        <span class="angle" role="group" aria-label="Turn the selected piece">
-          <button type="button" class="tiny" data-turn="-1"
-            title="Turn anticlockwise — hold to keep turning"
-            aria-label="Turn anticlockwise, hold to keep turning">⟲</button>
-          <button type="button" class="tiny" data-turn="1"
-            title="Turn clockwise — hold to keep turning"
-            aria-label="Turn clockwise, hold to keep turning">⟳</button>
+
+        <!-- Only a chain hangs round or straight. -->
+        <span class="tool-group" id="g-view" hidden>
+          <span class="tool-label">Chain</span>
+          <span class="viewswitch" role="group" aria-label="How the piece hangs">
+            <button type="button" data-view="round" aria-pressed="true">Round</button>
+            <button type="button" data-view="straight" aria-pressed="false">Straight</button>
+          </span>
         </span>
-        <span class="zoom" role="group" aria-label="Zoom">
-          <button type="button" class="tiny" data-zoomer="out" aria-label="Zoom out">−</button>
-          <button type="button" class="tiny scale-note" id="scale-note" data-zoomer="reset"
-            title="Back to actual size">Actual size</button>
-          <button type="button" class="tiny" data-zoomer="in" aria-label="Zoom in">+</button>
-          <button type="button" class="tiny" id="zoom-fit" data-zoomer="fit" hidden>Fit</button>
-        </span>
-        <span class="spacing" id="spacing" role="group"
-          aria-label="Space between the hangings" hidden>
+
+        <!-- Only something with hangings on it can space them. -->
+        <span class="tool-group" id="spacing" hidden>
+          <span class="tool-label">Hangings</span>
           <button type="button" class="tiny" data-space="-1"
-            title="Bring the hangings closer together">Hangings closer</button>
+            title="Bring the hangings closer together">Closer</button>
           <button type="button" class="tiny" data-space="1"
-            title="Spread the hangings further apart">Hangings wider</button>
+            title="Spread the hangings further apart">Wider</button>
         </span>
-        <button class="tiny" id="flip" data-tool="flip" hidden
-          title="Mirror it left to right">Flip</button>
-        <button class="tiny" id="multi" aria-pressed="false"
-          title="Tap pieces to select several, then drag them together">Select more</button>
-        <button class="tiny" id="start-again">Start a piece</button>
-        <button class="tiny" data-tool="front">Bring forward</button>
-        <button class="tiny warnbtn" data-tool="lift">Take off</button>
+
+        <!-- The canvas itself, whatever is on it. -->
+        <span class="tool-group" id="g-canvas">
+          <span class="tool-label">Canvas</span>
+          <span class="zoom" role="group" aria-label="Zoom">
+            <button type="button" class="tiny" data-zoomer="out" aria-label="Zoom out">−</button>
+            <button type="button" class="tiny scale-note" id="scale-note" data-zoomer="reset"
+              title="Back to actual size">Actual size</button>
+            <button type="button" class="tiny" data-zoomer="in" aria-label="Zoom in">+</button>
+            <button type="button" class="tiny" id="zoom-fit" data-zoomer="fit" hidden>Fit</button>
+          </span>
+          <button type="button" class="tiny" id="multi" aria-pressed="false"
+            title="Tap pieces to select several, then drag them together">Select more</button>
+          <button type="button" class="tiny" id="start-again">Start a piece</button>
+        </span>
       </div>
     </div>
 
@@ -1419,6 +1494,7 @@ const S = {
   picked: null,        // the piece the tools act on
   also: [],            // more pieces selected with it, to move as one
   multiMode: false,    // taps add to the selection instead of replacing it
+  railSection: null,   // which section of the tray the rail is showing
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
   start: null,         // the "what are you making?" walk-through, while it runs
@@ -2176,54 +2252,73 @@ function paintPlaceRail() {
       <button class="solid" id="rail-browse">Browse the collection</button></div>`;
     return;
   }
-  // Placing a piece repaints the rail; without this the list would jump back to
-  // the top every time, and the next piece would be somewhere else.
+
+  // One table per section, switched between by the tabs — a long tray stays
+  // readable, and you only ever look at the kind of piece you are working on.
+  const order = new Map(sections().map((c, i) => [c.slug, i]));
+  const slugs = [...new Set(rows.map((r) => r.item.category || ''))]
+    .sort((a, b) => (order.has(a) ? order.get(a) : 99) - (order.has(b) ? order.get(b) : 99));
+  if (!slugs.includes(S.railSection)) S.railSection = slugs[0];
+  const showing = rows.filter((r) => (r.item.category || '') === S.railSection);
+  showing.sort((a, b) => longestMm(b.item) - longestMm(a.item));
+
   const list = $('.place-list', rail);
   const wasAt = list ? list.scrollTop : 0;
+  const tabs = slugs.length > 1 ? `<div class="rail-tabs" role="tablist">${slugs.map((slug) => {
+    const n = rows.filter((r) => (r.item.category || '') === slug)
+      .filter((r) => toPlace(r.itemId, r.variantId) > 0).length;
+    return `<button role="tab" data-sec="${esc(slug)}"
+      aria-selected="${slug === S.railSection}">${esc(sectionOf(slug).name)}${
+      n ? `<span>${n}</span>` : ''}</button>`;
+  }).join('')}</div>` : '';
 
-  // Section by section, in the studio's own order, and largest first inside each.
-  const order = new Map(sections().map((c, i) => [c.slug, i]));
-  const groups = new Map();
-  for (const r of rows) {
-    const slug = r.item.category || '';
-    if (!groups.has(slug)) groups.set(slug, []);
-    groups.get(slug).push(r);
-  }
-  const blocks = [...groups.entries()]
-    .sort((a, b) => (order.has(a[0]) ? order.get(a[0]) : 99) - (order.has(b[0]) ? order.get(b[0]) : 99))
-    .map(([slug, list2]) => {
-      list2.sort((a, b) => longestMm(b.item) - longestMm(a.item));
-      const waiting = list2.filter((r) => toPlace(r.itemId, r.variantId) > 0).length;
-      return `<div class="rail-section">
-        <h3>${esc(sectionOf(slug).name)}
-          <span>${waiting ? `${waiting} to place` : 'all placed'}</span></h3>
-        ${list2.map(railRow).join('')}
-      </div>`;
-    });
-
-  rail.innerHTML = `<div class="place-list">${blocks.join('')}</div>`;
+  rail.innerHTML = `${tabs}<div class="place-list">${showing.map(railRow).join('')}</div>`;
   const now = $('.place-list', rail);
   if (now) now.scrollTop = wasAt;
 }
 
-/** One piece waiting in the tray. */
+/**
+ * One piece in the tray. The two steppers are the two things a number can mean
+ * here, and they are labelled as such: how much of it you are **buying**, and
+ * how much of it is **on the design**.
+ */
 function railRow(r) {
+  const item = r.item;
   const left = toPlace(r.itemId, r.variantId);
-  return `<div class="placeable ${left <= 0 ? 'done' : ''}"
+  const on = placedQty(r.itemId, r.variantId);
+  const amount = (n) => (isLength(item) ? fmtLen(n) : String(n));
+  return `<div class="placeable ${left <= 0 ? 'full' : ''}"
     data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
-    draggable="${left > 0}" title="${esc(r.item.note || r.item.name)}">
-    <span class="shot">${shotHtml(r.item, r.variantId)}</span>
-    <span class="who">
-      <span class="nm">${esc(r.item.name)}${r.variant && r.variant.name
-        ? ` <span class="muted">· ${esc(r.variant.name)}</span>` : ''}</span><br>
-      <span class="sub">${left > 0
-        ? `${amountLabel(r.item, left)} of ${amountLabel(r.item, r.qty)} to place`
-        : 'all placed'}</span>
+    draggable="${left > 0}" title="${esc(item.note || item.name)}">
+    <button type="button" class="drop" data-tray="drop" title="Take out of your tray"
+      aria-label="Take ${esc(item.name)} out of your tray">×</button>
+    <span class="shot">${shotHtml(item, r.variantId)}</span>
+    <span class="nm">${esc(item.name)}${r.variant && r.variant.name
+      ? `<span class="muted"> · ${esc(r.variant.name)}</span>` : ''}</span>
+    <span class="step" data-for="tray">
+      <span class="step-label">In tray</span>
+      <button type="button" data-tray="less" aria-label="Less in the tray">−</button>
+      <b>${amount(r.qty)}</b>
+      <button type="button" data-tray="more" aria-label="More in the tray">+</button>
     </span>
-    ${trayControls(r.item)}
-    <button type="button" class="place-btn" data-place ${left > 0 ? '' : 'disabled'}
-      title="Put one of these on the canvas">Place on canvas</button>
+    <span class="step" data-for="design">
+      <span class="step-label">On design</span>
+      <button type="button" data-design="less" ${on > 0 ? '' : 'disabled'}
+        aria-label="Take one off the design">−</button>
+      <b>${amount(on)}</b>
+      <button type="button" data-design="more" ${left > 0 ? '' : 'disabled'}
+        aria-label="Put one on the design">+</button>
+    </span>
   </div>`;
+}
+
+/** The design stepper: + lays another one on the canvas, − takes the last off. */
+function adjustDesign(itemId, variantId, action) {
+  if (action === 'more') { place(itemId, variantId, null, null); return; }
+  for (let i = S.charms.length - 1; i >= 0; i -= 1) {
+    const c = S.charms[i];
+    if (c.itemId === itemId && c.variantId === variantId) { unplace(c.uid); return; }
+  }
 }
 
 /* ------------------------------------------------------------------ stage */
@@ -2326,6 +2421,65 @@ function setZoom(z) {
  * Pull back far enough to see the lot, then look at the middle of it — a piece
  * dragged well below the canvas is found by the same button that shrinks to it.
  */
+/* ---- how big the bench is ---- */
+
+const BENCH_KEY = 'cj-bench';
+
+/** How much room the bench has to grow into, beside the rails. */
+function benchRoom() {
+  const bench = $('.bench');
+  if (!bench) return 900;
+  const style = getComputedStyle(bench);
+  const tracks = style.gridTemplateColumns.split(' ').filter(Boolean).length;
+  const gap = parseFloat(style.columnGap) || 0;
+  // The rule down the left edge takes 22px of whatever the row has.
+  const gutter = 38;
+  if (tracks <= 1) return Math.max(240, bench.clientWidth - gutter);   // stacked, on a phone
+  // Beside the rails: whatever the row has left once they have taken theirs.
+  const rails = $$('.rail', bench).reduce((n, r) => n + r.offsetWidth, 0);
+  return Math.max(240, bench.clientWidth - rails - gap * (tracks - 1) - gutter);
+}
+
+/** Remember the bench's size between visits — it is a workspace, not a page. */
+function loadBench() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(BENCH_KEY) || 'null'); } catch { saved = null; }
+  const side = Math.min(640, benchRoom());
+  if (saved && saved.w > 200 && saved.h > 200) setBench(saved.w, saved.h, false);
+  else setBench(side, side, false);
+}
+
+function setBench(w, h, save = true) {
+  const stage = $('#stage');
+  if (!stage) return;
+  const size = {
+    w: Math.round(clamp(w, 240, benchRoom())),
+    h: Math.round(clamp(h, 240, 2400)),
+  };
+  stage.style.width = `${size.w}px`;
+  stage.style.height = `${size.h}px`;
+  stage.style.maxWidth = 'none';
+  stage.style.aspectRatio = 'auto';
+  if (save) { try { localStorage.setItem(BENCH_KEY, JSON.stringify(size)); } catch { /* fine */ } }
+  paintStage();
+}
+
+function nudgeBench(how) {
+  const stage = $('#stage');
+  if (!stage) return;
+  const w = stage.clientWidth;
+  const h = stage.clientHeight;
+  if (how === 'reset') {
+    try { localStorage.removeItem(BENCH_KEY); } catch { /* fine */ }
+    const side = Math.min(640, benchRoom());
+    setBench(side, side, false);
+    return;
+  }
+  if (how === 'wider') setBench(w + 120, h);
+  if (how === 'taller') setBench(w, h + 120);
+  if (how === 'smaller') setBench(w - 120, h - 120);
+}
+
 function showEverything() {
   setZoom(fitZoom());
   const stage = $('#stage');
@@ -2389,13 +2543,76 @@ function onPiece(clientX, clientY) {
   return { x: ((clientX - r.left) / r.width) * 100, y: ((clientY - r.top) / r.height) * 100 };
 }
 
-function fanOut(x, y) {
-  for (let i = 0; i < 26; i += 1) {
-    if (!S.charms.some((c) => Math.hypot(c.x - x, c.y - y) < 6)) break;
-    x = clamp(x + Math.cos(i * 0.9) * (9 + i * 1.4), 6, 94);
-    y = clamp(y + Math.sin(i * 0.9) * (9 + i * 1.4), 6, 94);
+/** The part of the canvas actually on screen, in canvas percentages. */
+function viewBox() {
+  const stage = $('#stage');
+  const pan = $('#stage-pan');
+  if (!stage || !pan || !pan.offsetWidth) return { x0: 0, y0: 0, x1: 100, y1: 100 };
+  const side = pan.offsetWidth;
+  const left = stage.scrollLeft - pan.offsetLeft;
+  const top = stage.scrollTop - pan.offsetTop;
+  return {
+    x0: (left / side) * 100, y0: (top / side) * 100,
+    x1: ((left + stage.clientWidth) / side) * 100,
+    y1: ((top + stage.clientHeight) / side) * 100,
+  };
+}
+
+/** How much room a piece takes on the canvas, and where its middle sits. */
+function charmBox(c) {
+  const item = itemOf(c.itemId);
+  if (!item) return { w: 6, h: 6, x: c.x, y: c.y };
+  if (isLength(item) && c.lenCm) {
+    const span = stageMm() || 400;
+    const h = clamp(((c.lenCm * 10) / span) * 100, 2, 96);
+    // A strand hangs from its pin, so its middle is half its length below it.
+    return { w: ((item.widthMm || 2) / span) * 100, h, x: c.x, y: c.y + h / 2 };
   }
-  return { x, y };
+  const b = charmSizePct(item);
+  return { w: b.w || c.w, h: b.h || c.w, x: c.x, y: c.y };
+}
+
+/**
+ * Somewhere in view with nothing already on it. A piece added from the tray
+ * should appear where the customer is looking and not on top of what is
+ * already there; failing that, wherever there is most room.
+ */
+function freeSpot(item, prefer) {
+  const v = viewBox();
+  const box = hasSize(item) ? charmSizePct(item) : { w: 8, h: 8 };
+  const mx = box.w / 2 + 1;
+  const my = box.h / 2 + 1;
+  const x0 = v.x0 + mx; const x1 = v.x1 - mx;
+  const y0 = v.y0 + my; const y1 = v.y1 - my;
+  const middle = { x: (v.x0 + v.x1) / 2, y: (v.y0 + v.y1) / 2 };
+  if (x1 <= x0 || y1 <= y0) return prefer || middle;      // the view is tighter than the piece
+
+  // How far this spot is from touching anything already placed.
+  const gap = (x, y) => Math.min(...S.charms.map((c) => {
+    const o = charmBox(c);
+    return Math.max(Math.abs(o.x - x) - (o.w + box.w) / 2, Math.abs(o.y - y) - (o.h + box.h) / 2);
+  }), 999);
+
+  const aim = prefer && prefer.x >= x0 && prefer.x <= x1 && prefer.y >= y0 && prefer.y <= y1
+    ? prefer : middle;
+  if (gap(aim.x, aim.y) > 0.5) return aim;
+
+  const N = 13;
+  let best = null;
+  for (let i = 0; i < N; i += 1) {
+    for (let j = 0; j < N; j += 1) {
+      const x = x0 + ((x1 - x0) * i) / (N - 1);
+      const y = y0 + ((y1 - y0) * j) / (N - 1);
+      const clear = gap(x, y);
+      const near = Math.hypot(x - aim.x, y - aim.y);
+      if (!best || (clear > 0.5 && best.clear <= 0.5)
+        || (clear > 0.5 === best.clear > 0.5
+          && (clear > 0.5 ? near < best.near : clear > best.clear))) {
+        best = { x, y, clear, near };
+      }
+    }
+  }
+  return best ? { x: best.x, y: best.y } : aim;
 }
 
 /** Placing only ever draws on the tray — never straight from the repo. */
@@ -2410,9 +2627,14 @@ function place(itemId, variantId, x, y) {
     return;
   }
 
-  if (isLength(item)) { askStrand(itemId, variantId, x, y); return; }
+  const want = x == null ? null : { x, y };
+  if (isLength(item)) {
+    const at = freeSpot(item, want);
+    askStrand(itemId, variantId, at.x, at.y);
+    return;
+  }
 
-  const spot = fanOut(clamp(x, 3, 97), clamp(y, 3, 97));
+  const spot = freeSpot(item, want);
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId, variantId, x: spot.x, y: spot.y,
@@ -2441,6 +2663,7 @@ function unplace(uid) {
   // Whatever hung off it is loose now; it keeps its place, it just stops moving
   // with a base that is no longer there.
   for (const c of S.charms) if (c.base === uid) { delete c.base; delete c.u; }
+  for (const c of S.charms) if (c.pin === uid) delete c.pin;
   if (S.picked === uid) S.picked = S.also.length ? S.also.shift() : null;
   paint();
 }
@@ -2481,10 +2704,9 @@ function paintStrandCost() {
 
 function addStrand(lenCm) {
   const { itemId, variantId, x, y } = S.strandAsk;
-  // On a straight piece a hanging is pinned to the rail unless it was dropped
-  // deliberately lower down.
-  const pinned = S.view === 'straight' && y < 40 ? 20 : y;
-  const spot = fanOut(clamp(x, 3, 97), clamp(pinned, 3, 97));
+  // The spot was chosen when the strand was dropped; it only moves if the
+  // length now placed would sit on top of something else.
+  const spot = freeSpot(itemOf(itemId), { x, y });
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId, variantId, x: spot.x, y: spot.y,
@@ -2501,6 +2723,67 @@ function addStrand(lenCm) {
 const wrapAngle = (deg) => ((deg % 360) + 360) % 360;
 
 const pickedCharm = () => S.charms.find((c) => c.uid === S.picked) || null;
+
+/* ---- pieces fixed to one another ---- */
+
+/**
+ * A piece can be fixed to whatever it sits on — a charm to a chain, a chain to
+ * a bangle — and then the two travel together. It is one field, the uid of the
+ * piece it hangs on, so unfixing is forgetting it.
+ */
+const fixedTo = (c) => (c && c.pin ? S.charms.find((x) => x.uid === c.pin) : null);
+const fixedOn = (uid) => S.charms.filter((c) => c.pin === uid);
+
+/** Everything fixed together with this piece, however long the chain of them. */
+function assembly(seed) {
+  const seen = new Map();
+  const walk = (c) => {
+    if (!c || seen.has(c.uid)) return;
+    seen.set(c.uid, c);
+    walk(fixedTo(c));
+    for (const f of fixedOn(c.uid)) walk(f);
+  };
+  for (const c of seed) walk(c);
+  return [...seen.values()];
+}
+
+/** The piece under this one — what it would be fixed to. */
+function pieceUnder(c) {
+  const box = charmBox(c);
+  return [...S.charms]
+    .filter((o) => o.uid !== c.uid && o.pin !== c.uid)
+    .sort((a, b) => b.z - a.z)
+    .find((o) => {
+      const p = charmBox(o);
+      return Math.abs(p.x - box.x) < (p.w + box.w) / 2
+        && Math.abs(p.y - box.y) < (p.h + box.h) / 2;
+    }) || null;
+}
+
+/** Fix the selected piece to whatever it is lying on, or let it go again. */
+function toggleFix() {
+  const c = pickedCharm();
+  if (!c) return toast('Tap a piece on the canvas first.');
+  if (c.pin) {
+    const host = fixedTo(c);
+    delete c.pin;
+    paintStage();
+    toast(host ? `Loose from the ${itemName(host)} — it moves on its own now.` : 'Loose again.');
+    return;
+  }
+  const host = pieceUnder(c);
+  if (!host) return toast('Lay it on the piece it belongs to first, then fix it.');
+  // Nothing may be fixed to something that is fixed to it, or the pair would
+  // chase each other round the canvas.
+  if (assembly([host]).some((x) => x.pin === c.uid && x.uid !== c.uid) && fixedTo(host) === c) {
+    return toast('Those two are already fixed together.');
+  }
+  c.pin = host.uid;
+  paintStage();
+  toast(`Fixed to the ${itemName(host)} — move either one and both go.`, 'good');
+}
+
+const itemName = (c) => ((itemOf(c.itemId) || {}).name || 'piece');
 
 /* ---- picking more than one ---- */
 
@@ -2648,8 +2931,7 @@ function paintStage() {
   paintGuide();
   paintGrid();
   paintScaleNote();
-  paintSpacing();
-  paintFlip();
+  paintTools();
   paintRulers();
   $('#hint').hidden = S.charms.length > 0;
 
@@ -2658,7 +2940,8 @@ function paintStage() {
     if (!item) continue;
     const node = document.createElement('div');
     const strand = isLength(item) && c.lenCm;
-    node.className = 'charm' + (strand ? ' strand' : '') + (isSelected(c.uid) ? ' on' : '');
+    node.className = 'charm' + (strand ? ' strand' : '') + (isSelected(c.uid) ? ' on' : '')
+      + (c.pin && fixedTo(c) ? ' pinned' : '');
     node.dataset.uid = c.uid;
 
     if (strand) {
@@ -2869,13 +3152,13 @@ function startMove(ev, charm, node) {
   if (!isSelected(charm.uid)) selectOnly(charm.uid);
   else makePrimary(charm.uid);
 
-  const group = selectedCharms();
+  const group = assembly(selectedCharms());
   for (const c of group) c.z = ++S.zTop;
   const nodes = new Map();
+  const moving = new Set(group.map((c) => c.uid));
   $$('.charm').forEach((n) => {
-    const on = isSelected(n.dataset.uid);
-    n.classList.toggle('on', on);
-    if (!on) return;
+    n.classList.toggle('on', isSelected(n.dataset.uid));
+    if (!moving.has(n.dataset.uid)) return;
     nodes.set(n.dataset.uid, n);
     const c = group.find((x) => x.uid === n.dataset.uid);
     if (c) n.style.zIndex = String(c.z);
@@ -2927,7 +3210,12 @@ function startMove(ev, charm, node) {
     // A few pixels of wobble while tapping is not a drag. Without this a
     // strand could swing to a new angle just from being selected.
     if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
-    moved = true;
+    if (!moved) {
+      // Out of the way while it travels: the outline and the × would only hide
+      // what is being lined up.
+      moved = true;
+      for (const n of nodes.values()) n.classList.add('moving');
+    }
     at = { x: e.clientX, y: e.clientY };
     put();
     sizeField();
@@ -2935,6 +3223,7 @@ function startMove(ev, charm, node) {
   };
   const up = () => {
     cancelAnimationFrame(roll);
+    for (const n of nodes.values()) n.classList.remove('moving');
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     paintStage();
@@ -4484,19 +4773,62 @@ function respace(dir) {
   paint();
 }
 
-/** The flip button is there only when something that can be flipped is picked. */
-function paintFlip() {
-  const btn = $('#flip');
-  if (!btn) return;
-  const able = selectedCharms().filter(canFlip);
-  btn.hidden = !able.length;
-  btn.textContent = able.length > 1 ? `Flip these ${able.length}` : 'Flip';
-}
+/**
+ * Which tools are worth showing. A button that cannot do anything to what is
+ * in hand is not greyed out, it is simply not there: the piece's own tools
+ * appear when a piece is picked, the round/straight switch only for a chain,
+ * the spacing only for something with hangings on it, and the canvas tools
+ * always.
+ */
+function paintTools() {
+  const group = selectedCharms();
+  const one = group.length === 1 ? group[0] : null;
+  const g = (id) => $(`#${id}`);
 
-function paintSpacing() {
-  const box = $('#spacing');
-  if (!box) return;
-  box.hidden = !S.charms.some((c) => hangingsOf(c.uid).length > 1);
+  // The piece, or the several of them, in hand.
+  const piece = g('g-piece');
+  if (piece) {
+    piece.hidden = !group.length;
+    const what = $('#sel-what');
+    if (what && group.length) {
+      what.textContent = group.length > 1 ? `${group.length} pieces`
+        : itemName(one).length > 16 ? `${itemName(one).slice(0, 15)}…` : itemName(one);
+    }
+  }
+
+  const able = group.filter(canFlip);
+  const flip = g('flip');
+  if (flip) {
+    flip.hidden = !able.length;
+    flip.textContent = able.length > 1 ? `Flip these ${able.length}` : 'Flip';
+  }
+
+  // Fixing is between two pieces, so it is offered for one piece at a time.
+  const fix = g('fix');
+  if (fix) {
+    const host = one ? (fixedTo(one) || pieceUnder(one)) : null;
+    fix.hidden = !one || !host;
+    if (one && host) {
+      fix.textContent = one.pin ? `Unfix from ${itemName(host)}` : `Fix to ${itemName(host)}`;
+      fix.classList.toggle('warnbtn', Boolean(one.pin));
+    }
+  }
+
+  // Round or straight is about how a chain hangs — it means nothing to a charm.
+  const view = g('g-view');
+  if (view) {
+    view.hidden = !group.some((c) => {
+      const item = itemOf(c.itemId);
+      return item && isLength(item);
+    });
+  }
+
+  // Spacing belongs to whatever the hangings hang from.
+  const space = g('spacing');
+  if (space) {
+    const base = group.length ? spacingBase() : null;
+    space.hidden = !base || hangingsOf(base.uid).length < 2;
+  }
 }
 
 function layOutPiece() {
@@ -4524,7 +4856,7 @@ function layOutPiece() {
       if (!row) return;
       const u = (pins[i] - 0.5) * 2;
       const at = hangPoint(base, u);
-      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, u }));
+      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, pin: base.uid, u }));
     });
   } else if (st.kind.drops) {
     // A drop is a chain hanging straight down with a charm on the end.
@@ -4558,7 +4890,7 @@ function layOutPiece() {
       if (!row) return;
       const u = (pins[i] - 0.5) * 2;
       const at = hangPoint(base, u);
-      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, u }));
+      made.push(newCharm(row, { ...at, lenCm: h.len, base: base.uid, pin: base.uid, u }));
     });
   }
 
@@ -4718,6 +5050,8 @@ function setMode(mode) {
   $('#studio').hidden = mode !== 'studio';
   $('#boot').hidden = S.ready || mode === 'studio' || mode === 'mine';
   updateFab();
+  // The bench can only be measured once it is on screen.
+  if (mode === 'design') loadBench();
   paint();
   // Arriving at an empty canvas with a full tray is the moment to ask what
   // they are making; at any other time the button under the canvas does it.
@@ -4852,13 +5186,14 @@ function trayControls(item) {
   </span>`;
 }
 
-/** Returns true when the click was a tray control rather than a placement. */
+/** Runs a click on one of the rail's buttons. */
 function handleTrayControl(e) {
   const row = e.target.closest('.placeable');
   if (!row) return false;
-  if (e.target.closest('button[data-place]')) {
+  const design = e.target.closest('button[data-design]');
+  if (design) {
     e.stopPropagation();
-    if (!row.classList.contains('done')) place(row.dataset.item, row.dataset.variant, 50, 50);
+    adjustDesign(row.dataset.item, row.dataset.variant, design.dataset.design);
     return true;
   }
   const btn = e.target.closest('button[data-tray]');
@@ -4869,28 +5204,15 @@ function handleTrayControl(e) {
 }
 
 function wireDesign() {
-  const railAct = (e) => {
-    const node = e.target.closest('.placeable');
-    if (!node) return;
-    place(node.dataset.item, node.dataset.variant, 50, 50);
-  };
   $('#place-rail').addEventListener('click', (e) => {
     if (e.target.id === 'rail-browse') return setMode('browse');
-    if (e.target.closest('[data-place]')) { handleTrayControl(e); return; }
-    // Everything inside the control cluster is a dead zone for placing, so a
-    // near-miss on a small button never quietly adds a piece to the design.
-    if (e.target.closest('.tray-ctl')) { handleTrayControl(e); return; }
-    railAct(e);
-  });
-  $('#place-rail').addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (e.target.closest('.tray-ctl')) return;   // the button handles its own keys
-    e.preventDefault();
-    railAct(e);
+    const tab = e.target.closest('[data-sec]');
+    if (tab) { S.railSection = tab.dataset.sec; paintPlaceRail(); return; }
+    handleTrayControl(e);
   });
   $('#place-rail').addEventListener('dragstart', (e) => {
     const node = e.target.closest('.placeable');
-    if (!node || node.classList.contains('done') || e.target.closest('[data-tray]')) return e.preventDefault();
+    if (!node || node.classList.contains('full') || e.target.closest('button')) return e.preventDefault();
     e.dataTransfer.setData('text/plain', `${node.dataset.item}::${node.dataset.variant}`);
     e.dataTransfer.effectAllowed = 'copy';
   });
@@ -4912,7 +5234,12 @@ function wireDesign() {
     if (ruling) return;
     ruling = requestAnimationFrame(() => { ruling = 0; paintGrid(); paintRulers(); });
   }, { passive: true });
-  window.addEventListener('resize', () => { if (S.mode === 'design') paintStage(); });
+  window.addEventListener('resize', () => {
+    if (S.mode !== 'design') return;
+    // A bench wider than the screen it is now on comes back inside it.
+    const st = $('#stage');
+    setBench(st.clientWidth, st.clientHeight, false);
+  });
 
   stage.addEventListener('pointerdown', (e) => {
     if (e.target === stage || e.target.id === 'stage-zoom' || e.target.id === 'stage-pan'
@@ -4950,6 +5277,23 @@ function wireDesign() {
     addStrand(len);
   });
 
+  $$('.stage-size button[data-bench]').forEach((b) =>
+    b.addEventListener('click', () => nudgeBench(b.dataset.bench)));
+  // The corner handle resizes it too; the canvas has to be redrawn to match.
+  if (window.ResizeObserver) {
+    let first = true;
+    new ResizeObserver(() => {
+      if (first) { first = false; return; }
+      if (S.mode !== 'design') return;
+      paintStage();
+      const st = $('#stage');
+      try {
+        localStorage.setItem(BENCH_KEY,
+          JSON.stringify({ w: st.clientWidth, h: st.clientHeight }));
+      } catch { /* fine */ }
+    }).observe($('#stage'));
+  }
+
   $$('.tools button[data-zoomer]').forEach((b) => b.addEventListener('click', () => {
     const how = b.dataset.zoomer;
     if (how === 'in') setZoom(S.zoom * 1.25);
@@ -4980,6 +5324,7 @@ function wireDesign() {
 
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
     if (b.dataset.tool === 'flip') return flipPicked();
+    if (b.dataset.tool === 'fix') return toggleFix();
     const group = selectedCharms();
     if (!group.length) return toast('Tap a piece on the canvas first.');
     if (b.dataset.tool === 'front') { for (const c of group) c.z = ++S.zTop; }
@@ -6147,6 +6492,7 @@ function wireExtras() {
 
 /* Boot last, so every module above is defined before the first paint. */
 loadTray();
+loadBench();
 wireBrowse();
 wireTray();
 wireDesign();
