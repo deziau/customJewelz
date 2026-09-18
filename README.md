@@ -161,6 +161,22 @@ and zooms out if the whole thing needs more room. Everything it places can be
 moved, turned or taken off afterwards; it is a starting point, not a template.
 **Start a piece** under the canvas reopens it at any time.
 
+**Pieces that can be flipped.** Some pendants read either way round — a leaf
+that points left or right, a charm with a front and a back. The studio marks
+those with **Can be flipped left to right** on the component, and only then does
+the canvas offer a **Flip** button when one is selected: it mirrors the piece
+without touching the angle it was turned to. The flag is off on everything
+already in the repo, so nothing offers a flip that was never checked for it.
+
+**Several pieces at once.** Hold **Shift** (or **Ctrl**/**Cmd**) and tap to add
+pieces to the selection; **Select more** does the same for a finger, turning
+taps into adds until it is switched off. Dragging any selected piece drags the
+whole group, and the group keeps its spacing at the edge of the canvas rather
+than flattening against it. **Bring forward** and **Take off** — and the Delete
+key — act on everything selected; turning still acts on the piece last tapped,
+so a group never spins as one by accident. A tap on empty canvas clears the
+selection.
+
 Whatever it lays out, the hangings stay tied to the base they hang from, so the
 space between them is still adjustable afterwards: **Hangings closer** and
 **Hangings wider** under the canvas open and tighten the formation a step at a

@@ -947,6 +947,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" class="tiny" data-space="1"
             title="Spread the hangings further apart">Hangings wider</button>
         </span>
+        <button class="tiny" id="flip" data-tool="flip" hidden
+          title="Mirror it left to right">Flip</button>
+        <button class="tiny" id="multi" aria-pressed="false"
+          title="Tap pieces to select several, then drag them together">Select more</button>
         <button class="tiny" id="start-again">Start a piece</button>
         <button class="tiny" data-tool="front">Bring forward</button>
         <button class="tiny warnbtn" data-tool="lift">Take off</button>
@@ -955,6 +959,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         Drag a piece from your tray onto the canvas, then drag it again to position it.
         Tap it to select, then turn it: tap an arrow to nudge it a degree, or hold it down
         and the piece keeps turning until you let go.
+        Hold <b>Shift</b> (or use <b>Select more</b> on a phone) and tap to select several
+        pieces at once — dragging any of them moves the whole group, keeping its spacing.
+        A piece the studio marked as flippable shows a <b>Flip</b> button when it is selected,
+        which mirrors it left to right without changing its angle.
         When something hangs off a base, <b>Hangings closer</b> and <b>Hangings wider</b>
         change the space between them — on a bangle they walk along its edge, and the
         formation stays centred either way.
@@ -1138,6 +1146,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <input name="urgentFee" type="number" min="0" step="0.01" value="0"></label>
         <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
           <input type="checkbox" name="active" checked style="width:auto"><span style="color:var(--ink)">Show to customers</span>
+        </label>
+        <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
+          <input type="checkbox" name="canFlip" style="width:auto"><span style="color:var(--ink)"
+            title="A pendant with a front and a back, or one that faces left or right">Can be flipped left to right</span>
         </label>
       </div>
       <label class="f"><span>Description — customers read this on the item page</span>
@@ -1361,7 +1373,9 @@ const S = {
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
   charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
-  picked: null,
+  picked: null,        // the piece the tools act on
+  also: [],            // more pieces selected with it, to move as one
+  multiMode: false,    // taps add to the selection instead of replacing it
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
   start: null,         // the "what are you making?" walk-through, while it runs
@@ -1451,6 +1465,9 @@ function normalize(id, d) {
     // the canvas can repeat that tile at its true size.
     tileCm: Number(d.tileCm) || 0,
     urgentFee: Number(d.urgentFee) || 0,
+    // Off unless the studio says otherwise, so nothing already in the repo
+    // suddenly offers a flip it was never checked for.
+    canFlip: d.canFlip === true,
     // 'piece' components are counted; 'length' ones (chain, cord, ribbon) are
     // priced per metre and stocked in centimetres.
     soldBy: d.soldBy === 'length' ? 'length' : 'piece',
@@ -2255,7 +2272,7 @@ function place(itemId, variantId, x, y) {
     w: charmWidthPct(item),
     rot: 0, z: ++S.zTop,
   });
-  S.picked = S.charms[S.charms.length - 1].uid;
+  selectOnly(S.charms[S.charms.length - 1].uid);
   paint();
   sayIfItOverflows();
 }
@@ -2273,17 +2290,18 @@ function sayIfItOverflows() {
 /** Taking something off returns it to the tray — it was never charged. */
 function unplace(uid) {
   S.charms = S.charms.filter((c) => c.uid !== uid);
+  S.also = S.also.filter((u) => u !== uid);
   // Whatever hung off it is loose now; it keeps its place, it just stops moving
   // with a base that is no longer there.
   for (const c of S.charms) if (c.base === uid) { delete c.base; delete c.u; }
-  if (S.picked === uid) S.picked = null;
+  if (S.picked === uid) S.picked = S.also.length ? S.also.shift() : null;
   paint();
 }
 
 /** Nothing is lost by clearing — every piece goes straight back to the tray. */
 function clearAll() {
   S.charms = [];
-  S.picked = null;
+  clearPicked();
   paint();
 }
 
@@ -2326,7 +2344,7 @@ function addStrand(lenCm) {
     w: charmWidthPct(itemOf(itemId)),
     lenCm, rot: 0, z: ++S.zTop,
   });
-  S.picked = S.charms[S.charms.length - 1].uid;
+  selectOnly(S.charms[S.charms.length - 1].uid);
   S.strandAsk = null;
   paint();
   sayIfItOverflows();
@@ -2337,13 +2355,54 @@ const wrapAngle = (deg) => ((deg % 360) + 360) % 360;
 
 const pickedCharm = () => S.charms.find((c) => c.uid === S.picked) || null;
 
+/* ---- picking more than one ---- */
+
+/** Everything selected: the piece the tools act on first, then the rest. */
+const selectedUids = () => [S.picked, ...S.also].filter(Boolean);
+const selectedCharms = () =>
+  selectedUids().map((u) => S.charms.find((c) => c.uid === u)).filter(Boolean);
+const isSelected = (uid) => uid === S.picked || S.also.includes(uid);
+
+function selectOnly(uid) { S.picked = uid || null; S.also = []; }
+function clearPicked() { selectOnly(null); }
+
+/** Make one of the selected pieces the one the tools act on, keeping the rest. */
+function makePrimary(uid) {
+  if (uid === S.picked) return;
+  S.also = S.also.filter((u) => u !== uid);
+  if (S.picked) S.also.push(S.picked);
+  S.picked = uid;
+}
+
+/** Add a piece to the selection, or drop it back out of it. */
+function toggleSelect(uid) {
+  if (uid === S.picked) { S.picked = S.also.length ? S.also.shift() : null; return; }
+  if (S.also.includes(uid)) { S.also = S.also.filter((u) => u !== uid); return; }
+  if (!S.picked) { S.picked = uid; return; }
+  S.also.push(uid);
+}
+
 /** How a charm sits on the canvas — written once, since a spin re-applies it
  *  every frame without rebuilding anything. */
 function charmTransform(c) {
   const item = itemOf(c.itemId);
+  // Flipping is mirroring, so it goes after the turn: the piece faces the other
+  // way round without the angle it was set to changing.
+  const flip = c.flipped ? ' scaleX(-1)' : '';
   return item && isLength(item) && c.lenCm
-    ? `translate(-50%,0) rotate(${hangAngle(c)}deg)`
-    : `translate(-50%,-50%) rotate(${c.rot || 0}deg)`;
+    ? `translate(-50%,0) rotate(${hangAngle(c)}deg)${flip}`
+    : `translate(-50%,-50%) rotate(${c.rot || 0}deg)${flip}`;
+}
+
+/** Only pieces the studio marked as flippable offer it. */
+const canFlip = (c) => Boolean(c && (itemOf(c.itemId) || {}).canFlip);
+
+/** Flip everything selected that can be flipped. */
+function flipPicked() {
+  const able = selectedCharms().filter(canFlip);
+  if (!able.length) return toast('Tap a piece that can be flipped first.');
+  for (const c of able) c.flipped = !c.flipped;
+  paintStage();
 }
 
 /** Turning, however it was asked for. */
@@ -2414,6 +2473,7 @@ function paintStage() {
   paintGrid();
   paintScaleNote();
   paintSpacing();
+  paintFlip();
   $('#hint').hidden = S.charms.length > 0;
 
   for (const c of S.charms) {
@@ -2421,7 +2481,7 @@ function paintStage() {
     if (!item) continue;
     const node = document.createElement('div');
     const strand = isLength(item) && c.lenCm;
-    node.className = 'charm' + (strand ? ' strand' : '') + (S.picked === c.uid ? ' on' : '');
+    node.className = 'charm' + (strand ? ' strand' : '') + (isSelected(c.uid) ? ' on' : '');
     node.dataset.uid = c.uid;
 
     if (strand) {
@@ -2536,14 +2596,40 @@ function paintGuide() {
 
 function startMove(ev, charm, node) {
   ev.preventDefault();
-  S.picked = charm.uid;
-  charm.z = ++S.zTop;
-  node.style.zIndex = String(charm.z);
-  $$('.charm').forEach((n) => n.classList.toggle('on', n.dataset.uid === charm.uid));
+
+  // Shift, Ctrl or Cmd — or the "Select more" button, for a finger — picks a
+  // piece up into the selection instead of replacing it.
+  if (ev.shiftKey || ev.ctrlKey || ev.metaKey || S.multiMode) {
+    toggleSelect(charm.uid);
+    paintStage();
+    return;
+  }
+  // Dragging one of several selected pieces drags the whole group; dragging
+  // anything else selects just that piece, as it always did.
+  if (!isSelected(charm.uid)) selectOnly(charm.uid);
+  else makePrimary(charm.uid);
+
+  const group = selectedCharms();
+  for (const c of group) c.z = ++S.zTop;
+  const nodes = new Map();
+  $$('.charm').forEach((n) => {
+    const on = isSelected(n.dataset.uid);
+    n.classList.toggle('on', on);
+    if (!on) return;
+    nodes.set(n.dataset.uid, n);
+    const c = group.find((x) => x.uid === n.dataset.uid);
+    if (c) n.style.zIndex = String(c.z);
+  });
 
   const rect = $('#stage').getBoundingClientRect();
   const x0 = ev.clientX; const y0 = ev.clientY;
-  const ox = charm.x; const oy = charm.y;
+  const from = group.map((c) => ({ c, x: c.x, y: c.y }));
+  // The group moves as one: the whole formation stops at the edge together,
+  // rather than each piece flattening against it and losing its spacing.
+  const lowX = Math.min(...from.map((o) => o.x));
+  const highX = Math.max(...from.map((o) => o.x));
+  const lowY = Math.min(...from.map((o) => o.y));
+  const highY = Math.max(...from.map((o) => o.y));
   let moved = false;
 
   const move = (e) => {
@@ -2553,10 +2639,16 @@ function startMove(ev, charm, node) {
     moved = true;
     // Zoomed in, a piece has to travel further on screen to move as far on the
     // piece, or it would race away from the pointer.
-    charm.x = clamp(ox + ((e.clientX - x0) / (rect.width * S.zoom)) * 100, -40, 140);
-    charm.y = clamp(oy + ((e.clientY - y0) / (rect.height * S.zoom)) * 100, -40, 140);
-    node.style.left = charm.x + '%';
-    node.style.top = charm.y + '%';
+    const dx = clamp(((e.clientX - x0) / (rect.width * S.zoom)) * 100, -40 - lowX, 140 - highX);
+    const dy = clamp(((e.clientY - y0) / (rect.height * S.zoom)) * 100, -40 - lowY, 140 - highY);
+    for (const o of from) {
+      o.c.x = o.x + dx;
+      o.c.y = o.y + dy;
+      const n = nodes.get(o.c.uid);
+      if (!n) continue;
+      n.style.left = o.c.x + '%';
+      n.style.top = o.c.y + '%';
+    }
   };
   const up = () => {
     window.removeEventListener('pointermove', move);
@@ -2820,7 +2912,7 @@ async function submitOrder(form) {
   for (const l of lines) trayTake(l.itemId, l.variantId, l.qty);
   if (leftoverChoice === 'discard') { S.tray = []; saveTray(); }
   S.charms = [];
-  S.picked = null;
+  clearPicked();
   S.amending = null;
   leftoverChoice = 'none';
 
@@ -3486,9 +3578,11 @@ function openPieceDialog(item) {
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
     f.active.checked = item.active;
+    f.canFlip.checked = Boolean(item.canFlip);
     f.soldBy.value = item.soldBy;
   } else {
     f.id.value = '';
+    f.canFlip.checked = false;
     f.soldBy.value = 'piece';
   }
   paintSoldBy();
@@ -4089,6 +4183,15 @@ function respace(dir) {
   paint();
 }
 
+/** The flip button is there only when something that can be flipped is picked. */
+function paintFlip() {
+  const btn = $('#flip');
+  if (!btn) return;
+  const able = selectedCharms().filter(canFlip);
+  btn.hidden = !able.length;
+  btn.textContent = able.length > 1 ? `Flip these ${able.length}` : 'Flip';
+}
+
 function paintSpacing() {
   const box = $('#spacing');
   if (!box) return;
@@ -4159,7 +4262,7 @@ function layOutPiece() {
   }
 
   S.charms = made;
-  S.picked = null;
+  clearPicked();
   S.zoom = 1;
   if (overflows()) setZoom(fitZoom());
   paint();
@@ -4399,7 +4502,7 @@ function wireTray() {
     S.tray = [];
     saveTray();
     S.charms = [];
-    S.picked = null;
+    clearPicked();
     paint();
     toast('Tray emptied.', 'good');
   });
@@ -4494,7 +4597,7 @@ function wireDesign() {
   });
   stage.addEventListener('pointerdown', (e) => {
     if (e.target === stage || e.target.id === 'stage-zoom' || e.target.closest('.stage-hint')) {
-      S.picked = null;
+      clearPicked();
       paintStage();
     }
   });
@@ -4556,17 +4659,32 @@ function wireDesign() {
     () => respace(Number(b.dataset.space))));
 
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
-    const c = pickedCharm();
-    if (!c) return toast('Tap a piece on the canvas first.');
-    if (b.dataset.tool === 'front') c.z = ++S.zTop;
-    if (b.dataset.tool === 'lift') return unplace(c.uid);
+    if (b.dataset.tool === 'flip') return flipPicked();
+    const group = selectedCharms();
+    if (!group.length) return toast('Tap a piece on the canvas first.');
+    if (b.dataset.tool === 'front') { for (const c of group) c.z = ++S.zTop; }
+    if (b.dataset.tool === 'lift') {
+      for (const uid of group.map((c) => c.uid)) unplace(uid);
+      return;
+    }
     paintStage();
   }));
+
+  $('#multi').addEventListener('click', (e) => {
+    S.multiMode = !S.multiMode;
+    e.currentTarget.setAttribute('aria-pressed', String(S.multiMode));
+    toast(S.multiMode
+      ? 'Tap pieces to add them to the selection, then drag any of them to move them together.'
+      : 'Back to picking one piece at a time.');
+  });
 
   document.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
     if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-    if (S.picked) { e.preventDefault(); unplace(S.picked); }
+    const group = selectedCharms();
+    if (!group.length) return;
+    e.preventDefault();
+    for (const uid of group.map((c) => c.uid)) unplace(uid);
   });
 
   $('#s-clear').addEventListener('click', async () => {
@@ -4739,6 +4857,7 @@ function wirePieceDialog() {
         heightMm: soldByLength ? 0 : Number(data.get('heightMm')) || 0,
         tileCm: soldByLength ? tileCm : 0,
         urgentFee: Number(data.get('urgentFee')) || 0,
+        canFlip: f.canFlip.checked,
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
         stickers: S.draft.stickers,
@@ -5557,7 +5676,7 @@ async function dropAmend() {
   if (!order) { S.amending = null; paint(); return; }
   for (const i of order.items || []) trayTake(i.itemId || i.id, i.variantId || 'v0', i.qty);
   S.charms = [];
-  S.picked = null;
+  clearPicked();
   S.amending = null;
   await moveOrder(order.id, 'new', 'Customer kept the original design.', 'customer');
   setMode('mine');
