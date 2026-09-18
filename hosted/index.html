@@ -256,7 +256,10 @@ h3 { font-size: 15px; }
   gap: 7px; text-align: center; padding: 40px; pointer-events: none; max-width: 44ch; margin: auto;
 }
 .charm { position: absolute; transform-origin: center; cursor: grab; user-select: none;
-  touch-action: none; }
+  touch-action: none; -webkit-user-drag: none; }
+/* A picture is draggable by default in some browsers, and that native drag
+   swallows the pointer — the piece would freeze where it was picked up. */
+.charm img, .charm .run { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* A strand hangs from where it is pinned, so it turns about its top end. */
 .charm.strand { transform-origin: 50% 0; }
 .charm.strand .run {
@@ -1494,6 +1497,7 @@ const S = {
   picked: null,        // the piece the tools act on
   also: [],            // more pieces selected with it, to move as one
   multiMode: false,    // taps add to the selection instead of replacing it
+  dragging: false,     // a piece is in hand, so the canvas must hold still
   railSection: null,   // which section of the tray the rail is showing
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
@@ -2289,7 +2293,9 @@ function railRow(r) {
   const amount = (n) => (isLength(item) ? fmtLen(n) : String(n));
   return `<div class="placeable ${left <= 0 ? 'full' : ''}"
     data-item="${esc(r.itemId)}" data-variant="${esc(r.variantId)}"
-    draggable="${left > 0}" title="${esc(item.note || item.name)}">
+    draggable="${left > 0}" tabindex="0" role="button"
+    title="${left > 0 ? `Tap to put one ${esc(item.name)} on the design`
+      : esc(item.note || item.name)}">
     <button type="button" class="drop" data-tray="drop" title="Take out of your tray"
       aria-label="Take ${esc(item.name)} out of your tray">×</button>
     <span class="shot">${shotHtml(item, r.variantId)}</span>
@@ -2445,7 +2451,7 @@ function loadBench() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(BENCH_KEY) || 'null'); } catch { saved = null; }
   const side = Math.min(640, benchRoom());
-  if (saved && saved.w > 200 && saved.h > 200) setBench(saved.w, saved.h, false);
+  if (saved && saved.w >= 300 && saved.h >= 300) setBench(saved.w, saved.h, false);
   else setBench(side, side, false);
 }
 
@@ -2904,6 +2910,9 @@ function sizeField() {
   const stage = $('#stage');
   const pan = $('#stage-pan');
   if (!stage || !pan) return;
+  // Never while a piece is in hand: changing the margins would slide the canvas
+  // out from under the pointer, and the piece would fight the drag.
+  if (S.dragging) return;
   const side = Math.round((stagePx() || 640) * S.zoom);
   pan.style.width = `${side}px`;
   pan.style.height = `${side}px`;
@@ -2971,7 +2980,7 @@ function paintStage() {
         `z-index:${c.z};transform:${charmTransform(c)}`;
       const art = charmArt(item, c.variantId);
       node.innerHTML = (art.src
-        ? `<img class="${art.cut ? 'cut' : ''}" src="${esc(art.src)}" alt="">`
+        ? `<img class="${art.cut ? 'cut' : ''}" src="${esc(art.src)}" alt="" draggable="false">`
         : `<span class="glyph">${esc(item.glyph)}</span>`) +
         `<button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
       const glyph = node.querySelector('.glyph');
@@ -3166,6 +3175,9 @@ function startMove(ev, charm, node) {
 
   // Everything is worked out from where the pointer is on the canvas *now*, so
   // the drag survives the canvas scrolling under it.
+  // The piece keeps the pointer for the whole drag, whatever it passes over.
+  try { node.setPointerCapture(ev.pointerId); } catch { /* older browsers cope */ }
+  S.dragging = true;
   const grab = onPiece(ev.clientX, ev.clientY);
   const x0 = ev.clientX; const y0 = ev.clientY;
   const from = group.map((c) => ({ c, dx: c.x - grab.x, dy: c.y - grab.y }));
@@ -3194,10 +3206,15 @@ function startMove(ev, charm, node) {
     const r = stage.getBoundingClientRect();
     const push = (near, far) => (near < EDGE ? -Math.min(18, EDGE - near)
       : far < EDGE ? Math.min(18, EDGE - far) : 0);
-    const sx = push(at.x - r.left, r.right - at.x);
-    const sy = push(at.y - r.top, r.bottom - at.y);
+    // Only towards an edge the drag is actually heading for: a piece picked up
+    // near the top must not send the canvas scrolling before it has moved.
+    const wentX = at.x - x0;
+    const wentY = at.y - y0;
+    let sx = push(at.x - r.left, r.right - at.x);
+    let sy = push(at.y - r.top, r.bottom - at.y);
+    if (Math.sign(sx) !== Math.sign(wentX) || Math.abs(wentX) < 12) sx = 0;
+    if (Math.sign(sy) !== Math.sign(wentY) || Math.abs(wentY) < 12) sy = 0;
     if (!moved || (!sx && !sy)) return;
-    sizeField();                      // make room to scroll into first
     stage.scrollLeft += sx;
     stage.scrollTop += sy;
     put();
@@ -3218,18 +3235,22 @@ function startMove(ev, charm, node) {
     }
     at = { x: e.clientX, y: e.clientY };
     put();
-    sizeField();
     if (!roll) roll = requestAnimationFrame(creep);
   };
   const up = () => {
     cancelAnimationFrame(roll);
+    S.dragging = false;
     for (const n of nodes.values()) n.classList.remove('moving');
+    try { node.releasePointerCapture(ev.pointerId); } catch { /* fine */ }
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+    // Now the room around the canvas can grow to hold wherever it ended up.
     paintStage();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
 }
 
 /* ------------------------------------------------------------------- bill */
@@ -5208,7 +5229,21 @@ function wireDesign() {
     if (e.target.id === 'rail-browse') return setMode('browse');
     const tab = e.target.closest('[data-sec]');
     if (tab) { S.railSection = tab.dataset.sec; paintPlaceRail(); return; }
-    handleTrayControl(e);
+    if (handleTrayControl(e)) return;
+    // A tap on the card itself lays one out — the card's On design count goes
+    // up with it, so it is clear what the tap did.
+    const card = e.target.closest('.placeable');
+    if (!card || card.classList.contains('full')) return;
+    place(card.dataset.item, card.dataset.variant, null, null);
+  });
+
+  // …and from the keyboard, for anyone not using a pointer.
+  $('#place-rail').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.placeable');
+    if (!card || e.target.closest('button')) return;
+    e.preventDefault();
+    if (!card.classList.contains('full')) place(card.dataset.item, card.dataset.variant, null, null);
   });
   $('#place-rail').addEventListener('dragstart', (e) => {
     const node = e.target.closest('.placeable');
@@ -5218,6 +5253,11 @@ function wireDesign() {
   });
 
   const stage = $('#stage');
+  stage.addEventListener('dragstart', (e) => {
+    // Nothing on the canvas is dragged the browser's way; the piece is moved by
+    // pointer events, and a native drag would steal them.
+    if (e.target.closest('.charm')) e.preventDefault();
+  });
   stage.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; stage.classList.add('over'); });
   stage.addEventListener('dragleave', () => stage.classList.remove('over'));
   stage.addEventListener('drop', (e) => {

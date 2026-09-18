@@ -238,6 +238,12 @@ or use **Bench ↔ + / ↕ + / − / Reset** beneath it, to make the working are
 wider, taller or both, up to the room the screen has. The size is remembered
 between visits, and comes back inside the screen if you open it on a smaller one.
 
+Moving a piece is pointer work from beginning to end: the piece captures the
+pointer, the artwork is marked undraggable so no browser's own image-drag can
+swallow the gesture halfway, and the room around the canvas is left alone until
+the piece is put down — a canvas that reflowed mid-drag would slide out from
+under the pointer and the piece would seem stuck.
+
 **Nothing is fenced in.** A piece can be dragged as far below or beside the
 canvas as the real thing hangs: hold it against an edge and the canvas walks
 along under it, and the scrollable area grows to keep whatever has been dragged
@@ -261,7 +267,9 @@ it you are buying — and **On design** — how much of it is on the canvas. Bot
 have their own − and +, so adding to the tray and laying one out are never the
 same gesture: the design + drops another one into clear space on the canvas, and
 its − takes the last one back off. Dragging a card onto the canvas still works,
-and placing a piece leaves the rail exactly where it was scrolled.
+and placing a piece leaves the rail exactly where it was scrolled. **Tapping the
+card itself** lays one out too — the card's *On design* count goes up with it, so
+the tap has a visible answer.
 
 A strand hangs straight down from its pin, and the only thing that ever changes
 that is the rotate arrows — not moving it, not selecting it, not switching
