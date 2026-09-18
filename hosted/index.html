@@ -274,8 +274,18 @@ h3 { font-size: 15px; }
 /* The guide behind the piece: a hoop to hang things round, or a rail to hang
    them from. It is a drawing aid, never part of the order. */
 .stage-guide { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
-/* A centimetre grid to measure by: there to be read past, not looked at. */
-.stage-grid { position: absolute; inset: 0; pointer-events: none; color: var(--line-strong); opacity: .42; }
+/* A centimetre grid to measure by: there to be read past, not looked at. It
+   covers the whole window, not just the canvas, so the ruling never runs out. */
+.stage-grid {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; color: var(--line-strong); opacity: .42; z-index: 0;
+}
+/* Where the canvas proper ends — the piece may be drawn past it, but this is
+   the square the order's picture is taken of. */
+.stage-pan::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border: 1px dashed var(--line-strong); opacity: .5; border-radius: 4px;
+}
 
 .viewswitch { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; }
 .viewswitch button {
@@ -938,6 +948,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
       <div class="ruler ruler-x" id="ruler-x"></div>
       <div class="ruler ruler-y" id="ruler-y"></div>
       <div class="stage" id="stage">
+        <div class="stage-grid" id="stage-grid"></div>
         <div class="stage-pan" id="stage-pan"><div class="stage-zoom" id="stage-zoom"></div></div>
         <div class="stage-hint" id="hint">
           <h2>Start with the piece it hangs on</h2>
@@ -2266,6 +2277,7 @@ function setZoom(z) {
   const k = pan.offsetWidth / was;
   stage.scrollLeft = pan.offsetLeft + midX * k - stage.clientWidth / 2;
   stage.scrollTop = pan.offsetTop + midY * k - stage.clientHeight / 2;
+  paintGrid();
   paintRulers();
 }
 
@@ -2630,78 +2642,98 @@ function hangAngle(c) {
  * covers: a square is a square centimetre of real jewellery, and every fifth
  * line is a little stronger, the way graph paper marks its fives.
  */
-function paintGrid() {
-  const stage = $('#stage-zoom');
-  $$('.stage-grid', stage).forEach((n) => n.remove());
-  const span = stageMm();
-  if (!span) return;
-  // A millimetre is worth drawing once it is a few pixels wide on screen; below
-  // that the grid is centimetres, and below that five at a time.
-  const mmPx = PX_PER_MM * S.zoom;
-  const every = mmPx >= 5 ? 1 : mmPx * 10 >= 9 ? 10 : 50;   // millimetres apart
-  if (every * mmPx < 5) return;                             // too fine to read
-  const step = (every / span) * 100;                        // as a % of the canvas
-  // The drawing is stretched to the canvas, so a line's width has to be given
-  // back in canvas units or it thickens with every zoom.
-  const unit = 100 / Math.max(1, stagePx() * S.zoom);
-  const lines = [];
-  for (let i = 1; i * step < 100; i += 1) {
-    const at = (i * step).toFixed(3);
-    const mm = i * every;
-    const heavy = mm % 50 === 0;
-    const mid = !heavy && mm % 10 === 0;
-    const w = ((heavy ? 1.2 : mid ? 1 : 0.8) * unit).toFixed(4);
-    const o = heavy ? 0.55 : mid ? 0.4 : 0.24;
-    lines.push(`<line x1="${at}" y1="0" x2="${at}" y2="100" stroke-width="${w}" opacity="${o}"/>`);
-    lines.push(`<line x1="0" y1="${at}" x2="100" y2="${at}" stroke-width="${w}" opacity="${o}"/>`);
-  }
-  const grid = document.createElement('div');
-  grid.className = 'stage-grid';
-  grid.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%"
-      stroke="currentColor">${lines.join('')}</svg>`;
-  stage.prepend(grid);
+/**
+ * Where nought sits inside the window, and how big a millimetre is on screen.
+ * Both the grid and the rule are drawn from these, so they always agree.
+ */
+function stageScale() {
+  const stage = $('#stage');
+  const pan = $('#stage-pan');
+  if (!stage || !pan) return null;
+  const W = stage.clientWidth;
+  const H = stage.clientHeight;
+  if (!W || !H) return null;
+  return {
+    stage, pan, W, H,
+    mmPx: PX_PER_MM * S.zoom,
+    zeroX: pan.offsetLeft - stage.scrollLeft,
+    zeroY: pan.offsetTop - stage.scrollTop,
+  };
 }
 
 /**
- * The rule down two edges of the canvas. It reads the canvas itself, so it
- * follows the zoom and the scroll: millimetre ticks once a millimetre is wide
- * enough to see, centimetre ticks always, and a number every centimetre or
- * every five, whichever the room allows.
+ * The ruling behind the piece. It covers the whole window at every zoom — past
+ * the edges of the canvas as well, since a piece can be dragged out there —
+ * and steps between millimetres, centimetres and five-centimetre lines so
+ * there is always something to measure against and never a smear.
+ */
+function paintGrid() {
+  const g = stageScale();
+  const box = $('#stage-grid');
+  if (!g || !box) return;
+  // Pinned to the window: the grid is measured from the canvas, but drawn where
+  // the eye is looking, so scrolling does not leave it behind.
+  box.style.transform = `translate(${g.stage.scrollLeft}px, ${g.stage.scrollTop}px)`;
+
+  const { mmPx, W, H, zeroX, zeroY } = g;
+  const every = mmPx >= 5 ? 1 : mmPx * 10 >= 9 ? 10 : 50;   // millimetres apart
+  const lines = [];
+  const run = (zero, span, across) => {
+    const from = Math.floor(-zero / (mmPx * every));
+    const to = Math.ceil((span - zero) / (mmPx * every));
+    for (let i = from; i <= to; i += 1) {
+      const mm = i * every;
+      const at = zero + mm * mmPx;
+      if (at < -1 || at > span + 1) continue;
+      const heavy = mm % 50 === 0;
+      const mid = !heavy && mm % 10 === 0;
+      const w = heavy ? 1.1 : mid ? 0.9 : 0.7;
+      const o = heavy ? 0.55 : mid ? 0.4 : 0.24;
+      const p = at.toFixed(1);
+      lines.push(across
+        ? `<line x1="${p}" y1="0" x2="${p}" y2="${H}" stroke-width="${w}" opacity="${o}"/>`
+        : `<line x1="0" y1="${p}" x2="${W}" y2="${p}" stroke-width="${w}" opacity="${o}"/>`);
+    }
+  };
+  run(zeroX, W, true);
+  run(zeroY, H, false);
+  box.innerHTML = `<svg width="${W}" height="${H}" stroke="currentColor"
+      shape-rendering="crispEdges">${lines.join('')}</svg>`;
+}
+
+/**
+ * The rule down two edges of the design area. It reads the canvas itself, so
+ * it follows the zoom and the scroll, and it runs the whole length of the
+ * window — past the edges of the canvas too, since a piece can be dragged out
+ * there. Millimetre ticks once a millimetre is wide enough to see, centimetre
+ * ticks always, and a number every centimetre or every five, whichever fits.
  */
 function paintRulers() {
-  const stage = $('#stage');
-  const pan = $('#stage-pan');
+  const g = stageScale();
   const rx = $('#ruler-x');
   const ry = $('#ruler-y');
-  if (!stage || !pan || !rx || !ry) return;
-  const W = stage.clientWidth;
-  const H = stage.clientHeight;
-  if (!W || !H) return;
+  if (!g || !rx || !ry) return;
+  const { W, H, mmPx, zeroX, zeroY } = g;
 
-  const mmPx = PX_PER_MM * S.zoom;              // one millimetre, on screen
   const fine = mmPx >= 4;                       // are millimetres worth ticking?
   const labelCm = mmPx * 10 >= 42 ? 1 : mmPx * 10 >= 16 ? 5 : 10;
-  const totalMm = Math.ceil(lifeMm());          // the canvas is this many mm across
-  // Where 0 mm of the canvas sits inside the window, once scrolled.
-  const zeroX = pan.offsetLeft - stage.scrollLeft;
-  const zeroY = pan.offsetTop - stage.scrollTop;
 
   const build = (zero, span, across) => {
     const ticks = [];
-    const from = Math.max(0, Math.floor(-zero / mmPx));
-    const to = Math.min(totalMm, Math.ceil((span - zero) / mmPx));
+    const from = Math.floor(-zero / mmPx);
+    const to = Math.ceil((span - zero) / mmPx);
     for (let mm = from; mm <= to; mm += 1) {
       const at = zero + mm * mmPx;
       if (at < -1 || at > span + 1) continue;
       const cm = mm % 10 === 0;
       if (!cm && !fine) continue;
-      const len = mm % 50 === 0 ? 11 : cm ? 8 : mm % 5 === 0 ? 5 : 3;
+      const len = mm % 50 === 0 ? 11 : cm ? 8 : Math.abs(mm % 5) === 0 ? 5 : 3;
       ticks.push(across
         ? `<line x1="${at.toFixed(1)}" y1="${18 - len}" x2="${at.toFixed(1)}" y2="18"
              stroke="currentColor" stroke-width="1" opacity=".55"/>`
         : `<line x1="${22 - len}" y1="${at.toFixed(1)}" x2="22" y2="${at.toFixed(1)}"
              stroke="currentColor" stroke-width="1" opacity=".55"/>`);
-      if (!cm || (mm / 10) % labelCm !== 0 || mm === 0) continue;
+      if (!cm || (mm / 10) % labelCm !== 0) continue;
       ticks.push(across
         ? `<text x="${(at + 2).toFixed(1)}" y="9" font-size="8.5" fill="currentColor"
              opacity=".75">${mm / 10}</text>`
@@ -4739,7 +4771,7 @@ function wireDesign() {
   let ruling = 0;
   stage.addEventListener('scroll', () => {
     if (ruling) return;
-    ruling = requestAnimationFrame(() => { ruling = 0; paintRulers(); });
+    ruling = requestAnimationFrame(() => { ruling = 0; paintGrid(); paintRulers(); });
   }, { passive: true });
   window.addEventListener('resize', () => { if (S.mode === 'design') paintStage(); });
 

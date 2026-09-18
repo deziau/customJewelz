@@ -187,16 +187,24 @@ further than its ends. Tap the base, or any of its hangings, to say which
 formation the buttons act on when there is more than one. Dragging a hanging by
 hand still works; taking the base off cuts the tie and leaves everything loose.
 
-**A rule down two edges, and room to scroll.** The canvas is ruled along its top
-and left edges in centimetres, numbered, with millimetre ticks appearing as soon
-as a millimetre is wide enough to see and the numbering thinning to every five
-centimetres when it is not. The rule reads the canvas itself, so it follows both
-the zoom and the scroll: at any magnification, what it says is what the piece
-measures. The grid behind the piece does the same — centimetre squares at arm's
-length, millimetres once you are close — and the canvas scrolls up, down and
-sideways whenever the zoom makes it bigger than the window, by scrollbar, wheel
-or finger. Zooming holds whatever is in the middle of the view in the middle of
-the view.
+**Ruled edge to edge, at every zoom.** The design area is ruled along its top
+and left edges and gridded behind the piece, and both cover the whole window at
+every magnification — including the space outside the canvas square, since a
+piece can be dragged out there. Nought is the canvas's own corner, so the
+numbers run negative above and left of it and carry on past its far edge; the
+canvas itself is outlined with a faint dashed square, because that square is
+what the order's picture is taken of.
+
+The ruling steps with the zoom rather than thinning out: millimetre lines and
+ticks once a millimetre is wide enough to read, centimetres at arm's length,
+five centimetres when the whole bench is in view — and the numbering thins from
+every centimetre to every five or ten to match. Rule and grid are drawn from one
+set of figures, so they always agree, and what they say is what the piece
+measures at any zoom.
+
+The canvas scrolls up, down and sideways whenever the zoom makes it bigger than
+the window — scrollbar, wheel or finger — and zooming holds whatever is in the
+middle of the view in the middle of the view.
 
 **Design** — the tray becomes the rail beside the canvas, largest piece first:
 only what they picked can be placed, and each row counts down ("8 of 10 to
