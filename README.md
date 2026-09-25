@@ -14,8 +14,69 @@ There are two ways to run it, both from this repository:
    a SQLite database, which you run on your own machine or server. It enforces
    stock server-side, so a customer cannot oversell by editing the page.
 
-Both offer the same designer, cost calculator, stock rules, studio and order
-book. Everything below describes the self-hosted app unless it says otherwise.
+The hosted app is the product. The self-hosted app is **frozen**: it predates
+Create, real sizes, colours and the studio's newer tools, and is kept only as the
+starting point for a server-backed version (e.g. on Railway). Nothing new is
+added to `server/` or `public/` until that move happens.
+
+## Create — the front door
+
+The shop opens on **Create**: one bangle, drawn at its real size, with numbered
+spots along its lower edge.
+
+1. **Choose your bangle.** With only one in stock the question is skipped.
+2. **Tap a spot, tap a charm.** It hangs there on a jump ring from its own loop,
+   at its real size against the bangle, and swings as it settles. Filling a spot
+   moves on to the next one, from the middle outwards. Tap a hung charm to change
+   its colour, drop it on a **short, medium or long** length of chain, swap it or
+   take it off. **Repeat on empty spots** and **Mirror left to right** dress a
+   bangle in two taps.
+3. **Review & order.** The price bar is always on screen. Signing in (or
+   creating an account) carries straight on to checkout.
+
+What is on the bangle *is* the basket: Create claims each piece from stock as it
+is hung and gives it back when it is taken off, so the bill, stock checks,
+checkout, the order record and *Edit order* work exactly as before. The order's
+picture is drawn from the same layout as the screen. **Arrange it freely
+instead** hands the piece to the free layout (the older canvas) for anyone who
+wants it; the studio lives at the address ending **`#studio`**.
+
+Create reads every sticker once, in the browser: where its metal actually is (so
+it is drawn to its millimetres, not its padding), where its **loop** is (the
+topmost bit of metal) and, for a bangle, where the **band** runs. The studio can
+override all of it under **How it hangs in Create** in the component dialog —
+what the piece is (bangle / charm / chain), how many spots a bangle has, and a
+click-on-the-picture loop marker.
+
+## Charm renders
+
+`scripts/renders/` turns the shop's cut-outs into the pictures Create draws.
+`assets/` (the shop's own pictures) is git-ignored — this repository is public.
+
+```bash
+node scripts/renders/export.js <dir of catalogue JSON>   # -> assets/raw/<id>/
+HF_KEY=... node scripts/renders/higgsfield.js --probe     # one charm, raw API output
+HF_KEY=... node scripts/renders/higgsfield.js             # studio render of every charm
+node scripts/renders/finish.js                            # check + polish -> assets/renders/
+node scripts/renders/sheet.js                             # assets/review.html, before/after
+```
+
+`higgsfield.js` asks Higgsfield for the same charm as a front-on studio product
+shot on white. `finish.js` lifts the white off, trims to the metal and compares
+the outline with the original cut-out: a render whose shape has drifted is
+rejected and the (polished) cut-out is used instead. Approved renders are
+written to each component as `renders[]`, which Create prefers over stickers.
+The key is read from `HF_KEY` only; never commit it. `HF_MODEL` / `HF_IMAGES`
+override the model path and its image field.
+
+## Tests
+
+```bash
+npm test          # self-hosted API smoke test
+npm run test:ui   # hosted shop in Chromium: build, order, edit, studio
+```
+
+Everything below describes the self-hosted app unless it says otherwise.
 
 ## Quick start
 
