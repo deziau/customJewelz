@@ -33,41 +33,67 @@ const CATALOG = {
   kada: piece('Gold Kada', 'bangles', 45, [70, 70], 5, { art: 'bangle-kada', colour: 'Gold', order: 1 }),
   heart: piece('Heart', 'charms', 6, [12, 12], 20, { art: 'charm-heart', order: 2 }),
   star: piece('Star', 'charms', 6, [12, 12], 20, { art: 'charm-star', order: 3 }),
-  pearl: piece('Pearl', 'charms', 9, [8, 12], 1, { art: 'charm-pearl', order: 4 }),
+  pearl: piece('Pearl', 'charms', 9, [8, 12], 2, { art: 'charm-pearl', order: 4 }),
   bell: piece('Bell', 'charms', 5, [10, 12], 0, { art: 'charm-bell', order: 5 }),
   chain: piece('Cable Chain', 'chains', 30, [2, 20], 300, { art: 'chain-cable', soldBy: 'length', tileCm: 2, order: 6 }),
 };
 
-/** Runs in the page before any of its scripts: a stand-in for claude.use('db'). */
-function installStore(seed) {
+/**
+ * Runs in the page before any of its scripts: a stand-in for claude.use('db')
+ * and claude.use('user'), enforcing the same access rules the shop is
+ * published with, so the tests catch a page that asks for what it may not see.
+ */
+function installStore({ seed, role = 'customer', uid = 'u_asha', extra = {} }) {
   const sections = [['bangles', 'Bangles'], ['charms', 'Charms'], ['chains', 'Chains']]
     .map(([slug, name]) => ({ slug, name, kind: 'attachment' }));
   const store = {
-    catalog: seed, zones: { metro: { area: 'Metro', cost: 8, eta: '3' } }, orders: {}, restock: {}, customers: {},
-    meta: { settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, pin: '2468', sections } },
+    'zones/metro': { area: 'Metro', cost: 8, eta: '3' },
+    'meta/settings': { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, pin: '2468', sections },
+    ...Object.fromEntries(Object.entries(seed).map(([id, d]) => [`catalog/${id}`, d])),
+    ...extra,
   };
   window.__store = store;
-  const listeners = [];
-  const snapDoc = (id, d) => ({ id, exists: Boolean(d), data: () => (d ? JSON.parse(JSON.stringify(d)) : undefined) });
-  const notify = () => setTimeout(() => listeners.forEach((f) => f()), 0);
-  const doc = (p) => {
-    const [c, id] = p.split('/');
-    return {
-      onSnapshot(cb) { const f = () => cb(snapDoc(id, (store[c] || {})[id])); listeners.push(f); setTimeout(f, 0); return () => {}; },
-      async get() { return snapDoc(id, (store[c] || {})[id]); },
-      async set(d) { (store[c] ||= {})[id] = JSON.parse(JSON.stringify(d)); notify(); },
-      async update(d) { Object.assign(store[c][id], JSON.parse(JSON.stringify(d))); notify(); },
-      async delete() { delete store[c][id]; notify(); },
-    };
+  window.__refused = [];
+  const studio = role === 'studio';
+  const canRead = (p) => {
+    const [top, who] = p.split('/');
+    if (studio) return true;
+    if (top === 'people') return who === uid;
+    return !['orders', 'restock', 'customers'].includes(top);
   };
-  const collection = (name) => ({
-    onSnapshot(cb) {
-      const f = () => cb({ docs: Object.entries(store[name] || {}).map(([id, d]) => snapDoc(id, d)) });
-      listeners.push(f); setTimeout(f, 0); return () => {};
-    },
-    doc: (id) => doc(`${name}/${id}`),
+  const canWrite = (p) => {
+    const [top, who] = p.split('/');
+    if (studio) return true;
+    if (top === 'people') return who === uid;
+    return top === 'holds';
+  };
+  const listeners = [];
+  const clone = (d) => JSON.parse(JSON.stringify(d));
+  const snapDoc = (p, d) => ({ id: p.split('/').pop(), exists: Boolean(d), data: () => (d ? clone(d) : undefined) });
+  const notify = () => setTimeout(() => listeners.forEach((f) => f()), 0);
+  const refuse = (p) => { window.__refused.push(p); const e = new Error('refused'); e.code = 'invalid_argument'; throw e; };
+  const read = (p) => (canRead(p) ? store[p] : (window.__refused.push(p), undefined));
+  const doc = (p) => ({
+    onSnapshot(cb) { const f = () => cb(snapDoc(p, read(p))); listeners.push(f); setTimeout(f, 0); return () => {}; },
+    async get() { return snapDoc(p, read(p)); },
+    async set(d) { if (!canWrite(p)) refuse(p); store[p] = clone(d); notify(); },
+    async update(d) { if (!canWrite(p) || !store[p]) refuse(p); Object.assign(store[p], clone(d)); notify(); },
+    async delete() { if (!canWrite(p)) refuse(p); delete store[p]; notify(); },
+    collection: (c) => collection(`${p}/${c}`),
   });
-  window.claude = { use: async () => ({ collection, doc }) };
+  const list = (c) => {
+    if (!canRead(`${c}/x`)) { window.__refused.push(c); return []; }
+    const depth = c.split('/').length + 1;
+    return Object.keys(store).filter((k) => k.startsWith(`${c}/`) && k.split('/').length === depth)
+      .map((k) => snapDoc(k, store[k]));
+  };
+  const collection = (c) => ({
+    onSnapshot(cb) { const f = () => cb({ docs: list(c) }); listeners.push(f); setTimeout(f, 0); return () => {}; },
+    async get() { return { docs: list(c) }; },
+    doc: (id) => doc(`${c}/${id}`),
+  });
+  const user = { id: async () => uid, canEdit: async () => studio, isOwner: async () => studio };
+  window.claude = { use: async (name) => (name === 'db' ? { collection, doc } : name === 'user' ? user : null) };
 }
 
 function chromePath() {
@@ -78,7 +104,13 @@ function chromePath() {
 
 async function run(browser, label, viewport) {
   const ctx = await browser.newContext({ viewport });
-  await ctx.addInitScript(installStore, CATALOG);
+  // Another customer's order is already in the shop: a pearl is spoken for,
+  // and nothing about that customer may reach this one.
+  await ctx.addInitScript(installStore, { seed: CATALOG, extra: {
+    'people/u_ravi': { name: 'Ravi Other', email: 'ravi@example.com', phone: '0411 111 111' },
+    'people/u_ravi/orders/o_ravi': { no: 'CJ-1', uid: 'u_ravi', status: 'new', items: [{ itemId: 'pearl', variantId: 'v0', qty: 1 }] },
+    'holds/o_ravi': { status: 'new', items: [{ itemId: 'pearl', variantId: 'v0', qty: 1 }] },
+  } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -151,15 +183,13 @@ async function run(browser, label, viewport) {
   const trayVsPiece = await page.evaluate(() => S.tray.every((r) => placedQty(r.itemId, r.variantId) === r.qty));
   assert.ok(trayVsPiece, 'tray and piece disagree');
 
-  // Ordering asks for an account, then carries straight on to checkout.
+  // Ordering asks for contact details once, then carries straight on to checkout.
   const totalBefore = await text('#bd-total');
   await page.click('#bd-order');
   await page.waitForSelector('#dlg-auth[open]');
-  await page.click('#auth-up');
   await page.fill('input[name=upName]', 'Asha Test');
   await page.fill('input[name=upEmail]', 'asha@example.com');
   await page.fill('input[name=upPhone]', '0400 000 000');
-  await page.fill('input[name=upPin]', '2468');
   await page.click('#auth-submit');
   await page.waitForSelector('#dlg-checkout[open]');
   assert.equal(await page.inputValue('#form-checkout input[name=email]'), 'asha@example.com', 'contact prefilled');
@@ -168,8 +198,21 @@ async function run(browser, label, viewport) {
   await page.waitForSelector('#dlg-done[open]');
   await shot('4-done');
 
-  const order = await page.evaluate(() => Object.values(window.__store.orders)[0]);
+  // The order is in the customer's own corner, with a names-free hold beside it.
+  const [orderId, order] = await page.evaluate(() => {
+    const k = Object.keys(window.__store).find((p) => p.startsWith('people/u_asha/orders/'));
+    return [k.split('/').pop(), window.__store[k]];
+  });
   assert.ok(order, 'order saved');
+  const hold = await page.evaluate((id) => window.__store[`holds/${id}`], orderId);
+  assert.ok(hold && hold.items.length && !JSON.stringify(hold).includes('asha'), 'the hold claims stock without naming anyone');
+  assert.equal(await page.evaluate(() => window.__store['people/u_asha'].email), 'asha@example.com', 'details kept privately');
+
+  // Nothing about the other customer reached this one, and nothing asked for it.
+  assert.ok(!(await page.evaluate(() => JSON.stringify(S.orders) + JSON.stringify(S.account))).includes('ravi'), 'no one else\'s order');
+  assert.deepEqual(await page.evaluate(() => window.__refused), [], 'the page asked only for what it may see');
+  // The other customer's hold counts: two pearls, one theirs, one on Asha's piece.
+  assert.equal(await page.evaluate(() => freeToSell(itemOf('pearl'), 'v0')), 0, 'holds count against stock');
   assert.ok(order.snapshot && order.snapshot.startsWith('data:image/'), 'order carries a picture');
   const { hands } = order.design.build || {};
   assert.ok(hands && hands.left.baseId === 'kada' && hands.right.baseId === 'kada', 'order remembers both hands');
@@ -193,8 +236,11 @@ async function run(browser, label, viewport) {
   assert.equal(await page.$$eval('#bd-stage .hung', (n) => n.length), hung, 'amend restores every charm');
   assert.equal(await page.isHidden('#bd-amend'), false, 'amend banner shows');
 
-  // The studio is not in a shopper's way.
+  // The studio is only for the shop's owner and editors, even at #studio.
   assert.equal(await page.isHidden('#mode-studio'), true, 'studio hidden from shoppers');
+  await page.evaluate(() => { location.hash = '#studio'; });
+  await page.waitForTimeout(50);
+  assert.equal(await page.isHidden('#studio'), true, 'a shopper cannot open the studio');
 
   assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
   await ctx.close();
@@ -204,15 +250,20 @@ async function run(browser, label, viewport) {
 /** The studio can say what a piece is and where its loop is, and Create uses it. */
 async function studio(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  await ctx.addInitScript(installStore, CATALOG);
+  await ctx.addInitScript(installStore, { seed: CATALOG, role: 'studio', uid: 'u_owner', extra: {
+    'people/u_ravi': { name: 'Ravi Other', touched: 't1' },
+    'people/u_ravi/orders/o_ravi': { no: 'CJ-1', uid: 'u_ravi', status: 'new', createdAt: '2026-09-01', items: [] },
+    'orders/o_old': { no: 'CJ-0', status: 'done', createdAt: '2026-08-01', items: [] },
+  } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${PAGE}#studio`);
-  await page.waitForSelector('#dlg-pin[open]');
-  await page.fill('#form-pin input[name=pin]', '2468');
-  await page.click('#form-pin button[type=submit]');
   await page.waitForSelector('#studio:not([hidden])');
+  // The studio sees every customer's orders, old shared ones included.
+  await page.waitForFunction(() => S.orders.length === 2);
+  // The old PIN, readable by every visitor, is taken out of the shared settings.
+  await page.waitForFunction(() => !('pin' in window.__store['meta/settings']));
   await page.click('#admin-tabs [data-view="repo"]');
   await page.evaluate(() => openPieceDialog(itemOf('star')));
   await page.waitForSelector('#dlg-piece[open]');
@@ -223,7 +274,7 @@ async function studio(browser) {
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.1);
   await page.click('#form-piece button[type=submit]');
   await page.waitForSelector('#dlg-piece[open]', { state: 'detached' }).catch(async () => { throw new Error('save failed: ' + await page.textContent('#piece-error')); });
-  const saved = await page.evaluate(() => window.__store.catalog.star);
+  const saved = await page.evaluate(() => window.__store['catalog/star']);
   assert.ok(saved.loop && Math.abs(saved.loop.x - 50) < 3 && Math.abs(saved.loop.y - 10) < 3, `loop saved: ${JSON.stringify(saved.loop)}`);
   assert.equal(saved.name, 'Star', 'the rest of the component survives the save');
 
@@ -232,7 +283,7 @@ async function studio(browser) {
   await page.fill('#form-piece input[name=slots]', '5');
   await page.click('#form-piece button[type=submit]');
   await page.waitForSelector('#dlg-piece[open]', { state: 'detached' }).catch(async () => { throw new Error('save failed: ' + await page.textContent('#piece-error')); });
-  assert.equal(await page.evaluate(() => window.__store.catalog.kada.slots), 5);
+  assert.equal(await page.evaluate(() => window.__store['catalog/kada'].slots), 5);
 
   // Create picks the new spot count up.
   await page.click('#mode-build');
@@ -248,7 +299,7 @@ async function fixedLoops(browser) {
   const { kada, ...rest } = CATALOG;
   const catalog = { ...rest, loopy: piece('Loop Bangle', 'bangles', 40, [70, 70], 3, { art: 'bangle-loops', colour: 'Gold', order: 1 }) };
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  await ctx.addInitScript(installStore, catalog);
+  await ctx.addInitScript(installStore, { seed: catalog, role: 'studio', uid: 'u_owner' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -260,9 +311,6 @@ async function fixedLoops(browser) {
 
   // The studio finds its seven loops, and one is taken away by hand.
   await page.goto(`${PAGE}#studio`);
-  await page.waitForSelector('#dlg-pin[open]');
-  await page.fill('#form-pin input[name=pin]', '2468');
-  await page.click('#form-pin button[type=submit]');
   await page.evaluate(() => openPieceDialog(itemOf('loopy')));
   await page.waitForSelector('#spots-field:not([hidden])');
   await page.click('#spots-auto');
@@ -273,7 +321,7 @@ async function fixedLoops(browser) {
   assert.equal(await page.isVisible('#slots-field'), false, 'the spot count comes from the loops');
   await page.click('#form-piece button[type=submit]');
   await page.waitForSelector('#dlg-piece[open]', { state: 'detached' });
-  assert.equal(await page.evaluate(() => window.__store.catalog.loopy.spotsAt.length), 6);
+  assert.equal(await page.evaluate(() => window.__store['catalog/loopy'].spotsAt.length), 6);
 
   // Create now offers one spot per marked loop, each ring sitting on its loop.
   await page.click('#mode-build');

@@ -1586,38 +1586,22 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 </dialog>
 
 <dialog id="dlg-auth">
-  <header><h2 id="auth-title">Sign in to order</h2></header>
+  <header><h2 id="auth-title">Your details for this order</h2></header>
   <form id="form-auth">
     <div class="body">
-      <div class="seg" role="group" aria-label="Sign in or create an account">
-        <button type="button" id="auth-in" aria-pressed="true">I have an account</button>
-        <button type="button" id="auth-up" aria-pressed="false">Create an account</button>
-      </div>
-      <p class="muted" style="font-size:13px;margin-top:0" id="auth-lede"></p>
-
-      <div id="auth-signin">
-        <label class="f"><span>Email or phone</span>
-          <input name="handle" autocomplete="username" placeholder="you@example.com or 98765 43210"></label>
-        <label class="f"><span>PIN</span>
-          <input name="pin" type="password" inputmode="numeric" autocomplete="current-password"></label>
-      </div>
-
-      <div id="auth-signup" hidden>
+      <p class="muted" style="font-size:13px;margin-top:0">So we can tell you when your pair is ready. Only you and the studio can see these.</p>
+      <div id="auth-signup">
         <label class="f"><span>Your name *</span><input name="upName" autocomplete="name"></label>
         <div class="pair">
           <label class="f"><span>Email *</span><input name="upEmail" type="email" autocomplete="email"></label>
           <label class="f"><span>Phone *</span><input name="upPhone" inputmode="tel" autocomplete="tel"></label>
         </div>
-        <label class="f"><span>Choose a PIN — at least 4 characters</span>
-          <input name="upPin" type="password" inputmode="numeric" autocomplete="new-password"></label>
-        <p class="muted" style="font-size:12.5px;margin:0">You can sign in later with either your email
-          or your phone. We use the email to tell you when your order moves along.</p>
       </div>
       <p class="notice" id="auth-error" hidden></p>
     </div>
     <footer>
       <button type="button" id="auth-cancel">Cancel</button>
-      <button type="submit" class="solid" id="auth-submit">Sign in</button>
+      <button type="submit" class="solid" id="auth-submit">Save and continue</button>
     </footer>
   </form>
 </dialog>
@@ -1626,7 +1610,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   <header><h2>Your account</h2></header>
   <div class="body" id="account-body"></div>
   <footer>
-    <button class="warnbtn" id="account-out">Sign out</button>
     <span style="flex:1"></span>
     <button id="account-orders">My orders</button>
     <button class="solid" id="account-close">Close</button>
@@ -1718,21 +1701,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   <footer><button id="order-close">Close</button></footer>
 </dialog>
 
-<dialog id="dlg-pin">
-  <header><h2>Studio access</h2></header>
-  <form id="form-pin">
-    <div class="body">
-      <label class="f"><span>Studio PIN</span><input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label>
-      <p class="muted" style="font-size:12.5px;margin:0">Keeps the studio out of the way on a shared screen. Change it under Setup.</p>
-      <p class="notice" id="pin-error" hidden></p>
-    </div>
-    <footer>
-      <button type="button" id="pin-cancel">Cancel</button>
-      <button type="submit" class="solid">Open studio</button>
-    </footer>
-  </form>
-</dialog>
-
 <button class="fab" id="fab-design" hidden>Back to my bangle<span class="pip" id="fab-pip">0</span></button>
 
 <div class="toasts" id="toasts"></div>
@@ -1747,7 +1715,10 @@ const TRAY_KEY = 'cj.tray.v2';
 const S = {
   db: null,
   ready: false,
-  settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, pin: '2468', sections: [] },
+  settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, sections: [] },
+  uid: null,           // this viewer's id from the platform — their private corner of the database
+  isStudio: false,     // the artifact's owner or an editor: the studio is theirs
+  holds: [],           // stock spoken for by open orders, with no names attached
   items: [],
   byId: new Map(),
   zones: [],
@@ -1770,12 +1741,10 @@ const S = {
   search: '',
   hideOut: false,
   adminView: 'overview',
-  adminOpen: false,
   sheet: null,         // { itemId, variantId, qty, image }
   draft: null,         // studio: component being edited
-  account: null,       // the signed-in customer, or null
-  customers: [],
-  restock: [],         // open restock requests
+  account: null,       // the customer's own details, once given
+  restock: [],         // open restock requests (a customer sees only their own)
   ctaSeated: true,     // is the in-page "go to design" button still on screen?
   amending: null,      // { id, no, createdAt } while a customer reworks an order
 };
@@ -2194,9 +2163,25 @@ async function connect() {
   }
   S.db = db;
   $('#conn').textContent = 'live';
+  // Who is looking decides what they are sent: the studio sees every customer,
+  // a customer sees only their own details, orders and requests.
+  const user = await claude.use('user');
+  S.uid = user ? await user.id() : null;
+  S.isStudio = user ? await user.canEdit() : false;
+  $('#mode-studio').hidden = !S.isStudio;
 
   db.doc('meta/settings').onSnapshot((snap) => {
-    if (snap.exists) S.settings = { ...S.settings, ...snap.data() };
+    if (snap.exists) {
+      const { pin, ...rest } = snap.data();
+      S.settings = { ...S.settings, ...rest };
+      // The old studio PIN lived here, readable by every visitor. It goes.
+      if (pin !== undefined && S.isStudio) saveSettings({});
+    }
+    paint();
+  }, onDbError);
+
+  db.collection('holds').onSnapshot((snap) => {
+    S.holds = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     paint();
   }, onDbError);
 
@@ -2216,25 +2201,9 @@ async function connect() {
     paint();
   }, onDbError);
 
-  db.collection('orders').onSnapshot((snap) => {
-    S.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    if (S.mode === 'studio') paintAdmin();
-    if (S.mode === 'mine') paintMine();
-  }, onDbError);
-
-  db.collection('restock').onSnapshot((snap) => {
-    S.restock = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      .filter((r) => r.status !== 'done')
-      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    if (S.mode === 'studio') paintAdmin();
-    if ($('#dlg-item').open) paintSheet();
-  }, onDbError);
-
-  db.collection('customers').onSnapshot((snap) => {
-    S.customers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    restoreAccount();
-  }, onDbError);
+  if (S.isStudio) watchEveryone();
+  else if (S.uid) watchMine();
+  paintAccount();
 
   setTimeout(() => {
     if (!S.ready) {
@@ -2246,6 +2215,117 @@ async function connect() {
       $('#boot').hidden = S.mode === 'studio';
     }
   }, 4000);
+}
+
+/* ------------------------------------------------------ who sees what
+ * The page is published with database rules that match this layout:
+ *   catalog, zones, meta     everyone reads; only the studio writes
+ *   holds/<orderId>          what an open order has spoken for, and its
+ *                            status — everyone reads (it sets what is left to
+ *                            sell), customers write; no names in it
+ *   people/<uid>             a customer's details, with orders/ and restock/
+ *                            below it — only that customer and the studio
+ *   orders, restock,         the old shared collections, now studio-only;
+ *   customers                read for history, never written to again
+ */
+
+const byNewest = (a, b) => String(b.createdAt).localeCompare(String(a.createdAt));
+const openOnly = (rs) => rs.filter((r) => r.status !== 'done').sort(byNewest);
+
+function afterOrders() {
+  if (S.mode === 'studio') paintAdmin();
+  if (S.mode === 'mine') paintMine();
+  if ($('#dlg-item').open) paintSheet();
+}
+
+/** A customer: their details, their orders and their restock requests, live. */
+function watchMine() {
+  const me = `people/${S.uid}`;
+  S.db.doc(me).onSnapshot((snap) => {
+    S.account = snap.exists && snap.data().name ? { id: S.uid, ...snap.data() } : null;
+    paintAccount();
+  }, onDbError);
+  S.db.collection(`${me}/orders`).onSnapshot((snap) => {
+    S.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byNewest);
+    afterOrders();
+  }, onDbError);
+  S.db.collection(`${me}/restock`).onSnapshot((snap) => {
+    S.restock = openOnly(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    afterOrders();
+  }, onDbError);
+}
+
+/**
+ * The studio: every customer. Each customer's corner is read when their
+ * details document says it changed (a customer touches it on every write),
+ * so the studio needs one live subscription, not one per customer.
+ */
+function watchEveryone() {
+  const seen = new Map();          // uid -> { touched, orders, restock }
+  let legacy = { orders: [], restock: [] };
+  const rebuild = () => {
+    const all = [...seen.values()];
+    S.orders = [...legacy.orders, ...all.flatMap((p) => p.orders)].sort(byNewest);
+    S.restock = openOnly([...legacy.restock, ...all.flatMap((p) => p.restock)]);
+    afterOrders();
+  };
+  S.refreshPerson = async (uid) => {
+    const [o, r] = await Promise.all([
+      S.db.collection(`people/${uid}/orders`).get(), S.db.collection(`people/${uid}/restock`).get()]);
+    const row = seen.get(uid) || {};
+    row.orders = o.docs.map((d) => ({ id: d.id, ...d.data(), uid }));
+    row.restock = r.docs.map((d) => ({ id: d.id, ...d.data(), uid }));
+    seen.set(uid, row);
+    rebuild();
+  };
+  // ponytail: re-reads a customer's whole corner on any change; fine for a small shop.
+  S.db.collection('people').onSnapshot((snap) => {
+    for (const d of snap.docs) {
+      const touched = d.data().touched || '';
+      if (seen.has(d.id) && seen.get(d.id).touched === touched) continue;
+      seen.set(d.id, { ...(seen.get(d.id) || { orders: [], restock: [] }), touched });
+      S.refreshPerson(d.id);
+    }
+  }, onDbError);
+  // Orders and requests from before customers had their own corner.
+  S.db.collection('orders').onSnapshot((snap) => {
+    legacy.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    holdLegacy(legacy.orders);
+    rebuild();
+  }, onDbError);
+  S.db.collection('restock').onSnapshot((snap) => {
+    legacy.restock = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    rebuild();
+  }, onDbError);
+}
+
+/** An open order from before holds existed still has to count against stock. */
+function holdLegacy(orders) {
+  const have = new Set(S.holds.map((h) => h.id));
+  for (const o of orders) {
+    if (!OPEN_STATUS.includes(o.status) || have.has(o.id)) continue;
+    S.db.doc(`holds/${o.id}`).set(holdOf(o)).catch(() => {});
+  }
+}
+
+/** What a hold says about an order: the pieces and the status, nothing personal. */
+const holdOf = (o) => ({
+  status: o.status,
+  items: (o.items || []).map((i) => ({ itemId: i.itemId || i.id, variantId: i.variantId || 'v0', qty: i.qty })),
+});
+
+/** Where an order or restock request lives: the customer's corner, or the old shared place. */
+const orderDoc = (o) => S.db.doc(o.uid ? `people/${o.uid}/orders/${o.id}` : `orders/${o.id}`);
+function restockDoc(id) {
+  const r = S.restock.find((x) => x.id === id) || { id, uid: S.isStudio ? '' : S.uid };
+  return S.db.doc(r.uid ? `people/${r.uid}/restock/${id}` : `restock/${id}`);
+}
+
+/** Tells the studio a customer's corner changed — or, from the studio, re-reads it. */
+async function touched(uid) {
+  if (!uid) return;
+  if (S.isStudio && S.refreshPerson) { await S.refreshPerson(uid); return; }
+  await S.db.doc(`people/${uid}`).update({ touched: new Date().toISOString() });
 }
 
 function onDbError(err) {
@@ -3693,7 +3773,7 @@ async function startOrder() {
     + 'will not be in it. Bring it all into view first?', 'Fit it in')) {
     setZoom(fitZoom());
   }
-  if (!S.account) { S.orderAfterAuth = true; openAuth('Sign in or create an account to order'); return; }
+  if (!S.account) { S.orderAfterAuth = true; openAuth('Your details for this order'); return; }
   const rest = leftovers();
   if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
 
@@ -3803,7 +3883,7 @@ async function submitOrder(form) {
   const id = amend ? amend.id : 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const order = {
     no: amend ? amend.no : orderNumber(),
-    customerId: S.account ? S.account.id : '',
+    uid: S.uid,
     snapshot,
     name: String(form.get('name')).trim(),
     phone: String(form.get('phone')).trim(),
@@ -3832,7 +3912,11 @@ async function submitOrder(form) {
     ],
   };
 
-  await S.db.doc(`orders/${id}`).set(order);
+  // The order goes in the customer's own corner; the hold tells every other
+  // shopper the pieces are spoken for, without saying who by.
+  await orderDoc({ id, uid: S.uid }).set(order);
+  await S.db.doc(`holds/${id}`).set(holdOf(order));
+  await touched(S.uid);
 
   // The pieces are the order's now, not the tray's.
   for (const l of lines) trayTake(l.itemId, l.variantId, l.qty);
@@ -3961,7 +4045,8 @@ function pickList() {
  */
 function committedOf(itemId, variantId) {
   let n = 0;
-  for (const o of S.orders) {
+  // Holds, not orders: every shopper can see what is spoken for, never by whom.
+  for (const o of S.holds) {
     if (!OPEN_STATUS.includes(o.status)) continue;
     for (const i of o.items || []) {
       if ((i.itemId || i.id) === itemId && (i.variantId || 'v0') === variantId) n += i.qty;
@@ -3972,7 +4057,7 @@ function committedOf(itemId, variantId) {
 
 /** What one order alone has claimed of a colour — its own share of the above. */
 function orderClaim(orderId, itemId, variantId) {
-  const o = S.orders.find((x) => x.id === orderId);
+  const o = S.holds.find((x) => x.id === orderId);
   if (!o || !OPEN_STATUS.includes(o.status)) return 0;
   return (o.items || []).filter((i) => (i.itemId || i.id) === itemId
     && (i.variantId || 'v0') === variantId).reduce((t, i) => t + i.qty, 0);
@@ -4218,7 +4303,6 @@ function viewSetup() {
           <label class="f"><span>Currency symbol</span><input id="set-cur" value="${esc(S.settings.currency)}"></label>
           <label class="f"><span>Low-stock threshold</span>
             <input id="set-thr" type="number" min="1" step="1" value="${threshold()}"></label>
-          <label class="f"><span>Studio PIN</span><input id="set-pin" value="${esc(S.settings.pin || '')}"></label>
         </div>
         <button class="solid" id="set-save">Save</button>
       </div>
@@ -4335,7 +4419,11 @@ function assignSku(catSlug, name, skipId) {
   while (taken.has(sku)) sku = buildSku(catSlug, name, ++serial);
   return sku;
 }
-const saveSettings = (patch) => S.db.doc('meta/settings').set({ ...S.settings, ...patch });
+/** Everyone reads the settings, so nothing private may live in them (the old PIN is dropped). */
+const saveSettings = (patch) => {
+  const { pin, ...keep } = { ...S.settings, ...patch };
+  return S.db.doc('meta/settings').set(keep);
+};
 
 /* ------------------------------------------------------- component dialog */
 
@@ -4734,7 +4822,6 @@ function wireAdmin() {
       businessName: $('#set-name').value.trim() || 'CustomJewelz',
       currency: $('#set-cur').value.trim() || 'A$',
       threshold: thr,
-      pin: $('#set-pin').value.trim() || S.settings.pin,
     });
     toast('Saved.', 'good');
   }));
@@ -4884,10 +4971,12 @@ async function moveOrder(id, status, comment, by = 'studio') {
     await shift(1);
   }
 
-  await S.db.doc(`orders/${id}`).update({
+  await S.db.doc(`holds/${id}`).set(holdOf({ ...order, status }));
+  await orderDoc(order).update({
     status,
     history: [...(order.history || []), historyEntry(status, comment, by)],
   });
+  await touched(order.uid);
   toast('Order updated.', 'good');
 }
 
@@ -4895,9 +4984,10 @@ async function moveOrder(id, status, comment, by = 'studio') {
 async function postUpdate(id, text) {
   const order = S.orders.find((o) => o.id === id);
   if (!order || !text.trim()) return;
-  await S.db.doc(`orders/${id}`).update({
+  await orderDoc(order).update({
     history: [...(order.history || []), historyEntry(order.status, text.trim(), 'studio')],
   });
+  await touched(order.uid);
   toast('Update posted.', 'good');
 }
 
@@ -5452,9 +5542,9 @@ function setMode(mode) {
     $(id).setAttribute('aria-pressed', String(mode === name));
   }
   // The free layout is a tab only while it is the one holding the piece; the
-  // studio only for whoever opened it (the address ends in #studio).
+  // studio only for the artifact's owner and editors.
   $('#mode-design').hidden = S.build.active && mode !== 'design';
-  $('#mode-studio').hidden = !(S.adminOpen || location.hash === '#studio');
+  $('#mode-studio').hidden = !S.isStudio;
   $('#builder').hidden = mode !== 'build' || !S.ready;
   // "live / reconnecting" is for the studio; a shopper only needs to hear if it fails.
   $('#conn').hidden = mode !== 'studio' && !/offline|read-only/.test($('#conn').textContent);
@@ -6059,24 +6149,8 @@ function wireShell() {
     '--fab-top', `${$('.masthead').offsetHeight + 14}px`);
   seatFab();
   window.addEventListener('resize', seatFab);
-  $('#mode-studio').addEventListener('click', () => {
-    if (S.adminOpen) return setMode('studio');
-    $('#pin-error').hidden = true;
-    $('#form-pin').reset();
-    $('#dlg-pin').showModal();
-  });
-  $('#pin-cancel').addEventListener('click', () => $('#dlg-pin').close());
-  $('#form-pin').addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (String(new FormData(e.target).get('pin')) !== String(S.settings.pin)) {
-      $('#pin-error').hidden = false;
-      $('#pin-error').textContent = 'That PIN does not match. Try again.';
-      return;
-    }
-    $('#dlg-pin').close();
-    S.adminOpen = true;
-    setMode('studio');
-  });
+  // The studio is for the artifact's owner and editors; the database refuses anyone else's changes anyway.
+  $('#mode-studio').addEventListener('click', () => { if (S.isStudio) setMode('studio'); });
   $('#admin-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('.cat');
     if (!b) return;
@@ -7362,110 +7436,40 @@ function showSnapshot(order) {
 
 /* ---------------------------------------------------------------- accounts */
 
-const ACCOUNT_KEY = 'cj.account.v1';
-
-/** A stable document id for an email or phone, inside the path grammar. */
-function handleId(raw) {
-  const v = String(raw || '').trim().toLowerCase();
-  if (!v) return '';
-  if (v.includes('@')) return 'e-' + v.replace(/[^a-z0-9_.~:@+-]/g, '-');
-  return 'p-' + v.replace(/[^0-9+]/g, '');
-}
-
-async function hashPin(pin, salt) {
-  const data = new TextEncoder().encode(`${salt}::${pin}`);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+/*
+ * A customer is whoever is signed in to Claude: the platform knows who they
+ * are, so there is no password here to guess or leak. They give their contact
+ * details once, and those live in their own private corner (people/<uid>).
+ */
 
 function paintAccount() {
   const who = $('#acct-who');
-  who.textContent = S.account ? (S.account.name || 'Account') : 'Sign in';
-  $('#acct-btn').title = S.account ? 'Your account and orders' : 'Sign in or create an account';
+  who.textContent = S.account ? (S.account.name || 'Account') : 'Account';
+  $('#acct-btn').title = S.account ? 'Your details and orders' : 'Add your contact details';
   $('#mode-mine').hidden = !S.account;
 }
 
-/** Re-attaches the signed-in customer once the customer list has loaded. */
-function restoreAccount() {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null'); } catch { saved = null; }
-  if (!saved || !saved.id) { paintAccount(); return; }
-  const rec = S.customers.find((c) => c.id === saved.id || (c.alias || []).includes(saved.id));
-  S.account = rec ? { ...rec } : null;
-  if (!rec) { try { localStorage.removeItem(ACCOUNT_KEY); } catch { /* ignore */ } }
-  paintAccount();
-  if (S.mode === 'mine') paintMine();
-}
-
 function openAuth(title) {
-  $('#auth-title').textContent = title || 'Sign in to order';
+  $('#auth-title').textContent = title || 'Your details for this order';
   $('#auth-error').hidden = true;
   $('#form-auth').reset();
-  setAuthTab('in');
   $('#dlg-auth').showModal();
 }
 
-function setAuthTab(which) {
-  const signup = which === 'up';
-  $('#auth-in').setAttribute('aria-pressed', String(!signup));
-  $('#auth-up').setAttribute('aria-pressed', String(signup));
-  $('#auth-signin').hidden = signup;
-  $('#auth-signup').hidden = !signup;
-  $('#auth-submit').textContent = signup ? 'Create account' : 'Sign in';
-  $('#auth-lede').textContent = signup
-    ? 'An account keeps your orders together and lets us tell you when yours is ready.'
-    : 'Sign in with the email or phone you used, and your PIN.';
-  $('#auth-error').hidden = true;
-}
-
-function signedIn(rec) {
-  S.account = rec;
-  try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ id: rec.id })); } catch { /* private mode */ }
-  paintAccount();
-  paint();
-}
-
-async function doSignIn(form) {
-  const id = handleId(form.get('handle'));
-  const pin = String(form.get('pin') || '');
-  if (!id || !pin) throw new Error('Enter your email or phone, and your PIN.');
-  const snap = await S.db.doc(`customers/${id}`).get();
-  if (!snap.exists) throw new Error('No account with that email or phone. Create one instead.');
-  const rec = { id, ...snap.data() };
-  if (await hashPin(pin, rec.salt) !== rec.pinHash) throw new Error('That PIN does not match.');
-  signedIn(rec);
-  return rec;
-}
-
-async function doSignUp(form) {
+async function saveDetails(form) {
   const name = String(form.get('upName') || '').trim();
   const email = String(form.get('upEmail') || '').trim().toLowerCase();
   const phone = String(form.get('upPhone') || '').trim();
-  const pin = String(form.get('upPin') || '');
+  if (!S.uid) throw new Error('Sign in to Claude to order, so your details stay private to you.');
   if (!name) throw new Error('Tell us your name.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Enter a valid email address.');
   if (phone.replace(/\D/g, '').length < 7) throw new Error('Enter a phone number we can reach you on.');
-  if (pin.length < 4) throw new Error('Your PIN needs at least 4 characters.');
-
-  const emailId = handleId(email);
-  const phoneId = handleId(phone);
-  const existing = await Promise.all([S.db.doc(`customers/${emailId}`).get(), S.db.doc(`customers/${phoneId}`).get()]);
-  if (existing.some((e) => e.exists)) throw new Error('An account already uses that email or phone. Sign in instead.');
-
-  const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const rec = { name, email, phone, salt, pinHash: await hashPin(pin, salt), alias: [emailId, phoneId], createdAt: new Date().toISOString() };
-  await S.db.doc(`customers/${emailId}`).set(rec);
-  // The phone is a pointer at the same account, so either handle signs in.
-  await S.db.doc(`customers/${phoneId}`).set({ ...rec, primary: emailId });
-  signedIn({ id: emailId, ...rec });
-  return rec;
-}
-
-function signOut() {
-  S.account = null;
-  try { localStorage.removeItem(ACCOUNT_KEY); } catch { /* ignore */ }
+  const rec = { name, email, phone, createdAt: new Date().toISOString(), touched: new Date().toISOString() };
+  await S.db.doc(`people/${S.uid}`).set(rec);
+  S.account = { id: S.uid, ...rec };
   paintAccount();
-  setMode('browse');
+  paint();
+  return rec;
 }
 
 function paintAccountDialog() {
@@ -7485,17 +7489,14 @@ function paintAccountDialog() {
 
 /* ------------------------------------------------------------- my orders */
 
-const myOrders = () => (S.account
-  ? S.orders.filter((o) => o.customerId === S.account.id
-      || (o.email || '').toLowerCase() === (S.account.email || '').toLowerCase())
-  : []);
+const myOrders = () => (S.uid ? S.orders.filter((o) => o.uid === S.uid) : []);
 
 function paintMine() {
   if (!S.account) {
     $('#mine-body').innerHTML = `<section class="panel"><div class="blank">
-      <p>Sign in to see your orders.</p>
-      <button class="solid" id="mine-signin">Sign in</button></div></section>`;
-    $('#mine-signin').addEventListener('click', () => openAuth('Sign in to see your orders'));
+      <p>Add your details to see your orders.</p>
+      <button class="solid" id="mine-signin">Add my details</button></div></section>`;
+    $('#mine-signin').addEventListener('click', () => openAuth('Your details'));
     return;
   }
   const mine = myOrders();
@@ -7570,7 +7571,7 @@ function prettyDate(iso) {
 }
 
 const myRequestFor = (itemId, variantId) => S.restock.find((r) => r.itemId === itemId
-  && r.variantId === variantId && S.account && r.customerId === S.account.id);
+  && r.variantId === variantId && S.uid && r.uid === S.uid);
 
 /* An urgent request is a small negotiation, not a button:
    requested → the studio confirms it can be done, and by when → only then does
@@ -7674,13 +7675,14 @@ async function requestRestock(kind) {
   const item = itemOf(S.sheet.itemId);
   const v = variantOf(item, S.sheet.variantId);
   if (!item || !v) return;
-  if (!S.account) { openAuth('Sign in so we can tell you when it is back'); return; }
+  if (!S.account) { openAuth('Your details, so we can tell you when it is back'); return; }
   const fee = kind === 'urgent' ? (item.urgentFee || 0) : 0;
   // Blank is a real answer here — "just tell me when it's in".
   const asked = parseInt(($('#ask-qty') || {}).value, 10);
   const qty = Number.isInteger(asked) && asked > 0 ? asked : 0;
   const id = `r-${item.id}-${v.id}-${S.account.id}`.replace(/[^A-Za-z0-9_.~:@+-]/g, '-');
-  await S.db.doc(`restock/${id}`).set({
+  await restockDoc(id).set({
+    uid: S.uid,
     itemId: item.id, variantId: v.id,
     itemName: item.name, colour: v.name, sku: v.sku,
     kind, fee, qty,
@@ -7709,7 +7711,7 @@ async function settleOpenRequests(itemId, variantId, added) {
   const on = prettyDate(new Date().toISOString().slice(0, 10));
   const note = `Restocked on ${on}`;
 
-  await Promise.all(answered.map((r) => S.db.doc(`restock/${r.id}`).update({
+  await Promise.all(answered.map((r) => restockDoc(r.id).update({
     status: 'done', resolvedNote: note, resolvedAt: new Date().toISOString(),
   })));
 
@@ -7734,7 +7736,7 @@ async function escalateRestock() {
   const v = variantOf(item, S.sheet.variantId);
   const mine = myRequestFor(item.id, v.id);
   if (!item || !v || !mine) return;
-  await S.db.doc(`restock/${mine.id}`).update({
+  await restockDoc(mine.id).update({
     kind: 'urgent',
     fee: item.urgentFee || 0,
     urgentStage: 'requested',
@@ -7888,7 +7890,7 @@ function wireRestock() {
       if (!await ask('Clear these requests?',
         'Do this once the piece is back and you have told the people waiting.', 'Clear them', true)) return;
       const waiting = S.restock.filter((r) => r.itemId === item.id && r.variantId === variantId);
-      await Promise.all(waiting.map((r) => S.db.doc(`restock/${r.id}`).update({ status: 'done' })));
+      await Promise.all(waiting.map((r) => restockDoc(r.id).update({ status: 'done' })));
       const variants = item.variants.map((v) => (v.id === variantId ? { ...v, restockEta: '' } : v));
       await S.db.doc(`catalog/${item.id}`).update({ variants });
       toast('Requests cleared.', 'good');
@@ -7905,7 +7907,7 @@ function wireRestock() {
     if (btn.dataset.req === 'confirm') {
       const when = line.querySelector('[data-f="urgent-eta"]').value;
       if (!when) return toast('Give the date you can have it by — that is what unlocks payment.', 'bad');
-      await S.db.doc(`restock/${id}`).update({
+      await restockDoc(id).update({
         urgentStage: 'confirmed', urgentEta: when, declineReason: '',
         confirmedAt: new Date().toISOString(),
       });
@@ -7913,10 +7915,10 @@ function wireRestock() {
     }
     if (btn.dataset.req === 'decline') askDecline(id);
     if (btn.dataset.req === 'reopen') {
-      await S.db.doc(`restock/${id}`).update({ urgentStage: 'requested', declineReason: '' });
+      await restockDoc(id).update({ urgentStage: 'requested', declineReason: '' });
     }
     if (btn.dataset.req === 'paid') {
-      await S.db.doc(`restock/${id}`).update({ urgentStage: 'paid', paidAt: new Date().toISOString() });
+      await restockDoc(id).update({ urgentStage: 'paid', paidAt: new Date().toISOString() });
       toast('Rush fee recorded.', 'good');
     }
   })));
@@ -8080,17 +8082,14 @@ function wireExtras() {
   });
 
   $('#acct-btn').addEventListener('click', () => {
-    if (!S.account) return openAuth('Sign in');
+    if (!S.account) return openAuth('Your details');
     paintAccountDialog();
     $('#dlg-account').showModal();
   });
   $('#account-close').addEventListener('click', () => $('#dlg-account').close());
   $('#account-orders').addEventListener('click', () => { $('#dlg-account').close(); setMode('mine'); });
-  $('#account-out').addEventListener('click', () => { $('#dlg-account').close(); signOut(); });
   $('#mode-mine').addEventListener('click', () => setMode('mine'));
 
-  $('#auth-in').addEventListener('click', () => setAuthTab('in'));
-  $('#auth-up').addEventListener('click', () => setAuthTab('up'));
   $('#auth-cancel').addEventListener('click', () => { S.orderAfterAuth = false; $('#dlg-auth').close(); });
   $('#form-auth').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -8100,7 +8099,7 @@ function wireExtras() {
     btn.disabled = true;
     try {
       const form = new FormData(e.target);
-      const rec = $('#auth-signup').hidden ? await doSignIn(form) : await doSignUp(form);
+      const rec = await saveDetails(form);
       $('#dlg-auth').close();
       toast(`Welcome, ${rec.name}.`, 'good');
       // Signing in was a step on the way to ordering, so carry on to checkout.
@@ -8118,7 +8117,7 @@ function wireExtras() {
   $('#pay-cancel').addEventListener('click', () => $('#dlg-pay').close());
   $('#pay-go').addEventListener('click', guard(async () => {
     const id = $('#dlg-pay').dataset.request;
-    await S.db.doc(`restock/${id}`).update({ urgentStage: 'pledged', pledgedAt: new Date().toISOString() });
+    await restockDoc(id).update({ urgentStage: 'pledged', pledgedAt: new Date().toISOString() });
     $('#dlg-pay').close();
     toast("Thank you — the studio will send payment details and start straight away.", 'good');
     paintSheet();
@@ -8136,7 +8135,7 @@ function wireExtras() {
     const id = pendingDecline;
     pendingDecline = null;
     $('#dlg-decline').close();
-    await S.db.doc(`restock/${id}`).update({ urgentStage: 'declined', declineReason: why, urgentEta: '' });
+    await restockDoc(id).update({ urgentStage: 'declined', declineReason: why, urgentEta: '' });
     toast('Declined, with your reason.', 'good');
   }));
   $('#cta-design').addEventListener('click', () => backToBuilder());
@@ -8165,10 +8164,7 @@ wireShell();
 wireExtras();
 loadBuild();
 wireBuilder();
-window.addEventListener('hashchange', () => {
-  if (location.hash === '#studio') { $('#mode-studio').hidden = false; $('#mode-studio').click(); }
-});
+window.addEventListener('hashchange', () => { if (location.hash === '#studio' && S.isStudio) setMode('studio'); });
 setMode(location.hash === '#collection' ? 'browse' : 'build');
-if (location.hash === '#studio') setTimeout(() => $('#mode-studio').click(), 0);
-connect();
+connect().then(() => { if (location.hash === '#studio' && S.isStudio) setMode('studio'); });
 </script>
