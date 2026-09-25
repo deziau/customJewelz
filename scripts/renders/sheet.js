@@ -25,7 +25,7 @@ const cards = manifest.flatMap((m) => {
     <div class="pair"><img src="${uri(path.join(RAW, m.id, meta.stickers[n]))}" alt="Original">
       <img src="${uri(path.join(OUT, m.id, r.file))}" alt="Render"></div>
     <figcaption><b>${esc(m.name)}</b>${meta.variants[n] ? ` · ${esc(meta.variants[n])}` : ''}
-      <span class="${r.source}">${r.source === 'higgsfield' ? `Higgsfield · match ${Math.round(r.iou * 100)}%` : 'polished cut-out'}</span>
+      <span class="${r.source}">${r.source === 'higgsfield' ? `AI render · match ${Math.round(r.iou * 100)}%` : 'polished cut-out'}</span>
       ${m.fits ? '' : '<span class="warn">too big to store</span>'}</figcaption></figure>`);
 }).join('');
 

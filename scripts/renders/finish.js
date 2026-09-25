@@ -5,7 +5,7 @@
  *   node scripts/renders/finish.js [--only id,id]
  *
  * For each sticker in assets/raw/<id>/:
- *   - if Higgsfield made a studio render (assets/renders/<id>/ai-<n>.png), its
+ *   - if an AI model (Gemini or Higgsfield) made a studio render (assets/renders/<id>/ai-<n>.png), its
  *     white background is lifted off, it is trimmed to the metal, and its outline
  *     is compared with the original cut-out: a render whose shape has drifted
  *     (a missing loop, a changed outline) is rejected and the sticker is used;
@@ -130,5 +130,5 @@ async function finishOne(id, meta) {
   }
   fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
   const ai = manifest.flatMap((m) => m.renders).filter((x) => x.source === 'higgsfield').length;
-  console.log(`\n${manifest.length} charms finished — ${ai} from Higgsfield renders, the rest polished stickers.`);
+  console.log(`\n${manifest.length} charms finished — ${ai} from AI renders, the rest polished stickers.`);
 })();
