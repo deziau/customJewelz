@@ -21,17 +21,21 @@ added to `server/` or `public/` until that move happens.
 
 ## Create — the front door
 
-The shop opens on **Create**: one bangle, drawn at its real size, with numbered
-spots along its lower edge.
+The shop opens on **Create**, a kaleera builder: a bangle drawn at its real size,
+with numbered spots along its lower edge. A kaleera is a pair, so the **Left
+hand** and **Right hand** tabs each hold their own bangle and design.
 
 1. **Choose your bangle.** With only one in stock the question is skipped.
 2. **Tap a spot, tap a charm.** It hangs there on a jump ring from its own loop,
    at its real size against the bangle, and swings as it settles. Filling a spot
-   moves on to the next one, from the middle outwards. Tap a hung charm to change
-   its colour, drop it on a **short, medium or long** length of chain, swap it or
-   take it off. **Repeat on empty spots** and **Mirror left to right** dress a
-   bangle in two taps.
-3. **Review & order.** The price bar is always on screen. Signing in (or
+   moves on to the next one, from the middle outwards.
+3. **Make strands.** Give a spot a **strand length** (5, 8, 12, 18 or 25 cm of a
+   chosen chain) and charms picked for it go down the strand, spread evenly with
+   the last one ending it, each on its own small ring. Tap a charm on the strand
+   to swap it or change its colour; × takes it off. **Repeat on empty spots** and
+   **Mirror across the bangle** dress a bangle in two taps, and **Copy to** /
+   **Mirror onto** the other hand makes the pair.
+4. **Review & order.** The price bar is always on screen. Signing in (or
    creating an account) carries straight on to checkout.
 
 What is on the bangle *is* the basket: Create claims each piece from stock as it

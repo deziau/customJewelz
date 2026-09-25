@@ -107,17 +107,41 @@ async function run(browser, label, viewport) {
 
   // Hanging moves on to the next empty spot; tap the pearl to dress it.
   await page.dispatchEvent('#bd-stage .hung[aria-label*="Pearl"] .halo', 'click');
-  assert.match(await text('#bd-panel .bd-chosen'), /Pearl/);
-  // A drop of chain under the pearl adds 4 cm of chain at A$30/m.
-  await page.click('#bd-panel [data-drop="mid"]');
-  assert.match(await text('#bd-total'), /A\$73\.20/);             // 45 + 18 + 9 + 1.20
+  assert.match(await text('#bd-panel .bd-on'), /Pearl/);
+  // Hanging the pearl on 5 cm of chain adds the chain at A$30/m.
+  await page.click('#bd-panel [data-len="5"]');
+  assert.match(await text('#bd-total'), /A\$73\.50/);             // 45 + 18 + 9 + 1.50
   assert.equal(await page.$$eval('#bd-stage .hung rect[fill^="url(#bd-ch"], #bd-stage .hung ellipse', (n) => n.length) > 0, true);
 
-  // Mirror copies the left spots onto the right.
+  // Mirror copies the left spots of the bangle onto its right.
   await page.click('#bd-panel [data-bd="mirror"]');
+  assert.ok(await page.$$eval('#bd-stage .hung', (n) => n.length) >= 4, 'mirror should add pieces');
+
+  // A strand: a length of chain with several charms down it, the last one ending it.
+  const empty = await page.evaluate(() => S.build.slots.findIndex((s) => !s));
+  assert.ok(empty >= 0, 'a spot is still empty');
+  await page.dispatchEvent(`#bd-stage .slot[data-slot="${empty}"]`, 'click');
+  await page.click('#bd-panel [data-len="12"]');
+  for (const id of ['star', 'heart', 'star']) await page.click(`#bd-panel [data-charm="${id}"]`);
+  const ys = await page.evaluate((i) => layout().slots[i].charms.map((c) => c.box.y), empty);
+  assert.equal(ys.length, 3, 'three charms on the strand');
+  assert.ok(ys[0] < ys[1] && ys[1] < ys[2], `charms spread down the strand: ${ys}`);
+  // Tapping one charm on the strand and picking another swaps just that one.
+  await page.click('#bd-panel .bd-on [data-at="1"]');
+  await page.click('#bd-panel [data-charm="star"]');
+  assert.deepEqual(await page.evaluate((i) => S.build.slots[i].charms.map((c) => c.itemId), empty), ['star', 'star', 'star']);
   const hung = await page.$$eval('#bd-stage .hung', (n) => n.length);
-  assert.ok(hung >= 4, `mirror should add pieces (${hung})`);
   await shot('2-built');
+
+  // The right hand is designed on its own; here it starts as a copy of the left.
+  const left = await page.evaluate(() => hungCount('left'));
+  await page.click('#bd-panel [data-hand="right"]');
+  await page.click('#bd-panel [data-bd="copy-back"]');
+  const [l2, right] = await page.evaluate(() => [hungCount('left'), hungCount('right')]);
+  assert.equal(l2, left, 'the left hand is untouched');
+  assert.equal(right, left - 1, 'the right hand copies all but the last pearl');
+  assert.match(await text('#bd-count'), /A pair/);
+  await shot('2b-pair');
 
   // Nothing sideways-scrolls, at any width.
   const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
@@ -147,9 +171,13 @@ async function run(browser, label, viewport) {
   const order = await page.evaluate(() => Object.values(window.__store.orders)[0]);
   assert.ok(order, 'order saved');
   assert.ok(order.snapshot && order.snapshot.startsWith('data:image/'), 'order carries a picture');
-  assert.ok(order.design.build && order.design.build.baseId === 'kada', 'order remembers the build');
+  const { hands } = order.design.build || {};
+  assert.ok(hands && hands.left.baseId === 'kada' && hands.right.baseId === 'kada', 'order remembers both hands');
+  assert.ok(hands.left.slots.some((s) => s && s.charms.length === 3 && s.chain.lenCm === 12), 'order remembers the strand');
   assert.equal(`A$${order.total.toFixed(2)}`.replace('.00', ''), totalBefore.replace('.00', ''));
-  assert.ok(order.items.some((i) => i.itemId === 'chain' && i.qty === 4), 'chain billed by the cm');
+  // 5 cm under the pearl, and a 12 cm strand on each hand.
+  assert.ok(order.items.some((i) => i.itemId === 'chain' && i.qty === 29), 'chain billed by the cm');
+  assert.ok(order.items.some((i) => i.itemId === 'kada' && i.qty === 2), 'a bangle for each hand');
 
   // Create starts fresh after an order.
   await page.click('#done-close');
@@ -269,7 +297,7 @@ async function fixedLoops(browser) {
   await page.click('#bd-panel [data-charm="heart"]');
   const below = await page.evaluate(() => {
     const s = layout().slots.find((x) => x.filled);
-    return s.charm.box.y > s.P.y;
+    return s.charms[0].box.y > s.P.y;
   });
   assert.ok(below, 'the charm hangs below its loop');
   assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);

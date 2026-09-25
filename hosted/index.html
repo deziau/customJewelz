@@ -1075,6 +1075,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .bd-chip .sw { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
 .bd-chip img { width: 20px; height: 20px; object-fit: contain; }
 .bd-label { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+.bd-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.bd-hands .bd-chip { justify-content: center; flex-direction: column; gap: 0; border-radius: 12px; padding: 8px 10px; }
+.bd-hands small { font-size: 12px; font-weight: 400; opacity: .8; }
+.bd-on { display: inline-flex; }
+.bd-on .bd-chip:first-child { border-radius: 999px 0 0 999px; }
+.bd-on .bd-chip.x { border-radius: 0 999px 999px 0; border-left: none; padding: 7px 11px; }
+.bd-strand-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
 .bd-find { display: flex; gap: 8px; align-items: center; }
 .bd-find input { flex: 1; min-width: 0; font-size: 15px; }
@@ -2456,7 +2463,7 @@ function paintSheet() {
   $('#item-add').textContent = free <= 0 ? 'Sold out'
     : !S.build.active ? 'Add to tray'
       : item.role === 'bangle' ? 'Build on this bangle'
-        : item.role === 'chain' ? 'Use it as a drop'
+        : item.role === 'chain' ? 'Use it for a strand'
           : S.sheet.qty > 1 ? `Hang ${S.sheet.qty} on my bangle` : 'Hang on my bangle';
 
   const inTray = trayQty(item.id, v.id);
@@ -2520,19 +2527,25 @@ function hangFromSheet(item, v) {
   S.sheet = null;
   if (item.role === 'bangle') { S.build.choosing = false; setMode('build'); chooseBangle(item.id, v.id); return; }
   setMode('build');
-  if (item.role === 'chain') { toast('Tap a charm on your bangle, then choose a drop to hang it on.'); return; }
+  if (item.role === 'chain') { toast('Tap a spot on your bangle, then choose a strand length and this chain.'); return; }
   if (!S.build.baseId) { toast('Choose your bangle first — then the charm goes on it.'); return; }
+  const b = S.build;
+  b.at = -1;
   let hung = 0;
   for (let k = 0; k < qty; k++) {
-    const anyEmpty = S.build.slots.some((x) => !x);
-    const at = !S.build.slots[S.build.sel] ? S.build.sel : anyEmpty ? nextEmpty(S.build.sel) : -1;
-    if (at < 0 || S.build.slots[at]) break;
+    // Onto the selected strand while it has room, then the next empty spot.
+    const s = b.slots[b.sel];
+    if (s && s.charms.length >= roomOn(s)) {
+      const free = nextEmpty(b.sel);
+      if (b.slots[free]) break;
+      b.sel = free;
+    }
     const before = hungCount();
-    hang(item.id, v.id, at);
+    hang(item.id, v.id);
     if (hungCount() === before) break;
     hung++;
   }
-  if (!hung) toast('Every spot is taken — tap a charm on the bangle to swap it.', 'bad');
+  if (!hung) toast('Every spot is taken — choose a longer strand, or tap a charm on the bangle to swap it.', 'bad');
 }
 
 /* ------------------------------------------------------------ tray dialog */
@@ -3804,11 +3817,8 @@ async function submitOrder(form) {
       unit: l.unit, qty: l.qty, total: l.total,
     })),
     design: {
-      // A piece made in Create carries its spots too, so it reopens there.
-      build: S.build.active ? {
-        baseId: S.build.baseId, baseVariant: S.build.baseVariant,
-        slots: S.build.slots.map((x) => x || null),
-      } : null,
+      // A piece made in Create carries both hands' strands too, so it reopens there.
+      build: S.build.active ? { hands: JSON.parse(JSON.stringify(S.build.hands)) } : null,
       view: S.view,
       charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, flipped }) =>
         ({ itemId, variantId, x, y, w, rot, z, lenCm, flipped: Boolean(flipped) })),
@@ -6100,12 +6110,9 @@ const SLOT_SPREAD = 64;          // degrees either side of the bottom they run t
 const RING_R = 2.3;              // jump ring radius, mm
 const RING_W = 0.62;             // jump ring wire, mm
 const VIRTUAL_MM = 160;          // how much the free layout's canvas is taken to cover
-const DROPS = [
-  { key: 'none', label: 'On the bangle', cm: 0 },
-  { key: 'short', label: 'Short drop', cm: 2.5 },
-  { key: 'mid', label: 'Medium drop', cm: 4 },
-  { key: 'long', label: 'Long drop', cm: 6 },
-];
+const LENGTHS = [0, 5, 8, 12, 18, 25];   // cm of chain a strand hangs on; 0 is straight off the bangle
+const CM_PER_CHARM = 1.5;        // a strand has room for one charm every this many cm
+const HANDS = { left: 'Left hand', right: 'Right hand' };
 
 const METALS = {
   gold: ['#fff1b8', '#e6bd55', '#a9761c', '#f4d983', '#7a5310'],
@@ -6113,13 +6120,51 @@ const METALS = {
   rose: ['#ffe6dc', '#e8ab93', '#a8634f', '#f6cdbd', '#7c4536'],
 };
 
-S.build = { active: true, baseId: '', baseVariant: '', slots: [], sel: 0, filter: '', find: '' };
+/*
+ * A kaleera is a pair, one for each hand, and each is designed on its own: a
+ * bangle, and on each of its spots a strand — a length of chain (or none) with
+ * one or more charms along it, the last one ending it.
+ *
+ *   hands: { left: Side, right: Side }
+ *   Side:   { baseId, baseVariant, slots: [Strand | null] }   one per spot
+ *   Strand: { chain: { itemId, variantId, lenCm } | null, charms: [{ itemId, variantId }] }
+ */
+const emptySide = () => ({ baseId: '', baseVariant: '', slots: [] });
+S.build = { active: true, hand: 'left', hands: { left: emptySide(), right: emptySide() }, sel: 0, at: -1, filter: '', find: '' };
+// Create works on one hand at a time; these read and write the hand in front of the customer.
+for (const k of ['baseId', 'baseVariant', 'slots']) {
+  Object.defineProperty(S.build, k, {
+    get() { return this.hands[this.hand][k]; },
+    set(v) { this.hands[this.hand][k] = v; },
+  });
+}
+const otherHand = () => (S.build.hand === 'left' ? 'right' : 'left');
+
+/** A strand as it is kept now, from however it was saved. */
+function asStrand(s) {
+  if (!s || typeof s !== 'object') return null;
+  const chain = s.chain && s.chain.itemId && s.chain.lenCm > 0 ? { ...s.chain } : null;
+  // Before strands, a spot held a single charm.
+  const charms = (Array.isArray(s.charms) ? s.charms : s.itemId ? [s] : [])
+    .filter((c) => c && c.itemId).map((c) => ({ itemId: c.itemId, variantId: c.variantId }));
+  return chain || charms.length ? { chain, charms } : null;
+}
+
+/** Both hands, from a saved build — which, before pairs, was one bangle. */
+function handsFrom(raw) {
+  const side = (h) => ({
+    baseId: String((h && h.baseId) || ''), baseVariant: String((h && h.baseVariant) || ''),
+    slots: h && Array.isArray(h.slots) ? h.slots.map(asStrand) : [],
+  });
+  return raw && raw.hands ? { left: side(raw.hands.left), right: side(raw.hands.right) }
+    : { left: side(raw), right: side(null) };
+}
 
 /* ------------------------------------------------------------- persistence */
 
 function saveBuild() {
-  const { active, baseId, baseVariant, slots } = S.build;
-  try { localStorage.setItem(BUILD_KEY, JSON.stringify({ active, baseId, baseVariant, slots })); } catch { /* private */ }
+  const { active, hand, hands } = S.build;
+  try { localStorage.setItem(BUILD_KEY, JSON.stringify({ active, hand, hands })); } catch { /* private */ }
 }
 
 function loadBuild() {
@@ -6127,33 +6172,27 @@ function loadBuild() {
     const raw = JSON.parse(localStorage.getItem(BUILD_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       S.build.active = raw.active !== false;
-      S.build.baseId = String(raw.baseId || '');
-      S.build.baseVariant = String(raw.baseVariant || '');
-      S.build.slots = Array.isArray(raw.slots) ? raw.slots.map((s) => (s && s.itemId ? s : null)) : [];
+      S.build.hands = handsFrom(raw);
+      S.build.hand = raw.hand === 'right' ? 'right' : 'left';
     }
   } catch { /* start fresh */ }
 }
 
 /** Drops anything the shop no longer has, once the catalogue has arrived. */
 function reconcileBuild() {
-  const b = S.build;
   if (!S.items.length) return;
-  const base = itemOf(b.baseId);
-  if (b.baseId && (!base || !base.active || !variantOf(base, b.baseVariant))) {
-    b.baseId = ''; b.baseVariant = ''; b.slots = [];
+  const sells = (id, v) => { const it = itemOf(id); return it && it.active && variantOf(it, v); };
+  for (const h of Object.values(S.build.hands)) {
+    if (h.baseId && !sells(h.baseId, h.baseVariant)) { h.baseId = ''; h.baseVariant = ''; h.slots = []; }
+    h.slots = h.slots.map((s) => {
+      if (!s) return null;
+      if (s.chain && !sells(s.chain.itemId, s.chain.variantId)) s.chain = null;
+      s.charms = s.charms.filter((c) => sells(c.itemId, c.variantId));
+      return s.chain || s.charms.length ? s : null;
+    });
+    if (h.baseId) h.slots = Array.from({ length: slotCount(itemOf(h.baseId)) }, (_, i) => h.slots[i] || null);
   }
-  b.slots = b.slots.map((s) => {
-    if (!s) return null;
-    const it = itemOf(s.itemId);
-    if (!it || !it.active || !variantOf(it, s.variantId)) return null;
-    if (s.chain) {
-      const ch = itemOf(s.chain.itemId);
-      if (!ch || !ch.active || !variantOf(ch, s.chain.variantId)) s.chain = null;
-    }
-    return s;
-  });
-  if (b.baseId) b.slots = Array.from({ length: slotCount(itemOf(b.baseId)) }, (_, i) => b.slots[i] || null);
-  if (b.active) syncCharms();
+  if (S.build.active) syncCharms();
 }
 
 /* ----------------------------------------------------------- the catalogue */
@@ -6162,7 +6201,19 @@ const bangles = () => S.items.filter((i) => i.active && i.role === 'bangle');
 const hangables = () => S.items.filter((i) => i.active && i.role === 'charm');
 const chains = () => S.items.filter((i) => i.active && i.role === 'chain');
 const slotCount = (base) => (base && base.spotsAt.length) || (base && base.slots) || SLOT_DEFAULT;
-const hungCount = () => S.build.slots.filter(Boolean).length;
+/** Charms on one hand. */
+const hungCount = (hand = S.build.hand) => S.build.hands[hand].slots.reduce((n, s) => n + (s ? s.charms.length : 0), 0);
+const pairCount = () => hungCount('left') + hungCount('right');
+const lenOf = (s) => (s && s.chain ? s.chain.lenCm : 0);
+/** How many charms a strand can carry: one straight off the bangle, more down a chain. */
+const roomOn = (s) => (lenOf(s) ? Math.max(1, Math.floor(lenOf(s) / CM_PER_CHARM)) : 1);
+/** The charm on the selected strand that swaps and recolours, or -1 to add a new one. */
+function focusAt() {
+  const s = S.build.slots[S.build.sel];
+  if (!s) return -1;
+  if (S.build.at >= 0 && S.build.at < s.charms.length) return S.build.at;
+  return !lenOf(s) && s.charms.length ? 0 : -1;
+}
 const firstInStock = (item) => (item.variants.find((v) => freeToSell(item, v.id) > 0) || item.variants[0] || {}).id;
 
 function metalOf(item, variantId) {
@@ -6281,7 +6332,7 @@ function warmArt() {
   if (base) srcs.push(charmArt(base, S.build.baseVariant).src);
   for (const s of S.build.slots) {
     if (!s) continue;
-    srcs.push(charmArt(itemOf(s.itemId), s.variantId).src);
+    for (const c of s.charms) srcs.push(charmArt(itemOf(c.itemId), c.variantId).src);
     if (s.chain) srcs.push(charmArt(itemOf(s.chain.itemId), s.chain.variantId).src);
   }
   const todo = srcs.filter((s) => s && !infoNow(s));
@@ -6293,8 +6344,8 @@ function warmArt() {
  * feeds both the screen (SVG) and the order's picture (canvas), so they match.
  */
 
-function layout() {
-  const b = S.build;
+function layout(hand = S.build.hand) {
+  const b = S.build.hands[hand];
   const base = itemOf(b.baseId);
   if (!base) return null;
   const W = base.widthMm || 70;
@@ -6331,40 +6382,52 @@ function layout() {
     const P = fixed ? loopAt(i) : { x: R * Math.cos(t), y: R * Math.sin(t) };
     const ring = { x: P.x, y: P.y + RING_R * (fixed ? 0.75 : 0.55), r: RING_R };
     const s = b.slots[i];
-    const slot = { i, P, ring, filled: Boolean(s), deg };
+    const slot = { i, P, ring, filled: Boolean(s), deg, charms: [] };
     if (s) {
-      const item = itemOf(s.itemId);
-      let hang = { x: ring.x, y: ring.y + ring.r - RING_W / 2 };
-      if (s.chain && s.chain.lenCm) {
+      const top = { x: ring.x, y: ring.y + ring.r - RING_W / 2 };
+      const len = lenOf(s) * 10;
+      if (len) {
         const ch = itemOf(s.chain.itemId);
-        const len = s.chain.lenCm * 10;
         const csrc = ch ? charmArt(ch, s.chain.variantId).src : '';
         const cinfo = infoNow(csrc);
         slot.chain = {
-          x: hang.x, y: hang.y, len, w: Math.max(1.2, (ch && ch.widthMm) || 2),
+          x: top.x, y: top.y, len, w: Math.max(1.2, (ch && ch.widthMm) || 2),
           src: csrc, tileMm: ch && ch.tileCm ? ch.tileCm * 10 : 0,
           // The strip's metal, without the transparent margin it was cut with.
           box: cinfo ? cinfo.box : { x: 0, y: 0, w: 1, h: 1 },
         };
-        slot.endRing = { x: hang.x, y: hang.y + len + RING_R * 0.55, r: RING_R * 0.8 };
-        hang = { x: hang.x, y: slot.endRing.y + slot.endRing.r - RING_W / 2 };
       }
-      const src = charmArt(item, s.variantId).src;
-      const info = infoNow(src);
-      const cw = (item && item.widthMm) || 12;
-      const chh = (item && item.heightMm) || cw;
-      const cbox = info ? info.box : { x: 0, y: 0, w: 1, h: 1 };
-      const iw = cw / cbox.w;
-      const ih = chh / cbox.h;
-      const loopF = item && item.loop ? { x: item.loop.x / 100, y: item.loop.y / 100 }
-        : info ? info.loop : { x: 0.5, y: 0.03 };
-      slot.charm = {
-        src, glyph: item ? item.glyph : '◇', flip: false,
-        x: hang.x - loopF.x * iw, y: hang.y - loopF.y * ih, w: iw, h: ih,
-        box: { x: hang.x - loopF.x * iw + cbox.x * iw, y: hang.y - loopF.y * ih + cbox.y * ih, w: cw, h: chh },
-      };
-      low = Math.max(low, slot.charm.box.y + chh);
-      wide = Math.max(wide, Math.abs(slot.charm.box.x), Math.abs(slot.charm.box.x + cw));
+      let bottom = top.y;
+      // Down a chain the charms are spread evenly and the last one ends it;
+      // each hangs from a small ring of its own.
+      slot.charms = s.charms.map((c, k) => {
+        let hang = top;
+        let own = null;
+        if (len) {
+          own = { x: top.x, y: top.y + (len * (k + 1)) / s.charms.length + RING_R * 0.45, r: RING_R * 0.8 };
+          hang = { x: top.x, y: own.y + own.r - RING_W / 2 };
+        }
+        const item = itemOf(c.itemId);
+        const src = charmArt(item, c.variantId).src;
+        const info = infoNow(src);
+        const cw = (item && item.widthMm) || 12;
+        const chh = (item && item.heightMm) || cw;
+        const cbox = info ? info.box : { x: 0, y: 0, w: 1, h: 1 };
+        const iw = cw / cbox.w;
+        const ih = chh / cbox.h;
+        const loopF = item && item.loop ? { x: item.loop.x / 100, y: item.loop.y / 100 }
+          : info ? info.loop : { x: 0.5, y: 0.03 };
+        const x = hang.x - loopF.x * iw; const y = hang.y - loopF.y * ih;
+        const box = { x: x + cbox.x * iw, y: y + cbox.y * ih, w: cw, h: chh };
+        bottom = Math.max(bottom, box.y + chh);
+        wide = Math.max(wide, Math.abs(box.x), Math.abs(box.x + cw));
+        return { k, src, glyph: item ? item.glyph : '◇', x, y, w: iw, h: ih, box, ring: own };
+      });
+      bottom = Math.max(bottom, top.y + len);
+      // What the strand takes up, for picking it and for the view.
+      const xs = slot.charms.flatMap((c) => [c.box.x, c.box.x + c.box.w]).concat([ring.x - ring.r, ring.x + ring.r]);
+      slot.box = { x: Math.min(...xs), y: ring.y - ring.r, w: Math.max(...xs) - Math.min(...xs), h: bottom - (ring.y - ring.r) };
+      low = Math.max(low, bottom);
     }
     slots.push(slot);
   }
@@ -6441,16 +6504,17 @@ function paintStageSvg() {
   const front = middleOut(L.slots.length).reverse();
   const hungs = front.map((i) => L.slots[i]).map((s) => {
     if (!s.filled) return '';
-    const bx = s.charm.box;
+    const bx = s.box;
+    const names = S.build.slots[s.i].charms.map((c) => itemName(c)).join(', ') || 'a bare strand';
+    // The halo sits behind the charms, so a tap on a charm picks that charm.
     return `<g class="hung${s.i === sel ? ' sel' : ''}" data-slot="${s.i}" tabindex="0" role="button"
-        aria-label="Spot ${s.i + 1}: ${esc(itemName({ itemId: S.build.slots[s.i].itemId }))}">
+        aria-label="Spot ${s.i + 1}: ${esc(names)}">
       <g class="swing" data-px="${s.P.x}" data-py="${s.P.y}">
+        <rect class="halo" x="${bx.x - 1.2}" y="${bx.y - 1}" width="${bx.w + 2.4}" height="${bx.h + 2.2}" rx="2" fill="transparent"/>
         ${s.chain ? chainSvg(s.chain, L.metal, s.i) : ''}
-        ${s.endRing ? ringSvg(s.endRing, L.metal) : ''}
-        <g filter="url(#bd-shadow)">${pieceSvg(s.charm)}</g>
+        ${s.charms.map((c) => `<g data-at="${c.k}"><g filter="url(#bd-shadow)">${pieceSvg(c)}</g>
+          ${c.ring ? ringSvg(c.ring, L.metal) : ''}</g>`).join('')}
         ${ringSvg(s.ring, L.metal)}
-        <rect class="halo" x="${bx.x - 1.2}" y="${s.ring.y - s.ring.r - 1}" width="${bx.w + 2.4}"
-          height="${bx.y + bx.h - (s.ring.y - s.ring.r) + 2.2}" rx="2" fill="transparent"/>
       </g></g>`;
   }).join('');
   const marks = L.slots.map((s) => (s.filled ? '' : `
@@ -6460,7 +6524,7 @@ function paintStageSvg() {
     </g>`)).join('');
 
   host.innerHTML = `<svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" xmlns="http://www.w3.org/2000/svg" role="img"
-      aria-label="Your bangle with ${hungCount()} charm${hungCount() === 1 ? '' : 's'}">
+      aria-label="Your ${HANDS[S.build.hand].toLowerCase()} bangle with ${hungCount()} charm${hungCount() === 1 ? '' : 's'}">
     <defs>
       ${metalGradient('bd-metal', L.metal)}
       <filter id="bd-shadow" x="-30%" y="-30%" width="160%" height="170%">
@@ -6496,69 +6560,80 @@ function swing(i, amp = 13) {
 /* ----------------------------------------------------- order picture (canvas) */
 
 async function buildSnapshot(size = 560) {
-  const L = layout();
-  if (!L) return '';
-  await Promise.all([L.baseImg.src, ...L.slots.filter((s) => s.filled).flatMap((s) => [s.charm.src, s.chain && s.chain.src])]
-    .filter(Boolean).map(analyseArt));
-  const F = layout();            // again, now every picture has been measured
+  // Each hand that has a bangle, side by side, left hand on the left.
+  const hands = Object.keys(HANDS).filter((h) => S.build.hands[h].baseId && layout(h));
+  if (!hands.length) return '';
+  await Promise.all(hands.flatMap((h) => {
+    const L = layout(h);
+    return [L.baseImg.src, ...L.slots.flatMap((s) => [...s.charms.map((c) => c.src), s.chain && s.chain.src])];
+  }).filter(Boolean).map(analyseArt));
   const cv = document.createElement('canvas');
-  cv.width = size; cv.height = size;
+  cv.width = size * hands.length; cv.height = size;
   const g = cv.getContext('2d');
-  const k = size / F.view.w;
-  const X = (x) => (x - F.view.x) * k;
-  const Y = (y) => (y - F.view.y) * k;
 
-  const bg = g.createRadialGradient(size / 2, size * 0.3, size * 0.05, size / 2, size * 0.3, size * 0.9);
+  const bg = g.createRadialGradient(cv.width / 2, size * 0.3, size * 0.05, cv.width / 2, size * 0.3, cv.width * 0.9);
   bg.addColorStop(0, '#fffdf8'); bg.addColorStop(1, '#efe7dc');
-  g.fillStyle = bg; g.fillRect(0, 0, size, size);
+  g.fillStyle = bg; g.fillRect(0, 0, cv.width, size);
 
-  const col = METALS[F.metal] || METALS.gold;
-  const grad = () => {
-    const lg = g.createLinearGradient(0, 0, size, size);
-    lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
-    return lg;
-  };
-  const shadow = (on) => {
-    g.shadowColor = on ? 'rgba(42,26,12,.32)' : 'transparent';
-    g.shadowBlur = on ? 0.9 * k : 0; g.shadowOffsetX = on ? 0.35 * k : 0; g.shadowOffsetY = on ? 0.9 * k : 0;
-  };
-  const piece = async (p) => {
-    if (!p.src) return;
-    const img = await loadImage(p.src);
-    shadow(true);
-    g.drawImage(img, X(p.x), Y(p.y), p.w * k, p.h * k);
-    shadow(false);
-  };
-  const ring = (r) => {
-    const lg = g.createLinearGradient(X(r.x - r.r), Y(r.y - r.r), X(r.x + r.r), Y(r.y + r.r));
-    lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
-    g.lineWidth = RING_W * k; g.strokeStyle = lg;
-    g.beginPath(); g.arc(X(r.x), Y(r.y), r.r * k, 0, Math.PI * 2); g.stroke();
-  };
+  for (const [n, hand] of hands.entries()) {
+    const F = layout(hand);        // again, now every picture has been measured
+    const k = size / F.view.w;
+    const X = (x) => n * size + (x - F.view.x) * k;
+    const Y = (y) => (y - F.view.y) * k;
+    const col = METALS[F.metal] || METALS.gold;
+    const grad = () => {
+      const lg = g.createLinearGradient(0, 0, size, size);
+      lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
+      return lg;
+    };
+    const shadow = (on) => {
+      g.shadowColor = on ? 'rgba(42,26,12,.32)' : 'transparent';
+      g.shadowBlur = on ? 0.9 * k : 0; g.shadowOffsetX = on ? 0.35 * k : 0; g.shadowOffsetY = on ? 0.9 * k : 0;
+    };
+    const piece = async (p) => {
+      if (!p.src) return;
+      const img = await loadImage(p.src);
+      shadow(true);
+      g.drawImage(img, X(p.x), Y(p.y), p.w * k, p.h * k);
+      shadow(false);
+    };
+    const ring = (r) => {
+      const lg = g.createLinearGradient(X(r.x - r.r), Y(r.y - r.r), X(r.x + r.r), Y(r.y + r.r));
+      lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
+      g.lineWidth = RING_W * k; g.strokeStyle = lg;
+      g.beginPath(); g.arc(X(r.x), Y(r.y), r.r * k, 0, Math.PI * 2); g.stroke();
+    };
 
-  await piece(F.baseImg);
-  for (const s of middleOut(F.slots.length).reverse().map((i) => F.slots[i])) {
-    if (!s.filled) continue;
-    if (s.chain) {
-      const c = s.chain;
-      if (c.src && c.tileMm) {
-        const img = await loadImage(c.src);
-        const sx = img.width * c.box.x; const sw = img.width * c.box.w;
-        const sy = img.height * c.box.y; const sh = img.height * c.box.h;
-        for (let y = 0; y < c.len; y += c.tileMm) {
-          const hgt = Math.min(c.tileMm, c.len - y);
-          g.drawImage(img, sx, sy, sw, sh * (hgt / c.tileMm), X(c.x - c.w / 2), Y(c.y + y), c.w * k, hgt * k);
-        }
-      } else {
-        g.strokeStyle = grad(); g.lineWidth = 0.5 * k;
-        for (let y = 0; y < c.len; y += 1.9) {
-          g.beginPath(); g.ellipse(X(c.x), Y(c.y + y + 0.95), 0.62 * k, 1.18 * k, 0, 0, Math.PI * 2); g.stroke();
+    if (hands.length > 1) {
+      g.fillStyle = '#7a6a5c'; g.font = `600 ${Math.round(size / 32)}px system-ui, sans-serif`; g.textAlign = 'center';
+      g.fillText(HANDS[hand], n * size + size / 2, size / 20);
+    }
+    await piece(F.baseImg);
+    for (const s of middleOut(F.slots.length).reverse().map((i) => F.slots[i])) {
+      if (!s.filled) continue;
+      if (s.chain) {
+        const c = s.chain;
+        if (c.src && c.tileMm) {
+          const img = await loadImage(c.src);
+          const sx = img.width * c.box.x; const sw = img.width * c.box.w;
+          const sy = img.height * c.box.y; const sh = img.height * c.box.h;
+          for (let y = 0; y < c.len; y += c.tileMm) {
+            const hgt = Math.min(c.tileMm, c.len - y);
+            g.drawImage(img, sx, sy, sw, sh * (hgt / c.tileMm), X(c.x - c.w / 2), Y(c.y + y), c.w * k, hgt * k);
+          }
+        } else {
+          g.strokeStyle = grad(); g.lineWidth = 0.5 * k;
+          for (let y = 0; y < c.len; y += 1.9) {
+            g.beginPath(); g.ellipse(X(c.x), Y(c.y + y + 0.95), 0.62 * k, 1.18 * k, 0, 0, Math.PI * 2); g.stroke();
+          }
         }
       }
-      ring(s.endRing);
+      for (const c of s.charms) {
+        await piece(c);
+        if (c.ring) ring(c.ring);
+      }
+      ring(s.ring);
     }
-    await piece(s.charm);
-    ring(s.ring);
   }
   for (const q of [0.85, 0.72, 0.58, 0.42]) {
     let out = cv.toDataURL('image/webp', q);
@@ -6576,25 +6651,34 @@ async function buildSnapshot(size = 560) {
 function syncCharms() {
   const b = S.build;
   if (!b.active) return;
-  const L = layout();
-  const pct = (mm) => 50 + (mm / VIRTUAL_MM) * 100;
   const out = [];
   let z = 1;
-  if (L) {
-    out.push({ uid: 'b-base', itemId: L.base.id, variantId: b.baseVariant, x: 50, y: 50,
+  const both = Object.values(b.hands).every((h) => h.baseId);
+  for (const hand of Object.keys(HANDS)) {
+    const L = layout(hand);
+    if (!L) continue;
+    const h = b.hands[hand];
+    // With a pair on the canvas, the two sit side by side rather than on top of each other.
+    const dx = both ? (hand === 'left' ? -40 : 40) : 0;
+    const pct = (mm) => 50 + (mm / VIRTUAL_MM) * 100;
+    const px = (mm) => pct(mm + dx);
+    const id = `b-${hand[0]}`;
+    out.push({ uid: `${id}-base`, itemId: L.base.id, variantId: h.baseVariant, x: px(0), y: 50,
       w: ((L.base.widthMm || 70) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
     for (const s of L.slots) {
-      const pick = b.slots[s.i];
+      const pick = h.slots[s.i];
       if (!pick) continue;
-      if (pick.chain && pick.chain.lenCm) {
-        out.push({ uid: `b-ch${s.i}`, itemId: pick.chain.itemId, variantId: pick.chain.variantId,
-          x: pct(s.chain.x), y: pct(s.chain.y), w: 1, rot: 0, z: z++, lenCm: pick.chain.lenCm });
+      if (s.chain) {
+        out.push({ uid: `${id}-ch${s.i}`, itemId: pick.chain.itemId, variantId: pick.chain.variantId,
+          x: px(s.chain.x), y: pct(s.chain.y), w: 1, rot: 0, z: z++, lenCm: pick.chain.lenCm });
       }
-      const item = itemOf(pick.itemId);
-      const bx = s.charm.box;
-      out.push({ uid: `b-c${s.i}`, itemId: pick.itemId, variantId: pick.variantId,
-        x: pct(bx.x + bx.w / 2), y: pct(bx.y + bx.h / 2),
-        w: (((item && item.widthMm) || 12) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+      for (const c of s.charms) {
+        const pc = pick.charms[c.k];
+        const item = itemOf(pc.itemId);
+        out.push({ uid: `${id}-c${s.i}-${c.k}`, itemId: pc.itemId, variantId: pc.variantId,
+          x: px(c.box.x + c.box.w / 2), y: pct(c.box.y + c.box.h / 2),
+          w: (((item && item.widthMm) || 12) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+      }
     }
   }
   S.charms = out;
@@ -6620,8 +6704,26 @@ const release = (itemId, variantId, n) => trayTake(itemId, variantId, n);
 
 function releaseSlot(s) {
   if (!s) return;
-  release(s.itemId, s.variantId, 1);
-  if (s.chain && s.chain.lenCm) release(s.chain.itemId, s.chain.variantId, s.chain.lenCm);
+  for (const c of s.charms) release(c.itemId, c.variantId, 1);
+  if (lenOf(s)) release(s.chain.itemId, s.chain.variantId, s.chain.lenCm);
+}
+
+/** Everything on both hands goes back to the shop. */
+function releaseHands() {
+  for (const h of Object.values(S.build.hands)) {
+    h.slots.forEach(releaseSlot);
+    if (h.baseId) release(h.baseId, h.baseVariant, 1);
+  }
+}
+
+/** A copy of a strand, claimed from the shop — or null, with nothing kept, if the shop can't spare all of it. */
+function claimStrand(s) {
+  const got = [];
+  const take = (id, v, n) => { if (!claim(itemOf(id), v, n)) return false; got.push([id, v, n]); return true; };
+  const ok = (!lenOf(s) || take(s.chain.itemId, s.chain.variantId, s.chain.lenCm))
+    && s.charms.every((c) => take(c.itemId, c.variantId, 1));
+  if (!ok) { got.forEach(([id, v, n]) => release(id, v, n)); return null; }
+  return { chain: s.chain ? { ...s.chain } : null, charms: s.charms.map((c) => ({ ...c })) };
 }
 
 function chooseBangle(itemId, variantId) {
@@ -6638,7 +6740,7 @@ function chooseBangle(itemId, variantId) {
   b.baseId = itemId;
   b.baseVariant = vId;
   const n = slotCount(item);
-  // Charms already chosen keep their order on the new bangle; any beyond its
+  // Strands already made keep their order on the new bangle; any beyond its
   // spots go back to the shop.
   const kept = b.slots.filter(Boolean);
   for (const s of kept.slice(n)) releaseSlot(s);
@@ -6646,6 +6748,7 @@ function chooseBangle(itemId, variantId) {
   const order = middleOut(n);
   kept.slice(0, n).forEach((s, k) => { b.slots[order[k]] = s; });
   b.sel = nextEmpty(-1);
+  b.at = -1;
   commit();
 }
 
@@ -6668,77 +6771,115 @@ function nextEmpty(after) {
   return rest[0];
 }
 
+/**
+ * Picks a charm for the selected spot. An empty spot gets it straight off the
+ * bangle and Create moves on to the next spot; a strand of chain takes it as
+ * one more charm down its length; a chosen charm is swapped for it.
+ */
 function hang(itemId, variantId, at = S.build.sel) {
   const b = S.build;
   const item = itemOf(itemId);
   if (!item || !b.baseId) return;
   const vId = variantId || firstInStock(item);
-  const was = b.slots[at];
-  if (was && was.itemId === itemId && was.variantId === vId) return;
-  if (was) release(was.itemId, was.variantId, 1);
-  if (!claim(item, vId, 1)) { if (was) trayAdd(was.itemId, was.variantId, 1); return; }
-  b.slots[at] = { itemId, variantId: vId, chain: was ? was.chain : null };
+  const s = b.slots[at];
+  const k = at === b.sel ? focusAt() : -1;
+  if (s && k >= 0) {
+    const was = s.charms[k];
+    if (was.itemId === itemId && was.variantId === vId) return;
+    release(was.itemId, was.variantId, 1);
+    if (!claim(item, vId, 1)) { trayAdd(was.itemId, was.variantId, 1); return; }
+    s.charms[k] = { itemId, variantId: vId };
+    b.at = -1;
+    commit();
+    swing(at);
+    return;
+  }
+  if (s && s.charms.length >= roomOn(s)) {
+    toast(lenOf(s) ? `This strand is full at ${roomOn(s)} charms — choose a longer one, or another spot.`
+      : 'Choose a length to hang more than one charm here.', 'bad');
+    return;
+  }
+  if (!claim(item, vId, 1)) return;
+  if (s) s.charms.push({ itemId, variantId: vId });
+  else b.slots[at] = { chain: null, charms: [{ itemId, variantId: vId }] };
   commit();
   swing(at);
-  // Filling an empty spot moves on to the next one; swapping stays put.
-  if (!was) { b.sel = nextEmpty(at); paintBuilder(); }
+  // Filling an empty spot moves on to the next one; a strand stays put to take more.
+  if (!s) { b.sel = nextEmpty(at); b.at = -1; paintBuilder(); }
 }
 
-function unhang(at = S.build.sel) {
-  const s = S.build.slots[at];
+/** Takes one charm off a strand, or (k < 0) the whole strand off its spot. */
+function unhang(at = S.build.sel, k = -1) {
+  const b = S.build;
+  const s = b.slots[at];
   if (!s) return;
-  releaseSlot(s);
-  S.build.slots[at] = null;
+  if (k < 0) { releaseSlot(s); b.slots[at] = null; }
+  else {
+    const [c] = s.charms.splice(k, 1);
+    if (c) release(c.itemId, c.variantId, 1);
+    if (!s.charms.length && !lenOf(s)) b.slots[at] = null;
+  }
+  b.at = -1;
   commit();
 }
 
 function setColour(variantId) {
   const s = S.build.slots[S.build.sel];
-  if (!s || s.variantId === variantId) return;
-  const item = itemOf(s.itemId);
-  release(s.itemId, s.variantId, 1);
-  if (!claim(item, variantId, 1)) { trayAdd(s.itemId, s.variantId, 1); return; }
-  s.variantId = variantId;
+  const k = focusAt();
+  if (!s || k < 0) return;
+  const c = s.charms[k];
+  if (c.variantId === variantId) return;
+  const item = itemOf(c.itemId);
+  release(c.itemId, c.variantId, 1);
+  if (!claim(item, variantId, 1)) { trayAdd(c.itemId, c.variantId, 1); return; }
+  c.variantId = variantId;
   commit();
 }
 
-function setDrop(key, chainId) {
-  const s = S.build.slots[S.build.sel];
-  if (!s) return;
-  const d = DROPS.find((x) => x.key === key) || DROPS[0];
-  const was = s.chain;
-  if (was && was.lenCm) release(was.itemId, was.variantId, was.lenCm);
-  if (!d.cm) { s.chain = null; commit(); swing(S.build.sel, 8); return; }
+/** How long the selected spot's strand is, and on which chain; 0 hangs it straight off the bangle. */
+function setLength(cm, chainId) {
+  const b = S.build;
+  const at = b.sel;
+  let s = b.slots[at];
+  const was = s && s.chain;
+  if (!cm) {
+    if (!was) return;
+    if (s.charms.length > 1) { toast('Without a chain there is room for one charm — take the others off first.', 'bad'); return; }
+    release(was.itemId, was.variantId, was.lenCm);
+    s.chain = null;
+    if (!s.charms.length) b.slots[at] = null;
+    commit();
+    swing(at, 8);
+    return;
+  }
   const ch = itemOf(chainId || (was && was.itemId) || (chains()[0] || {}).id);
-  if (!ch) { if (was) trayAdd(was.itemId, was.variantId, was.lenCm); return; }
+  if (!ch) return;
   const vId = was && was.itemId === ch.id ? was.variantId : firstInStock(ch);
-  if (!claim(ch, vId, d.cm)) { if (was && was.lenCm) trayAdd(was.itemId, was.variantId, was.lenCm); return; }
-  s.chain = { itemId: ch.id, variantId: vId, lenCm: d.cm };
+  if (was) release(was.itemId, was.variantId, was.lenCm);
+  if (!claim(ch, vId, cm)) { if (was) trayAdd(was.itemId, was.variantId, was.lenCm); return; }
+  if (!s) { s = { chain: null, charms: [] }; b.slots[at] = s; }
+  s.chain = { itemId: ch.id, variantId: vId, lenCm: cm };
+  b.at = -1;
   commit();
-  swing(S.build.sel, 10);
+  swing(at, 10);
 }
 
 function fillEmpty() {
   const s = S.build.slots[S.build.sel];
-  if (!s) return toast('Hang something on this spot first, then repeat it.');
+  if (!s) return toast('Make a strand on this spot first, then repeat it.');
   let added = 0;
   for (let i = 0; i < S.build.slots.length; i++) {
     if (S.build.slots[i]) continue;
-    const item = itemOf(s.itemId);
-    if (!claim(item, s.variantId, 1)) break;
-    let chain = null;
-    if (s.chain && s.chain.lenCm) {
-      const ch = itemOf(s.chain.itemId);
-      if (claim(ch, s.chain.variantId, s.chain.lenCm)) chain = { ...s.chain };
-    }
-    S.build.slots[i] = { itemId: s.itemId, variantId: s.variantId, chain };
+    const copy = claimStrand(s);
+    if (!copy) break;
+    S.build.slots[i] = copy;
     added++;
   }
   commit();
   if (added) toast(`Repeated on ${added} more spot${added === 1 ? '' : 's'}.`, 'good');
 }
 
-/** The left half, reflected onto the right. */
+/** The left half of the bangle, reflected onto its right half. */
 function mirror() {
   const b = S.build;
   const n = b.slots.length;
@@ -6747,33 +6888,75 @@ function mirror() {
     const from = b.slots[i];
     const j = n - 1 - i;
     const to = b.slots[j];
-    if (!from || (to && to.itemId === from.itemId && to.variantId === from.variantId)) continue;
+    if (!from || JSON.stringify(from) === JSON.stringify(to)) continue;
     if (to) releaseSlot(to);
-    const item = itemOf(from.itemId);
-    if (!claim(item, from.variantId, 1)) { if (to) { trayAdd(to.itemId, to.variantId, 1); } break; }
-    let chain = null;
-    if (from.chain && from.chain.lenCm && claim(itemOf(from.chain.itemId), from.chain.variantId, from.chain.lenCm)) {
-      chain = { ...from.chain };
-    }
-    b.slots[j] = { itemId: from.itemId, variantId: from.variantId, chain };
+    const copy = claimStrand(from);
+    if (!copy) { if (to) claimStrand(to); break; }
+    b.slots[j] = copy;
     changed++;
   }
   commit();
-  toast(changed ? 'The right side now mirrors the left.' : 'Hang charms on the left-hand spots first.');
+  toast(changed ? 'The right side of the bangle now mirrors its left.' : 'Make strands on the left-hand spots first.');
+}
+
+/** This hand's design, made again on the other hand — the same, or mirrored so the pair matches. */
+async function copyHand(mirrored) {
+  const b = S.build;
+  const from = b.hands[b.hand];
+  const hand = otherHand();
+  const to = b.hands[hand];
+  if (!from.baseId) return;
+  if (hungCount(hand) && !await ask(`Replace the ${HANDS[hand].toLowerCase()}?`,
+    'Its charms go back to the shop and this design is made on it instead.', 'Replace it')) return;
+  to.slots.forEach(releaseSlot);
+  if (to.baseId) release(to.baseId, to.baseVariant, 1);
+  Object.assign(to, emptySide());
+  if (claim(itemOf(from.baseId), from.baseVariant, 1)) {
+    to.baseId = from.baseId;
+    to.baseVariant = from.baseVariant;
+    const n = from.slots.length;
+    let missed = 0;
+    to.slots = Array.from({ length: n }, (_, i) => {
+      const s = from.slots[mirrored ? n - 1 - i : i];
+      const copy = s && claimStrand(s);
+      if (s && !copy) missed++;
+      return copy || null;
+    });
+    toast(missed ? `The shop ran short for ${missed} strand${missed === 1 ? '' : 's'}; the rest is on the ${HANDS[hand].toLowerCase()}.`
+      : `The ${HANDS[hand].toLowerCase()} now ${mirrored ? 'mirrors' : 'matches'} this one.`, missed ? 'bad' : 'good');
+  }
+  b.hand = hand;
+  b.sel = nextEmpty(-1);
+  b.at = -1;
+  b.choosing = false;
+  commit();
+}
+
+function switchHand(hand) {
+  const b = S.build;
+  if (!HANDS[hand] || hand === b.hand) return;
+  b.hand = hand;
+  b.sel = nextEmpty(-1);
+  b.at = -1;
+  b.choosing = false;
+  saveBuild();
+  paintBuilder();
 }
 
 async function clearBuild() {
   if (!hungCount()) return;
-  if (!await ask('Take every charm off?', 'The bangle stays; the charms go back to the shop.', 'Take them off', true)) return;
+  if (!await ask('Take every charm off?', 'The bangle stays; the strands and charms go back to the shop.', 'Take them off', true)) return;
   S.build.slots.forEach(releaseSlot);
   S.build.slots = S.build.slots.map(() => null);
   S.build.sel = nextEmpty(-1);
+  S.build.at = -1;
   commit();
 }
 
-/** After an order is placed: a fresh bangle, nothing on it. */
+/** After an order is placed: a fresh pair, nothing on it. */
 function resetBuild() {
-  S.build.baseId = ''; S.build.baseVariant = ''; S.build.slots = []; S.build.sel = 0;
+  S.build.hands = { left: emptySide(), right: emptySide() };
+  S.build.hand = 'left'; S.build.sel = 0; S.build.at = -1;
   S.build.active = true;
   saveBuild();
 }
@@ -6792,8 +6975,7 @@ async function backToBuilder() {
     'The free layout is put back in your picks, and Create starts from your last bangle.', 'Start again')) return;
   S.charms = [];
   // What the free layout held is still in the tray; the builder re-claims as it hangs.
-  S.build.slots.forEach(releaseSlot);
-  if (S.build.baseId) release(S.build.baseId, S.build.baseVariant, 1);
+  releaseHands();
   resetBuild();
   setMode('build');
 }
@@ -6812,6 +6994,16 @@ function stepsHtml(now) {
     <b>${i < now ? '✓' : i + 1}</b>${n}</li>`).join('')}</ol>`;
 }
 
+/** The two hands of the pair, each designed on its own. */
+function handsHtml() {
+  return `<div class="bd-hands" role="group" aria-label="Which hand">${Object.entries(HANDS).map(([h, name]) => {
+    const n = hungCount(h);
+    const base = S.build.hands[h].baseId;
+    return `<button class="bd-chip" data-hand="${h}" aria-pressed="${h === S.build.hand}">
+      ${name}<small>${base ? `${n} charm${n === 1 ? '' : 's'}` : 'not started'}</small></button>`;
+  }).join('')}</div>`;
+}
+
 function banglePicker() {
   const list = bangles();
   if (!list.length) {
@@ -6819,8 +7011,12 @@ function banglePicker() {
       <p>The studio hasn't listed a bangle yet. Browse the collection meanwhile.</p>
       <div><button class="solid" data-bd="browse">See the collection</button></div></section>`;
   }
-  return `<section>${stepsHtml(0)}<h2>Choose your bangle</h2>
+  const other = HANDS[otherHand()].toLowerCase();
+  return `<section>${handsHtml()}${stepsHtml(0)}<h2>Choose the bangle for your ${HANDS[S.build.hand].toLowerCase()}</h2>
     <p>Everything you pick hangs from it, at its real size.</p>
+    ${!S.build.baseId && S.build.hands[otherHand()].baseId ? `<div class="bd-tools">
+      <button data-bd="copy-back">Same as the ${other}</button>
+      <button data-bd="mirror-back">Mirror the ${other}</button></div>` : ''}
     <div class="bd-bangles">${list.map((it) => {
       const free = itemAddable(it) + (it.id === S.build.baseId ? 1 : 0);
       return `<button class="bd-bangle" data-bangle="${esc(it.id)}" aria-pressed="${it.id === S.build.baseId}"
@@ -6837,39 +7033,51 @@ function spotHtml() {
   const b = S.build;
   const n = b.slots.length;
   const s = b.slots[b.sel];
-  const item = s && itemOf(s.itemId);
+  const used = b.slots.filter(Boolean).length;
   const head = `<div class="bd-spot">
       <button class="step" data-bd="prev" aria-label="Previous spot">‹</button>
       <div class="where"><b>Spot ${b.sel + 1} of ${n}</b>
-        <span>${hungCount()} of ${n} spots filled — tap any spot on the bangle</span></div>
+        <span>${used} of ${n} spots used — tap any spot on the bangle</span></div>
       <button class="step" data-bd="next" aria-label="Next spot">›</button>
     </div>`;
-  if (!item) {
-    return `${head}<p>Pick a charm below and it hangs on spot ${b.sel + 1}.</p>`;
-  }
-  const colours = item.variants.length > 1 ? `<div class="bd-label">Colour</div><div class="bd-chips">${item.variants.map((v) => {
-    const ok = v.id === s.variantId || addable(item, v.id) > 0;
-    return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.variantId}" ${ok ? '' : 'disabled'}>
-      ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
-  }).join('')}</div>` : '';
   const chs = chains();
-  const dropKey = s.chain && s.chain.lenCm ? (DROPS.find((d) => d.cm === s.chain.lenCm) || {}).key || 'mid' : 'none';
-  const drops = chs.length ? `<div class="bd-label">How it hangs</div>
-    <div class="bd-chips">${DROPS.map((d) => `<button class="bd-chip" data-drop="${d.key}" aria-pressed="${d.key === dropKey}">
-      ${esc(d.label)}${d.cm ? ` · ${d.cm} cm` : ''}</button>`).join('')}</div>
-    ${s.chain ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
+  const len = lenOf(s);
+  const lengths = chs.length ? `<div class="bd-label">Strand length</div>
+    <div class="bd-chips">${LENGTHS.map((c) => `<button class="bd-chip" data-len="${c}" aria-pressed="${c === len}"
+      ${!c && s && s.charms.length > 1 ? 'disabled title="Room for one charm without a chain"' : ''}>
+      ${c ? `${c} cm` : 'On the bangle'}</button>`).join('')}</div>
+    ${len ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
         data-chain="${esc(c.id)}" aria-pressed="${c.id === s.chain.itemId}">
         ${charmArt(c, firstInStock(c)).src ? `<img src="${esc(charmArt(c, firstInStock(c)).src)}" alt="">` : ''}${esc(c.name)}</button>`).join('')}</div>` : ''}` : '';
-  const price = item.price + (s.chain && s.chain.lenCm ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, s.chain.lenCm) : 0);
+  if (!s) {
+    return `${head}<p>Pick a charm below and it hangs on spot ${b.sel + 1}${chs.length ? ' — or choose a length first, to hang several down a strand' : ''}.</p>${lengths}`;
+  }
+  const k = focusAt();
+  const on = s.charms.length ? `<div class="bd-label">On this strand${len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}` : ''}</div>
+    <div class="bd-chips">${s.charms.map((c, i) => {
+      const it = itemOf(c.itemId);
+      const art = charmArt(it, c.variantId).src;
+      return `<span class="bd-on"><button class="bd-chip" data-at="${i}" aria-pressed="${i === k}">
+          ${art ? `<img src="${esc(art)}" alt="">` : ''}${esc(label(it, c.variantId))}</button><button class="bd-chip x"
+          data-off="${i}" aria-label="Take ${esc(it.name)} off">×</button></span>`;
+    }).join('')}</div>` : '';
+  const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
+  const colours = focus && focus.variants.length > 1 ? `<div class="bd-label">Colour of ${esc(focus.name)}</div><div class="bd-chips">${focus.variants.map((v) => {
+    const ok = v.id === s.charms[k].variantId || addable(focus, v.id) > 0;
+    return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
+      ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
+  }).join('')}</div>` : '';
+  const price = s.charms.reduce((t, c) => t + ((itemOf(c.itemId) || {}).price || 0), 0)
+    + (len ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, len) : 0);
+  const hint = k >= 0 && len ? `Pick a charm below to swap ${esc(focus.name)}, or tap it again to add instead.`
+    : k >= 0 ? 'Pick another charm below to swap it.'
+      : s.charms.length < roomOn(s) ? 'Pick charms below to add them down the strand.'
+        : 'This strand is full — choose a longer one to add more.';
   return `${head}
-    <div class="bd-chosen">
-      <span class="art">${charmArt(item, s.variantId).src ? `<img src="${esc(charmArt(item, s.variantId).src)}" alt="">` : esc(item.glyph)}</span>
-      <div><div class="nm">${esc(item.name)}</div>
-        <div class="sub">${hasSize(item) ? `${sizeLabel(item, true)} · ` : ''}${money(price)}</div>
-        <div class="acts"><button data-bd="remove" class="warnbtn">Take off</button></div></div>
-    </div>
-    ${colours}${drops}
-    <p style="font-size:14px">Pick another charm below to swap it.</p>`;
+    <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
+      <button data-bd="remove" class="warnbtn">Take the strand off</button></div>
+    ${lengths}${on}${colours}
+    <p style="font-size:14px">${hint}</p>`;
 }
 
 function pickerHtml() {
@@ -6879,11 +7087,13 @@ function pickerHtml() {
   const q = b.find.trim().toLowerCase();
   const shown = list.filter((i) => (!b.filter || i.category === b.filter)
     && (!q || i.name.toLowerCase().includes(q) || (i.note || '').toLowerCase().includes(q)));
-  const cur = b.slots[b.sel];
+  const s = b.slots[b.sel];
+  const k = focusAt();
+  const cur = s && k >= 0 ? s.charms[k] : null;
   return `<section>
     <div class="bd-find"><input type="search" id="bd-find" placeholder="Search charms" aria-label="Search charms" value="${esc(b.find)}"></div>
-    ${secs.length > 1 ? `<div class="bd-cats"><button class="bd-chip" data-cat="" aria-pressed="${!b.filter}">All</button>${secs.map((s) =>
-      `<button class="bd-chip" data-cat="${esc(s.slug)}" aria-pressed="${b.filter === s.slug}">${esc(s.name)}</button>`).join('')}</div>` : ''}
+    ${secs.length > 1 ? `<div class="bd-cats"><button class="bd-chip" data-cat="" aria-pressed="${!b.filter}">All</button>${secs.map((sec) =>
+      `<button class="bd-chip" data-cat="${esc(sec.slug)}" aria-pressed="${b.filter === sec.slug}">${esc(sec.name)}</button>`).join('')}</div>` : ''}
     <div class="bd-grid">${shown.length ? shown.map((it) => {
       const out = itemAddable(it) <= 0 && !(cur && cur.itemId === it.id);
       const art = charmArt(it, firstInStock(it));
@@ -6901,8 +7111,9 @@ function paintBuilder() {
   if (S.mode !== 'build') return;
   const b = S.build;
   const base = itemOf(b.baseId);
-  // With exactly one bangle to be had there is no question to ask.
-  if (!base && !b.choosing) {
+  // With exactly one bangle to be had there is no question to ask — for the
+  // first hand. The second may want to follow the first instead.
+  if (!base && !b.choosing && !b.hands[otherHand()].baseId) {
     const list = bangles().filter((i) => itemAddable(i) > 0);
     if (list.length === 1 && S.ready) { chooseBangle(list[0].id); return; }
   }
@@ -6912,7 +7123,8 @@ function paintBuilder() {
     panel.innerHTML = banglePicker();
   } else {
     const n = hungCount();
-    panel.innerHTML = `<section>${stepsHtml(n ? 1 : 1)}
+    const other = HANDS[otherHand()].toLowerCase();
+    panel.innerHTML = `<section>${handsHtml()}${stepsHtml(1)}
         <div class="bd-base">${charmArt(base, b.baseVariant).src ? `<img src="${esc(charmArt(base, b.baseVariant).src)}" alt="">` : ''}
           <div><div class="nm">${esc(label(base, b.baseVariant))}</div>
           <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
@@ -6924,31 +7136,36 @@ function paintBuilder() {
       <section>
         <div class="bd-tools">
           <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
-          <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror left to right</button>
+          <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
           <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
+        </div>
+        <div class="bd-tools">
+          <button data-bd="copy" ${n ? '' : 'disabled'}>Copy to ${other}</button>
+          <button data-bd="copy-mirror" ${n ? '' : 'disabled'}>Mirror onto ${other}</button>
         </div>
         <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
       </section>`;
   }
   window.scrollTo({ top: keepScroll });
   paintStageSvg();
-  paintBuildBar(base);
+  paintBuildBar();
   const am = $('#bd-amend');
   am.hidden = !S.amending;
   if (S.amending) $('#bd-amend-no').textContent = S.amending.no;
 }
 
-function paintBuildBar(base) {
+function paintBuildBar() {
   const lines = billLines();
   const total = lines.reduce((s, l) => s + l.total, 0);
-  const n = hungCount();
-  $('#bd-count').textContent = !base ? 'Choose a bangle to begin'
-    : n ? `Bangle + ${n} charm${n === 1 ? '' : 's'}` : 'Your bangle — add charms';
-  $('#bd-total').textContent = base ? money(total) : '—';
-  $('#bd-order').disabled = !base || !n;
-  $('#bd-caption').textContent = !base ? ''
-    : n ? 'Shown at its real size. Tap a charm to change it, or a numbered spot to add one.'
-      : 'Tap a numbered spot, then pick a charm to hang there.';
+  const bases = Object.values(S.build.hands).filter((h) => h.baseId).length;
+  const n = pairCount();
+  $('#bd-count').textContent = !bases ? 'Choose a bangle to begin'
+    : n ? `${bases === 2 ? 'A pair' : 'Bangle'} + ${n} charm${n === 1 ? '' : 's'}` : 'Your bangle — add charms';
+  $('#bd-total').textContent = bases ? money(total) : '—';
+  $('#bd-order').disabled = !bases || !n;
+  $('#bd-caption').textContent = !S.build.baseId ? ''
+    : hungCount() ? 'Shown at its real size. Tap a strand to change it, or a numbered spot to start one.'
+      : 'Tap a numbered spot, then pick a length and charms to hang there.';
 }
 
 /* ----------------------------------------------------------------- wiring */
@@ -6962,7 +7179,9 @@ function wireBuilder() {
     const g = e.target.closest('[data-slot]');
     if (!g) return;
     const i = Number(g.dataset.slot);
+    const c = e.target.closest('[data-at]');
     S.build.sel = i;
+    S.build.at = c ? Number(c.dataset.at) : -1;
     paintBuilder();
     if (S.build.slots[i]) swing(i, 6);
     // On a phone the list is below the stage; bring it up.
@@ -6977,26 +7196,38 @@ function wireBuilder() {
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest('.hung')) unhang(Number(e.target.closest('.hung').dataset.slot));
   });
 
+  /** The second hand, made from the first: switch to the first and copy it over. */
+  const fromOther = (mirrored) => { S.build.hand = otherHand(); return copyHand(mirrored); };
+
   const panel = $('#bd-panel');
   panel.addEventListener('click', (e) => {
     const t = e.target.closest('button');
     if (!t) return;
     const b = S.build;
+    if (t.dataset.hand) return switchHand(t.dataset.hand);
     if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
     if (t.dataset.charm) return hang(t.dataset.charm);
     if (t.dataset.colour) return setColour(t.dataset.colour);
-    if (t.dataset.drop) return setDrop(t.dataset.drop);
-    if (t.dataset.chain) {
-      const d = DROPS.find((x) => x.cm === (b.slots[b.sel] || {}).chain?.lenCm) || DROPS[2];
-      return setDrop(d.key, t.dataset.chain);
+    if (t.dataset.len !== undefined) return setLength(Number(t.dataset.len));
+    if (t.dataset.chain) return setLength(lenOf(b.slots[b.sel]) || LENGTHS[2], t.dataset.chain);
+    if (t.dataset.off !== undefined) return unhang(b.sel, Number(t.dataset.off));
+    if (t.dataset.at !== undefined) {
+      // Tapping the chosen charm again goes back to adding.
+      const i = Number(t.dataset.at);
+      b.at = focusAt() === i && lenOf(b.slots[b.sel]) ? -1 : i;
+      return paintBuilder();
     }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
     switch (t.dataset.bd) {
-      case 'prev': b.sel = (b.sel - 1 + b.slots.length) % b.slots.length; return paintBuilder();
-      case 'next': b.sel = (b.sel + 1) % b.slots.length; return paintBuilder();
+      case 'prev': b.sel = (b.sel - 1 + b.slots.length) % b.slots.length; b.at = -1; return paintBuilder();
+      case 'next': b.sel = (b.sel + 1) % b.slots.length; b.at = -1; return paintBuilder();
       case 'remove': return unhang();
       case 'fill': return fillEmpty();
       case 'mirror': return mirror();
+      case 'copy': return copyHand(false);
+      case 'copy-mirror': return copyHand(true);
+      case 'copy-back': return fromOther(false);
+      case 'mirror-back': return fromOther(true);
       case 'clear': return clearBuild();
       case 'free': return toFreeLayout();
       case 'bangles': b.choosing = true; return paintBuilder();
@@ -7727,7 +7958,7 @@ function askCancelReason(id, by) {
 async function startAmend(order) {
   if (!canCustomerAmend(order)) { toast('The hour to change this order has passed.', 'bad'); return; }
   // A bare bangle waiting in Create is not work that would be lost.
-  const inHand = S.build.active ? hungCount() : S.charms.length;
+  const inHand = S.build.active ? pairCount() : S.charms.length;
   if (inHand) {
     if (!await ask('Open this order for changes?',
       'What is on the canvas now will be cleared so the order can be loaded.', 'Open it')) return;
@@ -7736,8 +7967,7 @@ async function startAmend(order) {
 
   // Whatever Create was holding goes back to the shop before the order's pieces come in.
   if (S.build.active) {
-    S.build.slots.forEach(releaseSlot);
-    if (S.build.baseId) release(S.build.baseId, S.build.baseVariant, 1);
+    releaseHands();
     resetBuild();
   }
   S.charms = [];
@@ -7755,12 +7985,12 @@ async function startAmend(order) {
   S.zTop = S.charms.length + 1;
   S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };
   $('#dlg-order').close();
-  if (d.build && d.build.baseId) {
+  if (d.build && (d.build.baseId || d.build.hands)) {
     S.build.active = true;
-    S.build.baseId = d.build.baseId;
-    S.build.baseVariant = d.build.baseVariant;
-    S.build.slots = (d.build.slots || []).map((x) => (x && x.itemId ? { ...x } : null));
+    S.build.hands = handsFrom(d.build);
+    S.build.hand = S.build.hands.left.baseId || !S.build.hands.right.baseId ? 'left' : 'right';
     S.build.sel = 0;
+    S.build.at = -1;
     reconcileBuild();
     saveBuild();
     setMode('build');
