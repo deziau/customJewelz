@@ -40,7 +40,12 @@ const CATALOG = {
 
 /** Runs in the page before any of its scripts: a stand-in for claude.use('db'). */
 function installStore(seed) {
-  const store = { catalog: seed, zones: { metro: { area: 'Metro', cost: 8, eta: '3' } }, orders: {}, restock: {}, customers: {} };
+  const sections = [['bangles', 'Bangles'], ['charms', 'Charms'], ['chains', 'Chains']]
+    .map(([slug, name]) => ({ slug, name, kind: 'attachment' }));
+  const store = {
+    catalog: seed, zones: { metro: { area: 'Metro', cost: 8, eta: '3' } }, orders: {}, restock: {}, customers: {},
+    meta: { settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, pin: '2468', sections } },
+  };
   window.__store = store;
   const listeners = [];
   const snapDoc = (id, d) => ({ id, exists: Boolean(d), data: () => (d ? JSON.parse(JSON.stringify(d)) : undefined) });
@@ -168,12 +173,55 @@ async function run(browser, label, viewport) {
   console.log(`✓ ${label}`);
 }
 
+/** The studio can say what a piece is and where its loop is, and Create uses it. */
+async function studio(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(installStore, CATALOG);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${PAGE}#studio`);
+  await page.waitForSelector('#dlg-pin[open]');
+  await page.fill('#form-pin input[name=pin]', '2468');
+  await page.click('#form-pin button[type=submit]');
+  await page.waitForSelector('#studio:not([hidden])');
+  await page.click('#admin-tabs [data-view="repo"]');
+  await page.evaluate(() => openPieceDialog(itemOf('star')));
+  await page.waitForSelector('#dlg-piece[open]');
+  assert.equal(await page.isVisible('#loop-field'), true, 'a charm offers the loop picker');
+  assert.equal(await page.isVisible('#slots-field'), false, 'a charm has no spots');
+  await page.locator('#loop-pick img').scrollIntoViewIfNeeded();
+  const box = await page.locator('#loop-pick img').boundingBox();
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.1);
+  await page.click('#form-piece button[type=submit]');
+  await page.waitForSelector('#dlg-piece[open]', { state: 'detached' }).catch(async () => { throw new Error('save failed: ' + await page.textContent('#piece-error')); });
+  const saved = await page.evaluate(() => window.__store.catalog.star);
+  assert.ok(saved.loop && Math.abs(saved.loop.x - 50) < 3 && Math.abs(saved.loop.y - 10) < 3, `loop saved: ${JSON.stringify(saved.loop)}`);
+  assert.equal(saved.name, 'Star', 'the rest of the component survives the save');
+
+  await page.evaluate(() => openPieceDialog(itemOf('kada')));
+  assert.equal(await page.isVisible('#slots-field'), true, 'a bangle offers spots');
+  await page.fill('#form-piece input[name=slots]', '5');
+  await page.click('#form-piece button[type=submit]');
+  await page.waitForSelector('#dlg-piece[open]', { state: 'detached' }).catch(async () => { throw new Error('save failed: ' + await page.textContent('#piece-error')); });
+  assert.equal(await page.evaluate(() => window.__store.catalog.kada.slots), 5);
+
+  // Create picks the new spot count up.
+  await page.click('#mode-build');
+  await page.waitForSelector('#bd-stage svg');
+  assert.equal(await page.$$eval('#bd-stage .slot', (n) => n.length), 5, 'five spots after the studio said so');
+  assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
+  await ctx.close();
+  console.log('✓ studio');
+}
+
 (async () => {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch({ executablePath: chromePath() });
   try {
     await run(browser, 'desktop', { width: 1440, height: 900 });
     await run(browser, 'phone', { width: 390, height: 844 });
+    await studio(browser);
     console.log('UI tests passed');
   } finally {
     await browser.close();

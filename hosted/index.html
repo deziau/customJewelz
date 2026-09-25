@@ -989,6 +989,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .bd .hung { cursor: pointer; outline: none; }
 /* Hit only where the charm's metal is, not its picture's transparent corners. */
 .bd .hung image { pointer-events: none; }
+.loop-field { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; margin-top: 12px; }
+.loop-pick { position: relative; display: inline-block; cursor: crosshair; border-radius: 8px; line-height: 0;
+  background: repeating-conic-gradient(#fff 0 25%, #e9e4e6 0 50%) 0 0 / 14px 14px; border: 1px solid var(--line); }
+.loop-pick img { display: block; max-width: 180px; max-height: 180px; }
+.loop-pick .dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  border: 2px solid var(--accent); background: rgba(255,255,255,.6); pointer-events: none; }
+.loop-pick .dot.auto { border-style: dashed; }
 .bd .hung .halo { pointer-events: all; }
 .bd .hung.sel .halo { stroke: var(--accent); stroke-width: .5; fill: none; stroke-dasharray: 1.2 .9; }
 .bd .hung:focus-visible .halo { stroke: var(--accent); stroke-width: .5; fill: none; }
@@ -1514,6 +1521,31 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           it the picture shows — that is what keeps the links their real size whatever length is cut.</p>
       </fieldset>
 
+      <fieldset id="piece-create">
+        <legend>How it hangs in Create</legend>
+        <div class="pair">
+          <label class="f"><span>What it is</span><select name="role" id="piece-role">
+            <option value="">Work it out from the section</option>
+            <option value="bangle">A bangle — charms hang from it</option>
+            <option value="charm">A charm — hangs from a spot</option>
+            <option value="chain">A chain — used for drops</option>
+          </select></label>
+          <label class="f" id="slots-field"><span>Spots along the bangle — blank for 7</span>
+            <input name="slots" type="number" min="1" max="24" step="1" placeholder="7"></label>
+          <label class="f" id="rim-field"><span>Where the band runs, % of the way out — blank to find it</span>
+            <input name="rim" type="number" min="10" max="100" step="1" placeholder="auto"></label>
+        </div>
+        <div id="loop-field" class="loop-field">
+          <div class="loop-pick" id="loop-pick" title="Click the loop the jump ring goes through"></div>
+          <div>
+            <p style="margin:0 0 8px">Click the <b>loop</b> on the sticker — the jump ring goes through it and the
+              charm hangs from that point.</p>
+            <p class="muted" id="loop-note" style="font-size:12.5px;margin:0 0 8px"></p>
+            <button type="button" id="loop-auto" class="tiny">Find it automatically</button>
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend>Colours &amp; stock</legend>
         <div class="variant-rows" id="piece-variants"></div>
@@ -1806,6 +1838,10 @@ function normalize(id, d) {
     // a charm that hangs, or a chain a charm can drop on. Read from the section
     // when the studio has not said, so nothing in the repo has to be re-saved.
     role: roleOf(d),
+    roleSet: ['bangle', 'charm', 'chain'].includes(d.role) ? d.role : '',
+    // Studio renders of the same piece (transparent, lit alike), one per colour
+    // like the stickers. Preferred over the stickers wherever a piece is drawn.
+    renders: Array.isArray(d.renders) ? d.renders.map((x) => String(x || '')).filter(Boolean) : [],
     // Where the charm's own loop is, as a percentage of its sticker. Empty means
     // "find it from the picture", which is right for a charm photographed loop-up.
     loop: d.loop && Number.isFinite(Number(d.loop.x)) && Number.isFinite(Number(d.loop.y))
@@ -1917,6 +1953,11 @@ function stickerIndexFor(item, variantId) {
  */
 function charmArt(item, variantId) {
   if (!item) return { src: '', cut: false };
+  if (item.renders && item.renders.length) {
+    const i = item.renders.length === item.variants.length
+      ? Math.max(0, item.variants.findIndex((v) => v.id === variantId)) : 0;
+    return { src: item.renders[i] || item.renders[0], cut: true };
+  }
   const sticker = item.stickers[stickerIndexFor(item, variantId)] || item.stickers[0] || '';
   if (sticker) return { src: sticker, cut: true };
   return { src: item.images[imageIndexFor(item, variantId)] || item.images[0] || '', cut: false };
@@ -4336,6 +4377,7 @@ function paintDraftStickers() {
       </figure>`;
     }).join('')
     : '<span class="muted" style="font-size:12.5px">No stickers yet — one is needed before you can save.</span>';
+  if ($('#dlg-piece').open) paintHangFields();
 }
 
 /**
@@ -4419,8 +4461,9 @@ function openPieceDialog(item) {
   S.draft = item
     ? { images: [...item.images], stickers: [...item.stickers],
         glyph: item.images.length ? '' : item.glyph, sku: item.sku, kept: Boolean(item.sku),
-        soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })) }
-    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false,
+        soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })),
+        loop: item.loop ? { ...item.loop } : null, renders: [...item.renders] }
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, renders: [],
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
@@ -4437,6 +4480,9 @@ function openPieceDialog(item) {
     f.active.checked = item.active;
     f.canFlip.checked = Boolean(item.canFlip);
     f.soldBy.value = item.soldBy;
+    f.role.value = item.roleSet || '';
+    f.slots.value = item.slots || '';
+    f.rim.value = item.rim ? Math.round(item.rim * 100) : '';
   } else {
     f.id.value = '';
     f.canFlip.checked = false;
@@ -4448,7 +4494,35 @@ function openPieceDialog(item) {
   paintDraftImages();
   paintDraftStickers();
   paintDraftVariants();
+  paintHangFields();
   $('#dlg-piece').showModal();
+}
+
+/** The Create settings that matter for what this component is. */
+function paintHangFields() {
+  const f = $('#form-piece');
+  const role = f.role.value || roleOf({ category: f.category.value, soldBy: f.soldBy.value });
+  $('#slots-field').hidden = role !== 'bangle';
+  $('#rim-field').hidden = role !== 'bangle';
+  $('#loop-field').hidden = role !== 'charm';
+  const src = S.draft.stickers[0] || '';
+  const pick = $('#loop-pick');
+  if (!src) {
+    pick.innerHTML = '';
+    $('#loop-note').textContent = 'Add a sticker first.';
+    return;
+  }
+  const put = (at, auto) => {
+    pick.innerHTML = `<img src="${esc(src)}" alt="" draggable="false">${at
+      ? `<span class="dot${auto ? ' auto' : ''}" style="left:${at.x}%;top:${at.y}%"></span>` : ''}`;
+    $('#loop-note').textContent = auto ? 'Found automatically (dashed). Click to set it yourself.'
+      : S.draft.loop ? 'Set by hand.' : 'Looking…';
+  };
+  if (S.draft.loop) { put(S.draft.loop, false); return; }
+  put(null, true);
+  analyseArt(src).then((info) => {
+    if (S.draft && !S.draft.loop && info) put({ x: info.loop.x * 100, y: info.loop.y * 100 }, true);
+  });
 }
 
 /* ------------------------------------------------------------ studio wiring */
@@ -5719,6 +5793,18 @@ function wireCheckout() {
 
 function wirePieceDialog() {
   const f = $('#form-piece');
+  for (const n of ['role', 'category', 'soldBy']) f[n].addEventListener('change', () => paintHangFields());
+  $('#loop-pick').addEventListener('click', (e) => {
+    const img = e.target.closest('#loop-pick') && $('#loop-pick img');
+    if (!img) return;
+    const r = img.getBoundingClientRect();
+    S.draft.loop = {
+      x: Math.round(clamp(((e.clientX - r.left) / r.width) * 100, 0, 100) * 10) / 10,
+      y: Math.round(clamp(((e.clientY - r.top) / r.height) * 100, 0, 100) * 10) / 10,
+    };
+    paintHangFields();
+  });
+  $('#loop-auto').addEventListener('click', () => { S.draft.loop = null; paintHangFields(); });
   $('#piece-cancel').addEventListener('click', () => $('#dlg-piece').close());
 
   f.upload.addEventListener('change', async () => {
@@ -5850,6 +5936,12 @@ function wirePieceDialog() {
         tileCm: soldByLength ? tileCm : 0,
         urgentFee: Number(data.get('urgentFee')) || 0,
         canFlip: f.canFlip.checked,
+        role: String(data.get('role') || ''),
+        loop: S.draft.loop || null,
+        slots: Math.round(Number(data.get('slots')) || 0),
+        rim: Number(data.get('rim')) ? clamp(Number(data.get('rim')) / 100, 0.1, 1) : 0,
+        // Studio renders are made outside this dialog; saving keeps them.
+        renders: S.draft.renders || [],
         note: String(data.get('note') || '').trim(),
         images: S.draft.images,
         stickers: S.draft.stickers,
