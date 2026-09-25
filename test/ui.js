@@ -215,6 +215,68 @@ async function studio(browser) {
   console.log('✓ studio');
 }
 
+/** A bangle with its own loops: the studio marks them, and Create hangs a charm from each. */
+async function fixedLoops(browser) {
+  const { kada, ...rest } = CATALOG;
+  const catalog = { ...rest, loopy: piece('Loop Bangle', 'bangles', 40, [70, 70], 3, { art: 'bangle-loops', colour: 'Gold', order: 1 }) };
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(installStore, catalog);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+
+  // Unmarked, it is spaced along the band like any bangle.
+  await page.goto(PAGE);
+  await page.waitForSelector('#bd-stage svg');
+  assert.equal(await page.$$eval('#bd-stage .slot', (n) => n.length), 7);
+
+  // The studio finds its seven loops, and one is taken away by hand.
+  await page.goto(`${PAGE}#studio`);
+  await page.waitForSelector('#dlg-pin[open]');
+  await page.fill('#form-pin input[name=pin]', '2468');
+  await page.click('#form-pin button[type=submit]');
+  await page.evaluate(() => openPieceDialog(itemOf('loopy')));
+  await page.waitForSelector('#spots-field:not([hidden])');
+  await page.click('#spots-auto');
+  await page.waitForFunction(() => S.draft.spotsAt.length === 7);
+  await page.locator('#spots-pick [data-spot]').first().scrollIntoViewIfNeeded();
+  await page.locator('#spots-pick [data-spot]').first().click();
+  assert.equal(await page.evaluate(() => S.draft.spotsAt.length), 6, 'a clicked marker is removed');
+  assert.equal(await page.isVisible('#slots-field'), false, 'the spot count comes from the loops');
+  await page.click('#form-piece button[type=submit]');
+  await page.waitForSelector('#dlg-piece[open]', { state: 'detached' });
+  assert.equal(await page.evaluate(() => window.__store.catalog.loopy.spotsAt.length), 6);
+
+  // Create now offers one spot per marked loop, each ring sitting on its loop.
+  await page.click('#mode-build');
+  await page.waitForSelector('#bd-stage svg');
+  assert.equal(await page.$$eval('#bd-stage .slot', (n) => n.length), 6, 'one spot per loop');
+  const off = await page.evaluate(async () => {
+    const base = itemOf('loopy');
+    const info = await analyseArt(charmArt(base, S.build.baseVariant).src);
+    paintBuilder();
+    const L = layout();
+    return L.slots.map((s, i) => {
+      const p = base.spotsAt[i];
+      const want = { x: L.baseImg.x + (p.x / 100) * L.baseImg.w, y: L.baseImg.y + (p.y / 100) * L.baseImg.h };
+      const near = info.loops.some((q) => Math.abs(q.x - p.x) < 1.5 && Math.abs(q.y - p.y) < 1.5);
+      return near ? Math.hypot(s.P.x - want.x, s.P.y - want.y) : 99;
+    });
+  });
+  assert.ok(off.every((d) => d < 1), `spots sit on the loops (mm off: ${off.map((d) => d.toFixed(2)).join(', ')})`);
+
+  // A charm hung there hangs below its loop.
+  await page.click('#bd-panel [data-charm="heart"]');
+  const below = await page.evaluate(() => {
+    const s = layout().slots.find((x) => x.filled);
+    return s.charm.box.y > s.P.y;
+  });
+  assert.ok(below, 'the charm hangs below its loop');
+  assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
+  await ctx.close();
+  console.log('✓ fixed loops');
+}
+
 (async () => {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch({ executablePath: chromePath() });
@@ -222,6 +284,7 @@ async function studio(browser) {
     await run(browser, 'desktop', { width: 1440, height: 900 });
     await run(browser, 'phone', { width: 390, height: 844 });
     await studio(browser);
+    await fixedLoops(browser);
     console.log('UI tests passed');
   } finally {
     await browser.close();

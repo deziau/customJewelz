@@ -996,6 +996,8 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .loop-pick .dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
   border: 2px solid var(--accent); background: rgba(255,255,255,.6); pointer-events: none; }
 .loop-pick .dot.auto { border-style: dashed; }
+#spots-pick .dot { pointer-events: all; cursor: pointer; display: grid; place-items: center;
+  width: 18px; height: 18px; margin: -9px 0 0 -9px; font: 700 10px/1 var(--body); color: var(--accent); }
 .bd .hung .halo { pointer-events: all; }
 .bd .hung.sel .halo { stroke: var(--accent); stroke-width: .5; fill: none; stroke-dasharray: 1.2 .9; }
 .bd .hung:focus-visible .halo { stroke: var(--accent); stroke-width: .5; fill: none; }
@@ -1535,6 +1537,17 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <label class="f" id="rim-field"><span>Where the band runs, % of the way out — blank to find it</span>
             <input name="rim" type="number" min="10" max="100" step="1" placeholder="auto"></label>
         </div>
+        <div id="spots-field" class="loop-field">
+          <div class="loop-pick" id="spots-pick" title="Click each loop a charm can hang from"></div>
+          <div>
+            <p style="margin:0 0 8px">If the bangle has its own <b>loops</b>, click each one on the picture — a charm
+              hangs from every loop marked. Click a marker again to remove it. With none marked, charms are spaced
+              along the band.</p>
+            <p class="muted" id="spots-note" style="font-size:12.5px;margin:0 0 8px"></p>
+            <button type="button" id="spots-auto" class="tiny">Find loops automatically</button>
+            <button type="button" id="spots-clear" class="tiny">No loops — space along the band</button>
+          </div>
+        </div>
         <div id="loop-field" class="loop-field">
           <div class="loop-pick" id="loop-pick" title="Click the loop the jump ring goes through"></div>
           <div>
@@ -1850,6 +1863,12 @@ function normalize(id, d) {
     // offers along its lower edge. Zero means work it out / use the default.
     rim: clamp(Number(d.rim) || 0, 0, 1),
     slots: clamp(Math.round(Number(d.slots) || 0), 0, 24),
+    // A bangle made with its own loops: where each loop is, as a percentage of
+    // its sticker. Charms hang from exactly these, one spot per loop.
+    spotsAt: Array.isArray(d.spotsAt) ? d.spotsAt
+      .filter((p) => p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
+      .map((p) => ({ x: clamp(Number(p.x), 0, 100), y: clamp(Number(p.y), 0, 100) }))
+      .sort((a, b) => a.x - b.x).slice(0, 24) : [],
     active: d.active !== false,
     order: Number(d.order) || 0,
     variants,
@@ -4462,8 +4481,9 @@ function openPieceDialog(item) {
     ? { images: [...item.images], stickers: [...item.stickers],
         glyph: item.images.length ? '' : item.glyph, sku: item.sku, kept: Boolean(item.sku),
         soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })),
-        loop: item.loop ? { ...item.loop } : null, renders: [...item.renders] }
-    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, renders: [],
+        loop: item.loop ? { ...item.loop } : null, renders: [...item.renders],
+        spotsAt: item.spotsAt.map((p) => ({ ...p })) }
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, renders: [], spotsAt: [],
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
@@ -4498,12 +4518,28 @@ function openPieceDialog(item) {
   $('#dlg-piece').showModal();
 }
 
+/** A bangle's own loops, marked on its sticker, numbered left to right. */
+function paintSpotsPick() {
+  const src = S.draft.stickers[0] || '';
+  const pick = $('#spots-pick');
+  if (!src) { pick.innerHTML = ''; $('#spots-note').textContent = 'Add a sticker first.'; return; }
+  const spots = [...S.draft.spotsAt].sort((a, b) => a.x - b.x);
+  pick.innerHTML = `<img src="${esc(src)}" alt="" draggable="false">${spots.map((p, i) =>
+    `<span class="dot" data-spot="${S.draft.spotsAt.indexOf(p)}" style="left:${p.x}%;top:${p.y}%"
+      title="Loop ${i + 1} — click to remove">${i + 1}</span>`).join('')}`;
+  $('#spots-note').textContent = spots.length
+    ? `${spots.length} loop${spots.length === 1 ? '' : 's'} marked — Create offers a spot on each.`
+    : 'No loops marked: charms are spaced along the band.';
+}
+
 /** The Create settings that matter for what this component is. */
 function paintHangFields() {
   const f = $('#form-piece');
   const role = f.role.value || roleOf({ category: f.category.value, soldBy: f.soldBy.value });
-  $('#slots-field').hidden = role !== 'bangle';
-  $('#rim-field').hidden = role !== 'bangle';
+  $('#slots-field').hidden = role !== 'bangle' || S.draft.spotsAt.length > 0;
+  $('#rim-field').hidden = role !== 'bangle' || S.draft.spotsAt.length > 0;
+  $('#spots-field').hidden = role !== 'bangle';
+  if (role === 'bangle') paintSpotsPick();
   $('#loop-field').hidden = role !== 'charm';
   const src = S.draft.stickers[0] || '';
   const pick = $('#loop-pick');
@@ -5805,6 +5841,27 @@ function wirePieceDialog() {
     paintHangFields();
   });
   $('#loop-auto').addEventListener('click', () => { S.draft.loop = null; paintHangFields(); });
+  $('#spots-pick').addEventListener('click', (e) => {
+    const dot = e.target.closest('[data-spot]');
+    if (dot) { S.draft.spotsAt.splice(Number(dot.dataset.spot), 1); paintHangFields(); return; }
+    const img = $('#spots-pick img');
+    if (!img || S.draft.spotsAt.length >= 24) return;
+    const r = img.getBoundingClientRect();
+    S.draft.spotsAt.push({
+      x: Math.round(clamp(((e.clientX - r.left) / r.width) * 100, 0, 100) * 10) / 10,
+      y: Math.round(clamp(((e.clientY - r.top) / r.height) * 100, 0, 100) * 10) / 10,
+    });
+    paintHangFields();
+  });
+  $('#spots-auto').addEventListener('click', async () => {
+    const info = await analyseArt(S.draft.stickers[0] || '');
+    const found = info ? info.loops : [];
+    if (!found.length) { toast('No loops found on this picture — click them by hand.', 'bad'); return; }
+    S.draft.spotsAt = found.map((p) => ({ ...p }));
+    paintHangFields();
+    toast(`Found ${found.length} loop${found.length === 1 ? '' : 's'}. Remove any that aren't for charms.`, 'good');
+  });
+  $('#spots-clear').addEventListener('click', () => { S.draft.spotsAt = []; paintHangFields(); });
   $('#piece-cancel').addEventListener('click', () => $('#dlg-piece').close());
 
   f.upload.addEventListener('change', async () => {
@@ -5939,6 +5996,7 @@ function wirePieceDialog() {
         role: String(data.get('role') || ''),
         loop: S.draft.loop || null,
         slots: Math.round(Number(data.get('slots')) || 0),
+        spotsAt: [...(S.draft.spotsAt || [])].sort((a, b) => a.x - b.x),
         rim: Number(data.get('rim')) ? clamp(Number(data.get('rim')) / 100, 0.1, 1) : 0,
         // Studio renders are made outside this dialog; saving keeps them.
         renders: S.draft.renders || [],
@@ -6103,7 +6161,7 @@ function reconcileBuild() {
 const bangles = () => S.items.filter((i) => i.active && i.role === 'bangle');
 const hangables = () => S.items.filter((i) => i.active && i.role === 'charm');
 const chains = () => S.items.filter((i) => i.active && i.role === 'chain');
-const slotCount = (base) => (base && base.slots) || SLOT_DEFAULT;
+const slotCount = (base) => (base && base.spotsAt.length) || (base && base.slots) || SLOT_DEFAULT;
 const hungCount = () => S.build.slots.filter(Boolean).length;
 const firstInStock = (item) => (item.variants.find((v) => freeToSell(item, v.id) > 0) || item.variants[0] || {}).id;
 
@@ -6171,11 +6229,41 @@ function analyseArt(src) {
     if (run && (!best || run.b - run.a > best.b - best.a)) best = run;
     const rimFrac = best ? ((best.a + best.b) / 2) / (bw / 2) : 0;
 
+    // Loops built into a bangle: small see-through holes enclosed by metal —
+    // not the bangle's own middle, and not the open air around it.
+    const seenAs = new Int32Array(w * h);         // 0 unvisited, -1 outside air, >0 hole id
+    const flood = (sx, sy, id) => {
+      const stack = [sx + sy * w]; let area = 0; let cx = 0; let cy = 0;
+      while (stack.length) {
+        const k = stack.pop();
+        if (seenAs[k] !== 0) continue;
+        const x = k % w; const y = (k - x) / w;
+        if (on(x, y)) continue;
+        seenAs[k] = id; area++; cx += x; cy += y;
+        if (x > 0) stack.push(k - 1); if (x < w - 1) stack.push(k + 1);
+        if (y > 0) stack.push(k - w); if (y < h - 1) stack.push(k + w);
+      }
+      return { area, x: area ? cx / area : 0, y: area ? cy / area : 0 };
+    };
+    for (let x = 0; x < w; x++) { flood(x, 0, -1); flood(x, h - 1, -1); }
+    for (let y = 0; y < h; y++) { flood(0, y, -1); flood(w - 1, y, -1); }
+    const holes = [];
+    for (let y = 0, id = 1; y < h; y++) for (let x = 0; x < w; x++) {
+      if (seenAs[y * w + x] === 0 && !on(x, y)) holes.push(flood(x, y, id++));
+    }
+    const biggest = Math.max(0, ...holes.map((o) => o.area));
+    const loops = holes
+      .filter((o) => o.area >= 3 && o.area < biggest && o.area < bw * bh * 0.03
+        && Math.hypot(o.x - ox, o.y - oy) > (bw / 2) * Math.max(0.5, rimFrac * 0.92))
+      .map((o) => ({ x: Math.round((o.x / w) * 1000) / 10, y: Math.round((o.y / h) * 1000) / 10 }))
+      .sort((a, b) => a.x - b.x);
+
     const info = {
       w: nw, h: nh,
       box: { x: x0 / w, y: y0 / h, w: bw / w, h: bh / h },      // fractions of the picture
       loop: { x: lx / w, y: ly / h },
       rim: rimFrac,
+      loops,                                                     // % of the picture
     };
     artInfo.set(src, info);
     return info;
@@ -6230,11 +6318,18 @@ function layout() {
   const slots = [];
   let low = H / 2;
   let wide = W / 2;
+  // On a bangle with its own loops the jump ring goes through the loop; on a
+  // plain band it wraps the band, spaced along the lower edge.
+  const loopAt = (i) => {
+    const p = base.spotsAt[i];
+    return { x: baseImg.x + (p.x / 100) * imgW, y: baseImg.y + (p.y / 100) * imgH };
+  };
   for (let i = 0; i < n; i++) {
+    const fixed = base.spotsAt.length > 0;
     const deg = 90 + (n > 1 ? spread - (2 * spread * i) / (n - 1) : 0);
     const t = (deg * Math.PI) / 180;
-    const P = { x: R * Math.cos(t), y: R * Math.sin(t) };
-    const ring = { x: P.x, y: P.y + RING_R * 0.55, r: RING_R };
+    const P = fixed ? loopAt(i) : { x: R * Math.cos(t), y: R * Math.sin(t) };
+    const ring = { x: P.x, y: P.y + RING_R * (fixed ? 0.75 : 0.55), r: RING_R };
     const s = b.slots[i];
     const slot = { i, P, ring, filled: Boolean(s), deg };
     if (s) {
