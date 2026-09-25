@@ -1,4 +1,8 @@
-<title>Kaleera Workbench</title>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CustomJewelz — Build your bangle</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -942,15 +946,197 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   .variant-row { grid-template-columns: 40px 1fr 1fr; }
   .variant-row .kill { grid-column: 3; justify-self: end; }
 }
+
+/* ================================================================ builder */
+/* The shop's front door: one bangle, big, with the spots things can hang from.
+   Everything a customer needs is on this one screen; nothing measures. */
+
+:root {
+  --stage-1: #fffdf8;
+  --stage-2: #efe7dc;
+  --metal-note: #8a6a2a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --stage-1: #2d2530; --stage-2: #161118; --metal-note: #d7b370; }
+}
+:root[data-theme="dark"] { --stage-1: #2d2530; --stage-2: #161118; --metal-note: #d7b370; }
+
+#builder { padding-bottom: 84px; }
+.bd {
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: 24px; padding: 24px; max-width: 1360px; margin: 0 auto; align-items: start;
+}
+.bd-stage-col { position: sticky; top: 16px; display: grid; gap: 10px; }
+.bd-stage {
+  position: relative; aspect-ratio: 1 / 1; width: 100%; max-height: calc(100vh - 230px);
+  border-radius: 20px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(120% 90% at 50% 30%, var(--stage-1) 0%, var(--stage-2) 100%);
+  box-shadow: var(--shadow-md); touch-action: manipulation;
+}
+.bd-stage svg { display: block; width: 100%; height: 100%; }
+.bd-stage .empty-note {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  padding: 24px; color: var(--muted); font-size: 16px; gap: 6px;
+}
+.bd-caption { margin: 0; text-align: center; color: var(--muted); font-size: 14px; }
+
+.bd .slot { cursor: pointer; outline: none; }
+.bd .slot .mark { fill: var(--surface); fill-opacity: .82; stroke: var(--accent); stroke-width: .45; stroke-dasharray: 1.1 .8; }
+.bd .slot .num { fill: var(--accent); font: 600 3.1px var(--body); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.bd .slot:hover .mark, .bd .slot:focus-visible .mark { fill: var(--accent-soft); fill-opacity: 1; }
+.bd .slot.sel .mark { fill: var(--accent); fill-opacity: 1; stroke-dasharray: none; }
+.bd .slot.sel .num { fill: var(--accent-ink); }
+.bd .hung { cursor: pointer; outline: none; }
+/* Hit only where the charm's metal is, not its picture's transparent corners. */
+.bd .hung image { pointer-events: none; }
+.bd .hung .halo { pointer-events: all; }
+.bd .hung.sel .halo { stroke: var(--accent); stroke-width: .5; fill: none; stroke-dasharray: 1.2 .9; }
+.bd .hung:focus-visible .halo { stroke: var(--accent); stroke-width: .5; fill: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .bd .slot.sel .mark { animation: bd-pulse 1.6s ease-in-out infinite; }
+}
+@keyframes bd-pulse { 50% { fill-opacity: .7; } }
+
+.bd-panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  box-shadow: var(--shadow-sm); display: grid; align-content: start; min-width: 0;
+}
+.bd-panel > section { padding: 20px 22px; border-top: 1px solid var(--line); display: grid; gap: 14px; }
+.bd-panel > section:first-child { border-top: none; }
+.bd-panel h2 { font-size: 24px; line-height: 1.2; }
+.bd-panel h3 { font-family: var(--body); font-size: 15px; font-weight: 700; }
+.bd-panel p { margin: 0; font-size: 15px; color: var(--muted); }
+
+.bd-steps { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.bd-steps li { display: flex; align-items: center; gap: 6px; }
+.bd-steps li b {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--line-strong); font-size: 12px;
+}
+.bd-steps li.now { color: var(--ink); font-weight: 600; }
+.bd-steps li.now b { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.bd-steps li.done b { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.bd-steps li + li::before { content: ""; width: 14px; height: 1px; background: var(--line-strong); margin-right: 2px; }
+
+.bd-bangles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.bd-bangle {
+  display: grid; gap: 6px; padding: 12px; text-align: left; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: inherit;
+}
+.bd-bangle:hover:not(:disabled) { border-color: var(--accent); }
+.bd-bangle[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.bd-bangle { min-width: 0; }
+.bd-bangle .art { position: relative; aspect-ratio: 1; width: 100%; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
+.bd-bangle .art img { position: absolute; inset: 9%; width: 82%; height: 82%; object-fit: contain; }
+.bd-bangle .nm { font-weight: 600; font-size: 15px; }
+.bd-bangle .sub { font-size: 13px; color: var(--muted); }
+
+.bd-base { display: flex; align-items: center; gap: 12px; }
+.bd-base img { width: 48px; height: 48px; object-fit: contain; }
+.bd-base .nm { font-weight: 600; }
+.bd-base .sub { font-size: 13px; color: var(--muted); }
+.bd-base .spacer { flex: 1; }
+
+.bd-spot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bd-spot .step { width: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 18px; }
+.bd-spot .where { flex: 1; min-width: 140px; }
+.bd-spot .where b { display: block; font-size: 17px; }
+.bd-spot .where span { font-size: 13px; color: var(--muted); }
+
+.bd-chosen {
+  display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center;
+  padding: 12px; border-radius: 14px; background: var(--surface-2);
+}
+.bd-chosen .art { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
+.bd-chosen .art img { max-width: 80%; max-height: 80%; object-fit: contain; }
+.bd-chosen .nm { font-weight: 700; font-size: 16px; }
+.bd-chosen .sub { font-size: 13px; color: var(--muted); }
+.bd-chosen .acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+.bd-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.bd-chip {
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit;
+  font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer; min-height: 38px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.bd-chip:hover:not(:disabled) { border-color: var(--accent); }
+.bd-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.bd-chip .sw { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
+.bd-chip img { width: 20px; height: 20px; object-fit: contain; }
+.bd-label { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+
+.bd-find { display: flex; gap: 8px; align-items: center; }
+.bd-find input { flex: 1; min-width: 0; font-size: 15px; }
+.bd-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.bd-cats .bd-chip { flex: none; font-size: 13px; min-height: 34px; padding: 5px 12px; }
+
+.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.bd-charm {
+  display: grid; gap: 4px; padding: 8px 8px 10px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--surface); cursor: pointer; font: inherit; color: inherit; text-align: center;
+  transition: border-color .14s, transform .1s;
+}
+.bd-charm:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.bd-charm:disabled { opacity: .45; }
+.bd-charm { min-width: 0; }
+.bd-charm .art { position: relative; aspect-ratio: 1; width: 100%; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
+.bd-charm .art img { position: absolute; inset: 11%; width: 78%; height: 78%; object-fit: contain;
+  filter: drop-shadow(0 1px 1.5px rgba(40, 24, 10, .28)); }
+.bd-charm .nm { font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.bd-charm .pr { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bd-charm .out { font-size: 12px; color: var(--crimson); font-weight: 600; }
+.bd-charm.cur { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+.bd-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.bd-tools button { font-size: 14px; }
+.bd-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-size: 14px; }
+
+.bd-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex; align-items: center; gap: 16px; padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(36, 27, 38, .08);
+}
+.bd-bar .bd-sum { flex: 1; display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.bd-bar .bd-sum span { color: var(--muted); font-size: 14px; }
+.bd-bar .bd-sum b { font-family: var(--display); font-size: 26px; font-weight: 400; color: var(--accent); font-variant-numeric: tabular-nums; }
+.bd-bar .solid { font-size: 16px; padding: 12px 22px; border-radius: 999px; }
+.bd-amend {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 24px;
+  background: var(--ochre-soft); font-size: 14px;
+}
+.bd-amend span { flex: 1; }
+
+@media (max-width: 560px) {
+  .masthead { padding: 10px 12px; gap: 10px; flex-wrap: nowrap; }
+  .wordmark { font-size: 17px; letter-spacing: .02em; }
+  .modes button { padding: 6px 11px; }
+  .acct button { padding: 6px 10px; }
+}
+@media (max-width: 900px) {
+  .bd { grid-template-columns: 1fr; padding: 12px 12px 0; gap: 12px; }
+  .bd-stage-col { position: sticky; top: 0; z-index: 5; background: var(--ground); padding-bottom: 6px; }
+  .bd-stage { aspect-ratio: auto; height: min(46vh, 92vw); max-height: none; border-radius: 16px; }
+  .bd-caption { font-size: 13px; }
+  .bd-panel > section { padding: 16px; }
+  .bd-panel h2 { font-size: 21px; }
+  .bd-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .bd-bar { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
+  .bd-bar .bd-sum { flex-direction: column; gap: 0; }
+  .bd-bar .bd-sum b { font-size: 22px; }
+}
 </style>
 
 <div class="masthead">
   <div class="wordmark">Custom<em>Jewelz</em></div>
   <div class="modes" role="group" aria-label="Choose view">
-    <button id="mode-browse" aria-pressed="true">Browse</button>
-    <button id="mode-design" aria-pressed="false">Design</button>
+    <button id="mode-build" aria-pressed="true">Create</button>
+    <button id="mode-browse" aria-pressed="false">Collection</button>
+    <button id="mode-design" aria-pressed="false" hidden>Free layout</button>
     <button id="mode-mine" aria-pressed="false" hidden>My orders</button>
-    <button id="mode-studio" aria-pressed="false">Studio</button>
+    <button id="mode-studio" aria-pressed="false" hidden>Studio</button>
   </div>
   <div class="spacer"></div>
   <span class="acct">
@@ -964,15 +1150,37 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   <p class="muted">Loading the collection.</p>
 </main>
 
+<!-- ======================================================== builder -->
+<div id="builder" hidden>
+  <div class="bd-amend" id="bd-amend" hidden>
+    <span>Changing order <b id="bd-amend-no">—</b>. Place it again to save the changes to the same order.</span>
+    <button id="bd-amend-drop">Keep it as it was</button>
+  </div>
+  <div class="bd">
+    <section class="bd-stage-col" aria-label="Your bangle">
+      <div class="bd-stage" id="bd-stage"></div>
+      <p class="bd-caption" id="bd-caption"></p>
+    </section>
+    <aside class="bd-panel" id="bd-panel" aria-live="polite"></aside>
+  </div>
+  <div class="bd-bar">
+    <div class="bd-sum">
+      <span id="bd-count">Nothing hung yet</span>
+      <b id="bd-total">—</b>
+    </div>
+    <button class="solid" id="bd-order" disabled>Review &amp; order</button>
+  </div>
+</div>
+
 <!-- ======================================================== browse -->
 <div id="browse" hidden>
   <div class="shop-head">
     <div class="lede">
-      <h1>Build it piece by piece</h1>
-      <p class="muted" style="margin:6px 0 0">Pick the charms, bangles and chains you like — then arrange
-        them on a base in the design room.</p>
+      <h1>The collection</h1>
+      <p class="muted" style="margin:6px 0 0">Every bangle, charm and chain we make with. Open one to see it
+        close up, then hang it on your bangle.</p>
     </div>
-    <button class="fab cta" id="cta-design" style="position:static">Go to design<span class="pip" id="cta-pip">0</span></button>
+    <button class="fab cta" id="cta-design" style="position:static">Back to my bangle<span class="pip" id="cta-pip">0</span></button>
   </div>
   <div class="shop-bar">
     <input type="search" id="find" placeholder="Search the collection" aria-label="Search the collection">
@@ -1235,7 +1443,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 <dialog id="dlg-done">
   <header><h2>Order placed</h2></header>
   <div class="body" id="done-body"></div>
-  <footer><button class="solid" id="done-close">Design another</button></footer>
+  <footer><button class="solid" id="done-close">Make another</button></footer>
 </dialog>
 
 <dialog id="dlg-piece">
@@ -1473,7 +1681,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </form>
 </dialog>
 
-<button class="fab" id="fab-design" hidden>Go to design<span class="pip" id="fab-pip">0</span></button>
+<button class="fab" id="fab-design" hidden>Back to my bangle<span class="pip" id="fab-pip">0</span></button>
 
 <div class="toasts" id="toasts"></div>
 
@@ -1594,12 +1802,32 @@ function normalize(id, d) {
     // 'piece' components are counted; 'length' ones (chain, cord, ribbon) are
     // priced per metre and stocked in centimetres.
     soldBy: d.soldBy === 'length' ? 'length' : 'piece',
+    // What the piece is for in the builder: the bangle everything hangs from,
+    // a charm that hangs, or a chain a charm can drop on. Read from the section
+    // when the studio has not said, so nothing in the repo has to be re-saved.
+    role: roleOf(d),
+    // Where the charm's own loop is, as a percentage of its sticker. Empty means
+    // "find it from the picture", which is right for a charm photographed loop-up.
+    loop: d.loop && Number.isFinite(Number(d.loop.x)) && Number.isFinite(Number(d.loop.y))
+      ? { x: clamp(Number(d.loop.x), 0, 100), y: clamp(Number(d.loop.y), 0, 100) } : null,
+    // A bangle's band, as a fraction of its half-width, and how many spots it
+    // offers along its lower edge. Zero means work it out / use the default.
+    rim: clamp(Number(d.rim) || 0, 0, 1),
+    slots: clamp(Math.round(Number(d.slots) || 0), 0, 24),
     active: d.active !== false,
     order: Number(d.order) || 0,
     variants,
     stock: variants.reduce((s, v) => s + v.quantity, 0),
     hasColours: variants.length > 1 || Boolean(variants[0] && variants[0].name),
   };
+}
+
+/** bangle | charm | chain — the studio's word if it gave one, else the section's. */
+function roleOf(d) {
+  if (['bangle', 'charm', 'chain'].includes(d.role)) return d.role;
+  if (d.soldBy === 'length') return 'chain';
+  if (/bangle|kada|kara|chud/i.test(String(d.category || ''))) return 'bangle';
+  return 'charm';
 }
 
 const itemOf = (id) => S.byId.get(id) || null;
@@ -1910,6 +2138,7 @@ async function connect() {
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
     S.byId = new Map(S.items.map((i) => [i.id, i]));
     reconcileTray();
+    reconcileBuild();
     if (!S.ready && S.items.length) { S.ready = true; setMode(S.mode); }
     paint();
   }, onDbError);
@@ -2164,7 +2393,11 @@ function paintSheet() {
   $('#qty-cost').textContent = isLength(item) && S.sheet.qty > 0
     ? `= ${money(lenPrice(item, S.sheet.qty))}` : '';
   $('#item-add').disabled = free <= 0;
-  $('#item-add').textContent = free <= 0 ? 'Sold out' : 'Add to tray';
+  $('#item-add').textContent = free <= 0 ? 'Sold out'
+    : !S.build.active ? 'Add to tray'
+      : item.role === 'bangle' ? 'Build on this bangle'
+        : item.role === 'chain' ? 'Use it as a drop'
+          : S.sheet.qty > 1 ? `Hang ${S.sheet.qty} on my bangle` : 'Hang on my bangle';
 
   const inTray = trayQty(item.id, v.id);
   const freeHere = addable(item, v.id);
@@ -2196,6 +2429,7 @@ function paintSheet() {
 function addFromSheet() {
   const item = itemOf(S.sheet.itemId);
   const v = variantOf(item, S.sheet.variantId);
+  if (S.build.active) return hangFromSheet(item, v);
   const free = addable(item, v.id);
   const err = $('#item-error');
   if (free <= 0) {
@@ -2217,6 +2451,28 @@ function addFromSheet() {
   $('#dlg-item').close();
   S.sheet = null;
   paint();
+}
+
+/** In Create, the product page puts the piece straight on the bangle. */
+function hangFromSheet(item, v) {
+  const qty = isLength(item) ? 1 : Math.max(1, S.sheet.qty || 1);
+  $('#dlg-item').close();
+  S.sheet = null;
+  if (item.role === 'bangle') { S.build.choosing = false; setMode('build'); chooseBangle(item.id, v.id); return; }
+  setMode('build');
+  if (item.role === 'chain') { toast('Tap a charm on your bangle, then choose a drop to hang it on.'); return; }
+  if (!S.build.baseId) { toast('Choose your bangle first — then the charm goes on it.'); return; }
+  let hung = 0;
+  for (let k = 0; k < qty; k++) {
+    const anyEmpty = S.build.slots.some((x) => !x);
+    const at = !S.build.slots[S.build.sel] ? S.build.sel : anyEmpty ? nextEmpty(S.build.sel) : -1;
+    if (at < 0 || S.build.slots[at]) break;
+    const before = hungCount();
+    hang(item.id, v.id, at);
+    if (hungCount() === before) break;
+    hung++;
+  }
+  if (!hung) toast('Every spot is taken — tap a charm on the bangle to swap it.', 'bad');
 }
 
 /* ------------------------------------------------------------ tray dialog */
@@ -3329,7 +3585,8 @@ function paint() {
   paintTrayPip();
   paintAccount();
   paintAmendBar();
-  if (S.mode === 'browse') { paintShopCats(); paintCatalogue(); }
+  if (S.mode === 'build') paintBuilder();
+  else if (S.mode === 'browse') { paintShopCats(); paintCatalogue(); }
   else if (S.mode === 'design') { paintPlaceRail(); paintStage(); paintBill(); }
   else if (S.mode === 'mine') paintMine();
   else if (S.mode === 'studio') paintAdmin();
@@ -3358,12 +3615,12 @@ async function startOrder() {
   if (!S.charms.length) { toast('Put something on the piece first.', 'bad'); return; }
   // The picture is exactly the canvas, so anything past the edge would be cut
   // out of it. Say so while it can still be brought in.
-  if (overflows() && await ask('Part of your piece is off the canvas',
+  if (!S.build.active && overflows() && await ask('Part of your piece is off the canvas',
     'The picture kept with your order is exactly what is on the canvas, so anything past the edge '
     + 'will not be in it. Bring it all into view first?', 'Fit it in')) {
     setZoom(fitZoom());
   }
-  if (!S.account) { openAuth('Sign in to place your order'); return; }
+  if (!S.account) { S.orderAfterAuth = true; openAuth('Sign in or create an account to order'); return; }
   const rest = leftovers();
   if (!rest.length) { leftoverChoice = 'none'; openCheckout(); return; }
 
@@ -3487,6 +3744,11 @@ async function submitOrder(form) {
       unit: l.unit, qty: l.qty, total: l.total,
     })),
     design: {
+      // A piece made in Create carries its spots too, so it reopens there.
+      build: S.build.active ? {
+        baseId: S.build.baseId, baseVariant: S.build.baseVariant,
+        slots: S.build.slots.map((x) => x || null),
+      } : null,
       view: S.view,
       charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, flipped }) =>
         ({ itemId, variantId, x, y, w, rot, z, lenCm, flipped: Boolean(flipped) })),
@@ -3509,6 +3771,7 @@ async function submitOrder(form) {
   clearPicked();
   S.amending = null;
   leftoverChoice = 'none';
+  if (S.build.active) resetBuild();
 
   return order;
 }
@@ -4585,8 +4848,11 @@ function needsBasePick(kind) {
 function openStart(force = false) {
   if (!force && (S.charms.length || !S.tray.length || S.started)) return;
   S.started = true;
+  // A kind whose hangings are chain is only offered with chain in the tray;
+  // offering it without one used to lay out nothing and then fail.
   const kinds = PIECE_KINDS.filter((k) => k.id === 'free'
-    || (k.base === 'chain' ? trayChains().length : trayPieces().length));
+    || ((k.base === 'chain' ? trayChains().length : trayPieces().length)
+      && (!k.hangs || trayChains().length)));
   S.start = { step: 'kind', kinds, hangs: [] };
   paintStart();
   $('#dlg-start').showModal();
@@ -5061,10 +5327,17 @@ function addTheShortfall() {
 
 function setMode(mode) {
   S.mode = mode;
-  for (const [id, name] of [['#mode-browse', 'browse'], ['#mode-design', 'design'],
+  for (const [id, name] of [['#mode-build', 'build'], ['#mode-browse', 'browse'], ['#mode-design', 'design'],
     ['#mode-mine', 'mine'], ['#mode-studio', 'studio']]) {
     $(id).setAttribute('aria-pressed', String(mode === name));
   }
+  // The free layout is a tab only while it is the one holding the piece; the
+  // studio only for whoever opened it (the address ends in #studio).
+  $('#mode-design').hidden = S.build.active && mode !== 'design';
+  $('#mode-studio').hidden = !(S.adminOpen || location.hash === '#studio');
+  $('#builder').hidden = mode !== 'build' || !S.ready;
+  // "live / reconnecting" is for the studio; a shopper only needs to hear if it fails.
+  $('#conn').hidden = mode !== 'studio' && !/offline|read-only/.test($('#conn').textContent);
   $('#browse').hidden = mode !== 'browse' || !S.ready;
   $('#design').hidden = mode !== 'design' || !S.ready;
   $('#myorders').hidden = mode !== 'mine';
@@ -5076,7 +5349,8 @@ function setMode(mode) {
   paint();
   // Arriving at an empty canvas with a full tray is the moment to ask what
   // they are making; at any other time the button under the canvas does it.
-  if (mode === 'design') setTimeout(() => openStart(), 60);
+  if (mode === 'design' && !S.charms.length) setTimeout(() => openStart(), 60);
+  window.scrollTo({ top: 0 });
 }
 
 /** The floating button only appears once its seated twin has scrolled away. */
@@ -5439,7 +5713,7 @@ function wireCheckout() {
       submit.disabled = false;
     }
   });
-  $('#done-close').addEventListener('click', () => { $('#dlg-done').close(); setMode('browse'); });
+  $('#done-close').addEventListener('click', () => { $('#dlg-done').close(); setMode('build'); });
   $('#order-close').addEventListener('click', () => $('#dlg-order').close());
 }
 
@@ -5617,7 +5891,7 @@ function wirePieceDialog() {
 function wireShell() {
   $('#mode-browse').addEventListener('click', () => setMode('browse'));
   $('#mode-design').addEventListener('click', () => setMode('design'));
-  $('#fab-design').addEventListener('click', () => setMode('design'));
+  $('#fab-design').addEventListener('click', () => backToBuilder());
 
   // The masthead wraps differently at every width, so measure it rather than
   // guess where the floating button clears it.
@@ -5656,6 +5930,908 @@ function wireShell() {
 <script>
 'use strict';
 
+/* =================================================================== builder
+ * The shop's front door. A customer picks a bangle, taps one of the numbered
+ * spots along its lower edge, and picks what hangs there — straight off the
+ * band on a jump ring, or on a short drop of chain. The piece is drawn the way
+ * it will be made: the bangle at its real size, a ring at each spot, the charm
+ * hanging from its own loop under gravity.
+ *
+ * The builder owns S.charms while it is in charge (S.build.active), so the bill,
+ * the stock checks, checkout, the order record and "change my order" all keep
+ * working exactly as they do for the free layout. What it adds to the piece it
+ * also adds to the tray, and what it takes off it takes back out, so the tray
+ * and the piece never disagree and nothing is "left over" at checkout.
+ */
+
+const BUILD_KEY = 'cj.build.v1';
+const SLOT_DEFAULT = 7;          // spots along the lower edge of a bangle
+const SLOT_SPREAD = 64;          // degrees either side of the bottom they run to
+const RING_R = 2.3;              // jump ring radius, mm
+const RING_W = 0.62;             // jump ring wire, mm
+const VIRTUAL_MM = 160;          // how much the free layout's canvas is taken to cover
+const DROPS = [
+  { key: 'none', label: 'On the bangle', cm: 0 },
+  { key: 'short', label: 'Short drop', cm: 2.5 },
+  { key: 'mid', label: 'Medium drop', cm: 4 },
+  { key: 'long', label: 'Long drop', cm: 6 },
+];
+
+const METALS = {
+  gold: ['#fff1b8', '#e6bd55', '#a9761c', '#f4d983', '#7a5310'],
+  silver: ['#ffffff', '#d5d8dd', '#8d939b', '#eef0f3', '#5d636b'],
+  rose: ['#ffe6dc', '#e8ab93', '#a8634f', '#f6cdbd', '#7c4536'],
+};
+
+S.build = { active: true, baseId: '', baseVariant: '', slots: [], sel: 0, filter: '', find: '' };
+
+/* ------------------------------------------------------------- persistence */
+
+function saveBuild() {
+  const { active, baseId, baseVariant, slots } = S.build;
+  try { localStorage.setItem(BUILD_KEY, JSON.stringify({ active, baseId, baseVariant, slots })); } catch { /* private */ }
+}
+
+function loadBuild() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BUILD_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      S.build.active = raw.active !== false;
+      S.build.baseId = String(raw.baseId || '');
+      S.build.baseVariant = String(raw.baseVariant || '');
+      S.build.slots = Array.isArray(raw.slots) ? raw.slots.map((s) => (s && s.itemId ? s : null)) : [];
+    }
+  } catch { /* start fresh */ }
+}
+
+/** Drops anything the shop no longer has, once the catalogue has arrived. */
+function reconcileBuild() {
+  const b = S.build;
+  if (!S.items.length) return;
+  const base = itemOf(b.baseId);
+  if (b.baseId && (!base || !base.active || !variantOf(base, b.baseVariant))) {
+    b.baseId = ''; b.baseVariant = ''; b.slots = [];
+  }
+  b.slots = b.slots.map((s) => {
+    if (!s) return null;
+    const it = itemOf(s.itemId);
+    if (!it || !it.active || !variantOf(it, s.variantId)) return null;
+    if (s.chain) {
+      const ch = itemOf(s.chain.itemId);
+      if (!ch || !ch.active || !variantOf(ch, s.chain.variantId)) s.chain = null;
+    }
+    return s;
+  });
+  if (b.baseId) b.slots = Array.from({ length: slotCount(itemOf(b.baseId)) }, (_, i) => b.slots[i] || null);
+  if (b.active) syncCharms();
+}
+
+/* ----------------------------------------------------------- the catalogue */
+
+const bangles = () => S.items.filter((i) => i.active && i.role === 'bangle');
+const hangables = () => S.items.filter((i) => i.active && i.role === 'charm');
+const chains = () => S.items.filter((i) => i.active && i.role === 'chain');
+const slotCount = (base) => (base && base.slots) || SLOT_DEFAULT;
+const hungCount = () => S.build.slots.filter(Boolean).length;
+const firstInStock = (item) => (item.variants.find((v) => freeToSell(item, v.id) > 0) || item.variants[0] || {}).id;
+
+function metalOf(item, variantId) {
+  const v = variantOf(item, variantId);
+  const words = `${item ? item.name : ''} ${v ? v.name : ''}`.toLowerCase();
+  if (/silver|steel|white gold|platinum|oxidi/.test(words)) return 'silver';
+  if (/rose/.test(words)) return 'rose';
+  return 'gold';
+}
+
+/* ------------------------------------------------- reading the pictures
+ * Every sticker is looked at once: where its opaque part actually is (so the
+ * piece is drawn to its real millimetres, not its padding), where its loop is
+ * (the topmost bit of metal), and, for a bangle, where the band runs.
+ */
+
+const artInfo = new Map();     // src -> info | Promise
+
+function analyseArt(src) {
+  if (!src) return Promise.resolve(null);
+  const have = artInfo.get(src);
+  if (have) return have instanceof Promise ? have : Promise.resolve(have);
+  const job = loadImage(src).then((img) => {
+    const nw = img.naturalWidth || img.width || 100;
+    const nh = img.naturalHeight || img.height || 100;
+    const k = Math.min(1, 220 / Math.max(nw, nh));
+    const w = Math.max(8, Math.round(nw * k));
+    const h = Math.max(8, Math.round(nh * k));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, w, h);
+    const a = cx.getImageData(0, 0, w, h).data;
+    const on = (x, y) => a[(y * w + x) * 4 + 3] > 110;
+
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (on(x, y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+    const bw = x1 - x0 + 1;
+    const bh = y1 - y0 + 1;
+
+    // The loop: the middle of the metal in the top few rows.
+    const band = Math.max(2, Math.round(bh * 0.06));
+    let sx = 0; let n = 0;
+    for (let y = y0; y < y0 + band && y < h; y++) for (let x = x0; x <= x1; x++) if (on(x, y)) { sx += x; n++; }
+    const lx = n ? sx / n : x0 + bw / 2;
+    const ly = y0 + Math.max(0.6, bh * 0.025);
+
+    // The band of a ring: the radius at which (nearly) every direction is metal.
+    const ox = x0 + bw / 2; const oy = y0 + bh / 2;
+    let best = null; let run = null;
+    for (let r = 2; r < Math.min(bw, bh) / 2; r++) {
+      let hit = 0;
+      for (let t = 0; t < 120; t++) {
+        const ang = (t / 120) * Math.PI * 2;
+        const x = Math.round(ox + r * Math.cos(ang)); const y = Math.round(oy + r * Math.sin(ang));
+        if (x >= 0 && y >= 0 && x < w && y < h && on(x, y)) hit++;
+      }
+      if (hit / 120 > 0.82) { run = run ? { a: run.a, b: r } : { a: r, b: r }; }
+      else if (run) { if (!best || run.b - run.a > best.b - best.a) best = run; run = null; }
+    }
+    if (run && (!best || run.b - run.a > best.b - best.a)) best = run;
+    const rimFrac = best ? ((best.a + best.b) / 2) / (bw / 2) : 0;
+
+    const info = {
+      w: nw, h: nh,
+      box: { x: x0 / w, y: y0 / h, w: bw / w, h: bh / h },      // fractions of the picture
+      loop: { x: lx / w, y: ly / h },
+      rim: rimFrac,
+    };
+    artInfo.set(src, info);
+    return info;
+  }).catch(() => { artInfo.delete(src); return null; });
+  artInfo.set(src, job);
+  return job;
+}
+
+const infoNow = (src) => { const i = artInfo.get(src); return i && !(i instanceof Promise) ? i : null; };
+
+/** Looks at every picture the scene needs, then paints again once they are known. */
+function warmArt() {
+  const srcs = [];
+  const base = itemOf(S.build.baseId);
+  if (base) srcs.push(charmArt(base, S.build.baseVariant).src);
+  for (const s of S.build.slots) {
+    if (!s) continue;
+    srcs.push(charmArt(itemOf(s.itemId), s.variantId).src);
+    if (s.chain) srcs.push(charmArt(itemOf(s.chain.itemId), s.chain.variantId).src);
+  }
+  const todo = srcs.filter((s) => s && !infoNow(s));
+  if (todo.length) Promise.all(todo.map(analyseArt)).then(() => { if (S.mode === 'build') paintStageSvg(); });
+}
+
+/* ------------------------------------------------------------------ layout
+ * Everything in millimetres with the bangle's centre at nought. One layout
+ * feeds both the screen (SVG) and the order's picture (canvas), so they match.
+ */
+
+function layout() {
+  const b = S.build;
+  const base = itemOf(b.baseId);
+  if (!base) return null;
+  const W = base.widthMm || 70;
+  const H = base.heightMm || W;
+  const bsrc = charmArt(base, b.baseVariant).src;
+  const binfo = infoNow(bsrc);
+  const box = binfo ? binfo.box : { x: 0, y: 0, w: 1, h: 1 };
+  // The picture is scaled so its metal, not its padding, is the stated size.
+  const imgW = W / box.w;
+  const imgH = H / box.h;
+  const baseImg = {
+    src: bsrc, glyph: base.glyph,
+    x: -W / 2 - box.x * imgW, y: -H / 2 - box.y * imgH, w: imgW, h: imgH,
+  };
+  const rimFrac = base.rim || (binfo && binfo.rim) || 0.9;
+  const R = (W / 2) * rimFrac;
+  const metal = metalOf(base, b.baseVariant);
+
+  const n = slotCount(base);
+  const spread = n > 1 ? SLOT_SPREAD : 0;
+  const slots = [];
+  let low = H / 2;
+  let wide = W / 2;
+  for (let i = 0; i < n; i++) {
+    const deg = 90 + (n > 1 ? spread - (2 * spread * i) / (n - 1) : 0);
+    const t = (deg * Math.PI) / 180;
+    const P = { x: R * Math.cos(t), y: R * Math.sin(t) };
+    const ring = { x: P.x, y: P.y + RING_R * 0.55, r: RING_R };
+    const s = b.slots[i];
+    const slot = { i, P, ring, filled: Boolean(s), deg };
+    if (s) {
+      const item = itemOf(s.itemId);
+      let hang = { x: ring.x, y: ring.y + ring.r - RING_W / 2 };
+      if (s.chain && s.chain.lenCm) {
+        const ch = itemOf(s.chain.itemId);
+        const len = s.chain.lenCm * 10;
+        const csrc = ch ? charmArt(ch, s.chain.variantId).src : '';
+        const cinfo = infoNow(csrc);
+        slot.chain = {
+          x: hang.x, y: hang.y, len, w: Math.max(1.2, (ch && ch.widthMm) || 2),
+          src: csrc, tileMm: ch && ch.tileCm ? ch.tileCm * 10 : 0,
+          // The strip's metal, without the transparent margin it was cut with.
+          box: cinfo ? cinfo.box : { x: 0, y: 0, w: 1, h: 1 },
+        };
+        slot.endRing = { x: hang.x, y: hang.y + len + RING_R * 0.55, r: RING_R * 0.8 };
+        hang = { x: hang.x, y: slot.endRing.y + slot.endRing.r - RING_W / 2 };
+      }
+      const src = charmArt(item, s.variantId).src;
+      const info = infoNow(src);
+      const cw = (item && item.widthMm) || 12;
+      const chh = (item && item.heightMm) || cw;
+      const cbox = info ? info.box : { x: 0, y: 0, w: 1, h: 1 };
+      const iw = cw / cbox.w;
+      const ih = chh / cbox.h;
+      const loopF = item && item.loop ? { x: item.loop.x / 100, y: item.loop.y / 100 }
+        : info ? info.loop : { x: 0.5, y: 0.03 };
+      slot.charm = {
+        src, glyph: item ? item.glyph : '◇', flip: false,
+        x: hang.x - loopF.x * iw, y: hang.y - loopF.y * ih, w: iw, h: ih,
+        box: { x: hang.x - loopF.x * iw + cbox.x * iw, y: hang.y - loopF.y * ih + cbox.y * ih, w: cw, h: chh },
+      };
+      low = Math.max(low, slot.charm.box.y + chh);
+      wide = Math.max(wide, Math.abs(slot.charm.box.x), Math.abs(slot.charm.box.x + cw));
+    }
+    slots.push(slot);
+  }
+  const padX = 10; const padTop = 8; const padBottom = 10;
+  const minX = -Math.max(wide, W / 2) - padX;
+  const maxX = Math.max(wide, W / 2) + padX;
+  const minY = -H / 2 - padTop;
+  const maxY = Math.max(low + padBottom, H / 2 + 26);
+  // A square view, centred on the piece, so the stage never stretches it.
+  const span = Math.max(maxX - minX, maxY - minY);
+  const cx = (minX + maxX) / 2; const cy = (minY + maxY) / 2;
+  return {
+    base, baseImg, metal, W, H, R, slots,
+    view: { x: cx - span / 2, y: cy - span / 2, w: span, h: span },
+  };
+}
+
+/* -------------------------------------------------------------- rendering */
+
+const svgEsc = (s) => esc(s);
+
+function metalGradient(id, metal) {
+  const c = METALS[metal] || METALS.gold;
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="${c[0]}"/><stop offset=".35" stop-color="${c[1]}"/>
+    <stop offset=".62" stop-color="${c[2]}"/><stop offset="1" stop-color="${c[3]}"/></linearGradient>`;
+}
+
+function ringSvg(r, metal) {
+  const c = METALS[metal] || METALS.gold;
+  // Two strokes: the metal, and a thin dark line inside it that gives it depth.
+  return `<circle cx="${r.x}" cy="${r.y}" r="${r.r}" fill="none" stroke="${c[4]}" stroke-width="${RING_W + 0.22}" opacity=".55"/>
+    <circle cx="${r.x}" cy="${r.y}" r="${r.r}" fill="none" stroke="url(#bd-metal)" stroke-width="${RING_W}"/>
+    <path d="M${r.x - r.r * 0.7} ${r.y - r.r * 0.7} A ${r.r} ${r.r} 0 0 1 ${r.x + r.r * 0.2} ${r.y - r.r * 0.98}"
+      fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="${RING_W * 0.35}" stroke-linecap="round"/>`;
+}
+
+function chainSvg(c, metal, i) {
+  if (c.src && c.tileMm) {
+    const iw = c.w / c.box.w; const ih = c.tileMm / c.box.h;
+    return `<pattern id="bd-ch${i}" patternUnits="userSpaceOnUse" x="${c.x - c.w / 2}" y="${c.y}" width="${c.w}" height="${c.tileMm}">
+        <image href="${svgEsc(c.src)}" x="${-c.box.x * iw}" y="${-c.box.y * ih}" width="${iw}" height="${ih}" preserveAspectRatio="none"/></pattern>
+      <rect x="${c.x - c.w / 2}" y="${c.y}" width="${c.w}" height="${c.len}" fill="url(#bd-ch${i})"/>`;
+  }
+  // Drawn links: an open oval, then one seen edge-on, all the way down.
+  const col = METALS[metal] || METALS.gold;
+  const step = 1.9; let out = '';
+  for (let y = 0, k = 0; y < c.len; y += step, k++) {
+    out += k % 2
+      ? `<line x1="${c.x}" y1="${c.y + y - 0.55}" x2="${c.x}" y2="${c.y + y + step - 0.2}" stroke="url(#bd-metal)" stroke-width=".55" stroke-linecap="round"/>`
+      : `<ellipse cx="${c.x}" cy="${c.y + y + step / 2}" rx=".62" ry="${step * 0.62}" fill="none" stroke="url(#bd-metal)" stroke-width=".42"/>`;
+  }
+  return `<g stroke="${col[4]}">${out}</g>`;
+}
+
+function pieceSvg(p) {
+  return p.src
+    ? `<image href="${svgEsc(p.src)}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none"/>`
+    : `<text x="${p.x + p.w / 2}" y="${p.y + p.h / 2}" font-size="${p.w * 0.7}" text-anchor="middle" dominant-baseline="central">${esc(p.glyph)}</text>`;
+}
+
+function paintStageSvg() {
+  const host = $('#bd-stage');
+  if (!host) return;
+  const L = layout();
+  if (!L) {
+    host.innerHTML = `<div class="empty-note"><b style="font-size:18px;color:var(--ink)">Your bangle appears here</b>
+      <span>Choose one to start.</span></div>`;
+    return;
+  }
+  const v = L.view;
+  const sel = S.build.sel;
+  // Outer spots first, so the middle charm sits in front, as it does when worn.
+  const front = middleOut(L.slots.length).reverse();
+  const hungs = front.map((i) => L.slots[i]).map((s) => {
+    if (!s.filled) return '';
+    const bx = s.charm.box;
+    return `<g class="hung${s.i === sel ? ' sel' : ''}" data-slot="${s.i}" tabindex="0" role="button"
+        aria-label="Spot ${s.i + 1}: ${esc(itemName({ itemId: S.build.slots[s.i].itemId }))}">
+      <g class="swing" data-px="${s.P.x}" data-py="${s.P.y}">
+        ${s.chain ? chainSvg(s.chain, L.metal, s.i) : ''}
+        ${s.endRing ? ringSvg(s.endRing, L.metal) : ''}
+        <g filter="url(#bd-shadow)">${pieceSvg(s.charm)}</g>
+        ${ringSvg(s.ring, L.metal)}
+        <rect class="halo" x="${bx.x - 1.2}" y="${s.ring.y - s.ring.r - 1}" width="${bx.w + 2.4}"
+          height="${bx.y + bx.h - (s.ring.y - s.ring.r) + 2.2}" rx="2" fill="transparent"/>
+      </g></g>`;
+  }).join('');
+  const marks = L.slots.map((s) => (s.filled ? '' : `
+    <g class="slot${s.i === sel ? ' sel' : ''}" data-slot="${s.i}" tabindex="0" role="button" aria-label="Spot ${s.i + 1}, empty">
+      <circle class="mark" cx="${s.ring.x}" cy="${s.ring.y + 1.6}" r="3.3"/>
+      <text class="num" x="${s.ring.x}" y="${s.ring.y + 1.7}">${s.i + 1}</text>
+    </g>`)).join('');
+
+  host.innerHTML = `<svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" xmlns="http://www.w3.org/2000/svg" role="img"
+      aria-label="Your bangle with ${hungCount()} charm${hungCount() === 1 ? '' : 's'}">
+    <defs>
+      ${metalGradient('bd-metal', L.metal)}
+      <filter id="bd-shadow" x="-30%" y="-30%" width="160%" height="170%">
+        <feDropShadow dx=".35" dy=".9" stdDeviation=".65" flood-color="#2a1a0c" flood-opacity=".32"/>
+      </filter>
+      <radialGradient id="bd-floor"><stop offset="0" stop-color="#2a1a0c" stop-opacity=".16"/>
+        <stop offset="1" stop-color="#2a1a0c" stop-opacity="0"/></radialGradient>
+    </defs>
+    <ellipse cx="0" cy="${L.H / 2 + 3}" rx="${L.W * 0.55}" ry="${L.W * 0.09}" fill="url(#bd-floor)"/>
+    <g filter="url(#bd-shadow)">${pieceSvg({ ...L.baseImg, glyph: L.baseImg.glyph })}</g>
+    ${hungs}
+    ${marks}
+  </svg>`;
+  warmArt();
+}
+
+/* A charm that has just been hung swings, and settles — a pendulum, damped. */
+function swing(i, amp = 13) {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const t0 = performance.now();
+  const frame = (now) => {
+    const g = $(`#bd-stage .hung[data-slot="${i}"] .swing`);
+    if (!g) return;
+    const t = (now - t0) / 1000;
+    const a = amp * Math.exp(-t / 0.75) * Math.cos(t * 2 * Math.PI / 1.05);
+    g.setAttribute('transform', `rotate(${a.toFixed(2)} ${g.dataset.px} ${g.dataset.py})`);
+    if (t < 3) requestAnimationFrame(frame);
+    else g.removeAttribute('transform');
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ----------------------------------------------------- order picture (canvas) */
+
+async function buildSnapshot(size = 560) {
+  const L = layout();
+  if (!L) return '';
+  await Promise.all([L.baseImg.src, ...L.slots.filter((s) => s.filled).flatMap((s) => [s.charm.src, s.chain && s.chain.src])]
+    .filter(Boolean).map(analyseArt));
+  const F = layout();            // again, now every picture has been measured
+  const cv = document.createElement('canvas');
+  cv.width = size; cv.height = size;
+  const g = cv.getContext('2d');
+  const k = size / F.view.w;
+  const X = (x) => (x - F.view.x) * k;
+  const Y = (y) => (y - F.view.y) * k;
+
+  const bg = g.createRadialGradient(size / 2, size * 0.3, size * 0.05, size / 2, size * 0.3, size * 0.9);
+  bg.addColorStop(0, '#fffdf8'); bg.addColorStop(1, '#efe7dc');
+  g.fillStyle = bg; g.fillRect(0, 0, size, size);
+
+  const col = METALS[F.metal] || METALS.gold;
+  const grad = () => {
+    const lg = g.createLinearGradient(0, 0, size, size);
+    lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
+    return lg;
+  };
+  const shadow = (on) => {
+    g.shadowColor = on ? 'rgba(42,26,12,.32)' : 'transparent';
+    g.shadowBlur = on ? 0.9 * k : 0; g.shadowOffsetX = on ? 0.35 * k : 0; g.shadowOffsetY = on ? 0.9 * k : 0;
+  };
+  const piece = async (p) => {
+    if (!p.src) return;
+    const img = await loadImage(p.src);
+    shadow(true);
+    g.drawImage(img, X(p.x), Y(p.y), p.w * k, p.h * k);
+    shadow(false);
+  };
+  const ring = (r) => {
+    const lg = g.createLinearGradient(X(r.x - r.r), Y(r.y - r.r), X(r.x + r.r), Y(r.y + r.r));
+    lg.addColorStop(0, col[0]); lg.addColorStop(0.35, col[1]); lg.addColorStop(0.62, col[2]); lg.addColorStop(1, col[3]);
+    g.lineWidth = RING_W * k; g.strokeStyle = lg;
+    g.beginPath(); g.arc(X(r.x), Y(r.y), r.r * k, 0, Math.PI * 2); g.stroke();
+  };
+
+  await piece(F.baseImg);
+  for (const s of middleOut(F.slots.length).reverse().map((i) => F.slots[i])) {
+    if (!s.filled) continue;
+    if (s.chain) {
+      const c = s.chain;
+      if (c.src && c.tileMm) {
+        const img = await loadImage(c.src);
+        const sx = img.width * c.box.x; const sw = img.width * c.box.w;
+        const sy = img.height * c.box.y; const sh = img.height * c.box.h;
+        for (let y = 0; y < c.len; y += c.tileMm) {
+          const hgt = Math.min(c.tileMm, c.len - y);
+          g.drawImage(img, sx, sy, sw, sh * (hgt / c.tileMm), X(c.x - c.w / 2), Y(c.y + y), c.w * k, hgt * k);
+        }
+      } else {
+        g.strokeStyle = grad(); g.lineWidth = 0.5 * k;
+        for (let y = 0; y < c.len; y += 1.9) {
+          g.beginPath(); g.ellipse(X(c.x), Y(c.y + y + 0.95), 0.62 * k, 1.18 * k, 0, 0, Math.PI * 2); g.stroke();
+        }
+      }
+      ring(s.endRing);
+    }
+    await piece(s.charm);
+    ring(s.ring);
+  }
+  for (const q of [0.85, 0.72, 0.58, 0.42]) {
+    let out = cv.toDataURL('image/webp', q);
+    if (!out.startsWith('data:image/webp')) out = cv.toDataURL('image/jpeg', q);
+    if (out.length < 150000) return out;
+  }
+  return '';
+}
+
+/* --------------------------------------------- keeping the bill in step
+ * The builder's piece, written as the free layout's placements: the bill,
+ * checkout and the order record read these and need to know nothing else.
+ */
+
+function syncCharms() {
+  const b = S.build;
+  if (!b.active) return;
+  const L = layout();
+  const pct = (mm) => 50 + (mm / VIRTUAL_MM) * 100;
+  const out = [];
+  let z = 1;
+  if (L) {
+    out.push({ uid: 'b-base', itemId: L.base.id, variantId: b.baseVariant, x: 50, y: 50,
+      w: ((L.base.widthMm || 70) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+    for (const s of L.slots) {
+      const pick = b.slots[s.i];
+      if (!pick) continue;
+      if (pick.chain && pick.chain.lenCm) {
+        out.push({ uid: `b-ch${s.i}`, itemId: pick.chain.itemId, variantId: pick.chain.variantId,
+          x: pct(s.chain.x), y: pct(s.chain.y), w: 1, rot: 0, z: z++, lenCm: pick.chain.lenCm });
+      }
+      const item = itemOf(pick.itemId);
+      const bx = s.charm.box;
+      out.push({ uid: `b-c${s.i}`, itemId: pick.itemId, variantId: pick.variantId,
+        x: pct(bx.x + bx.w / 2), y: pct(bx.y + bx.h / 2),
+        w: (((item && item.widthMm) || 12) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+    }
+  }
+  S.charms = out;
+  S.zTop = z;
+}
+
+/* ------------------------------------------------------------ the actions */
+
+/** Claim from the shop into this shopper's tray, if the shop can spare it. */
+function claim(item, variantId, n) {
+  if (!item) return false;
+  if (addable(item, variantId) < n) {
+    const free = addable(item, variantId);
+    toast(free > 0 && isLength(item)
+      ? `Only ${fmtLen(free)} of ${label(item, variantId)} is left.`
+      : `${label(item, variantId)} is sold out just now.`, 'bad');
+    return false;
+  }
+  trayAdd(item.id, variantId, n);
+  return true;
+}
+const release = (itemId, variantId, n) => trayTake(itemId, variantId, n);
+
+function releaseSlot(s) {
+  if (!s) return;
+  release(s.itemId, s.variantId, 1);
+  if (s.chain && s.chain.lenCm) release(s.chain.itemId, s.chain.variantId, s.chain.lenCm);
+}
+
+function chooseBangle(itemId, variantId) {
+  const item = itemOf(itemId);
+  if (!item) return;
+  const vId = variantId || firstInStock(item);
+  const b = S.build;
+  if (b.baseId === itemId && b.baseVariant === vId) return;
+  if (b.baseId) release(b.baseId, b.baseVariant, 1);
+  if (!claim(item, vId, 1)) {
+    if (b.baseId) trayAdd(b.baseId, b.baseVariant, 1);
+    return;
+  }
+  b.baseId = itemId;
+  b.baseVariant = vId;
+  const n = slotCount(item);
+  // Charms already chosen keep their order on the new bangle; any beyond its
+  // spots go back to the shop.
+  const kept = b.slots.filter(Boolean);
+  for (const s of kept.slice(n)) releaseSlot(s);
+  b.slots = Array.from({ length: n }, () => null);
+  const order = middleOut(n);
+  kept.slice(0, n).forEach((s, k) => { b.slots[order[k]] = s; });
+  b.sel = nextEmpty(-1);
+  commit();
+}
+
+/** Spots from the middle outwards, alternating sides: how a bangle is dressed. */
+function middleOut(n) {
+  const mid = Math.floor((n - 1) / 2);
+  const out = [mid];
+  for (let d = 1; out.length < n; d++) {
+    if (mid + d < n) out.push(mid + d);
+    if (mid - d >= 0 && out.length < n) out.push(mid - d);
+  }
+  return out;
+}
+
+function nextEmpty(after) {
+  const b = S.build;
+  const order = middleOut(b.slots.length);
+  const rest = order.filter((i) => !b.slots[i]);
+  if (!rest.length) return Math.max(0, Math.min(after, b.slots.length - 1));
+  return rest[0];
+}
+
+function hang(itemId, variantId, at = S.build.sel) {
+  const b = S.build;
+  const item = itemOf(itemId);
+  if (!item || !b.baseId) return;
+  const vId = variantId || firstInStock(item);
+  const was = b.slots[at];
+  if (was && was.itemId === itemId && was.variantId === vId) return;
+  if (was) release(was.itemId, was.variantId, 1);
+  if (!claim(item, vId, 1)) { if (was) trayAdd(was.itemId, was.variantId, 1); return; }
+  b.slots[at] = { itemId, variantId: vId, chain: was ? was.chain : null };
+  commit();
+  swing(at);
+  // Filling an empty spot moves on to the next one; swapping stays put.
+  if (!was) { b.sel = nextEmpty(at); paintBuilder(); }
+}
+
+function unhang(at = S.build.sel) {
+  const s = S.build.slots[at];
+  if (!s) return;
+  releaseSlot(s);
+  S.build.slots[at] = null;
+  commit();
+}
+
+function setColour(variantId) {
+  const s = S.build.slots[S.build.sel];
+  if (!s || s.variantId === variantId) return;
+  const item = itemOf(s.itemId);
+  release(s.itemId, s.variantId, 1);
+  if (!claim(item, variantId, 1)) { trayAdd(s.itemId, s.variantId, 1); return; }
+  s.variantId = variantId;
+  commit();
+}
+
+function setDrop(key, chainId) {
+  const s = S.build.slots[S.build.sel];
+  if (!s) return;
+  const d = DROPS.find((x) => x.key === key) || DROPS[0];
+  const was = s.chain;
+  if (was && was.lenCm) release(was.itemId, was.variantId, was.lenCm);
+  if (!d.cm) { s.chain = null; commit(); swing(S.build.sel, 8); return; }
+  const ch = itemOf(chainId || (was && was.itemId) || (chains()[0] || {}).id);
+  if (!ch) { if (was) trayAdd(was.itemId, was.variantId, was.lenCm); return; }
+  const vId = was && was.itemId === ch.id ? was.variantId : firstInStock(ch);
+  if (!claim(ch, vId, d.cm)) { if (was && was.lenCm) trayAdd(was.itemId, was.variantId, was.lenCm); return; }
+  s.chain = { itemId: ch.id, variantId: vId, lenCm: d.cm };
+  commit();
+  swing(S.build.sel, 10);
+}
+
+function fillEmpty() {
+  const s = S.build.slots[S.build.sel];
+  if (!s) return toast('Hang something on this spot first, then repeat it.');
+  let added = 0;
+  for (let i = 0; i < S.build.slots.length; i++) {
+    if (S.build.slots[i]) continue;
+    const item = itemOf(s.itemId);
+    if (!claim(item, s.variantId, 1)) break;
+    let chain = null;
+    if (s.chain && s.chain.lenCm) {
+      const ch = itemOf(s.chain.itemId);
+      if (claim(ch, s.chain.variantId, s.chain.lenCm)) chain = { ...s.chain };
+    }
+    S.build.slots[i] = { itemId: s.itemId, variantId: s.variantId, chain };
+    added++;
+  }
+  commit();
+  if (added) toast(`Repeated on ${added} more spot${added === 1 ? '' : 's'}.`, 'good');
+}
+
+/** The left half, reflected onto the right. */
+function mirror() {
+  const b = S.build;
+  const n = b.slots.length;
+  let changed = 0;
+  for (let i = 0; i < Math.floor(n / 2); i++) {
+    const from = b.slots[i];
+    const j = n - 1 - i;
+    const to = b.slots[j];
+    if (!from || (to && to.itemId === from.itemId && to.variantId === from.variantId)) continue;
+    if (to) releaseSlot(to);
+    const item = itemOf(from.itemId);
+    if (!claim(item, from.variantId, 1)) { if (to) { trayAdd(to.itemId, to.variantId, 1); } break; }
+    let chain = null;
+    if (from.chain && from.chain.lenCm && claim(itemOf(from.chain.itemId), from.chain.variantId, from.chain.lenCm)) {
+      chain = { ...from.chain };
+    }
+    b.slots[j] = { itemId: from.itemId, variantId: from.variantId, chain };
+    changed++;
+  }
+  commit();
+  toast(changed ? 'The right side now mirrors the left.' : 'Hang charms on the left-hand spots first.');
+}
+
+async function clearBuild() {
+  if (!hungCount()) return;
+  if (!await ask('Take every charm off?', 'The bangle stays; the charms go back to the shop.', 'Take them off', true)) return;
+  S.build.slots.forEach(releaseSlot);
+  S.build.slots = S.build.slots.map(() => null);
+  S.build.sel = nextEmpty(-1);
+  commit();
+}
+
+/** After an order is placed: a fresh bangle, nothing on it. */
+function resetBuild() {
+  S.build.baseId = ''; S.build.baseVariant = ''; S.build.slots = []; S.build.sel = 0;
+  S.build.active = true;
+  saveBuild();
+}
+
+function toFreeLayout() {
+  syncCharms();
+  S.build.active = false;
+  saveBuild();
+  setMode('design');
+  toast('Arrange it freely here. Start again in Create whenever you like.');
+}
+
+async function backToBuilder() {
+  if (S.build.active) return setMode('build');
+  if (S.charms.length && !await ask('Start again in Create?',
+    'The free layout is put back in your picks, and Create starts from your last bangle.', 'Start again')) return;
+  S.charms = [];
+  // What the free layout held is still in the tray; the builder re-claims as it hangs.
+  S.build.slots.forEach(releaseSlot);
+  if (S.build.baseId) release(S.build.baseId, S.build.baseVariant, 1);
+  resetBuild();
+  setMode('build');
+}
+
+function commit() {
+  syncCharms();
+  saveBuild();
+  paintBuilder();
+}
+
+/* --------------------------------------------------------------- the panel */
+
+function stepsHtml(now) {
+  const names = ['Bangle', 'Charms', 'Order'];
+  return `<ol class="bd-steps">${names.map((n, i) => `<li class="${i === now ? 'now' : i < now ? 'done' : ''}">
+    <b>${i < now ? '✓' : i + 1}</b>${n}</li>`).join('')}</ol>`;
+}
+
+function banglePicker() {
+  const list = bangles();
+  if (!list.length) {
+    return `<section>${stepsHtml(0)}<h2>Bangles are on their way</h2>
+      <p>The studio hasn't listed a bangle yet. Browse the collection meanwhile.</p>
+      <div><button class="solid" data-bd="browse">See the collection</button></div></section>`;
+  }
+  return `<section>${stepsHtml(0)}<h2>Choose your bangle</h2>
+    <p>Everything you pick hangs from it, at its real size.</p>
+    <div class="bd-bangles">${list.map((it) => {
+      const free = itemAddable(it) + (it.id === S.build.baseId ? 1 : 0);
+      return `<button class="bd-bangle" data-bangle="${esc(it.id)}" aria-pressed="${it.id === S.build.baseId}"
+          ${free > 0 ? '' : 'disabled'}>
+        <span class="art">${charmArt(it, firstInStock(it)).src ? `<img src="${esc(charmArt(it, firstInStock(it)).src)}" alt="">` : shotHtml(it, firstInStock(it))}</span>
+        <span class="nm">${esc(it.name)}</span>
+        <span class="sub">${hasSize(it) ? `${cm(it.widthMm)} cm across · ` : ''}${money(it.price)}${free > 0 ? '' : ' · sold out'}</span>
+      </button>`;
+    }).join('')}</div>
+    ${S.build.baseId ? '<div><button data-bd="close-bangles">Keep my bangle</button></div>' : ''}</section>`;
+}
+
+function spotHtml() {
+  const b = S.build;
+  const n = b.slots.length;
+  const s = b.slots[b.sel];
+  const item = s && itemOf(s.itemId);
+  const head = `<div class="bd-spot">
+      <button class="step" data-bd="prev" aria-label="Previous spot">‹</button>
+      <div class="where"><b>Spot ${b.sel + 1} of ${n}</b>
+        <span>${hungCount()} of ${n} spots filled — tap any spot on the bangle</span></div>
+      <button class="step" data-bd="next" aria-label="Next spot">›</button>
+    </div>`;
+  if (!item) {
+    return `${head}<p>Pick a charm below and it hangs on spot ${b.sel + 1}.</p>`;
+  }
+  const colours = item.variants.length > 1 ? `<div class="bd-label">Colour</div><div class="bd-chips">${item.variants.map((v) => {
+    const ok = v.id === s.variantId || addable(item, v.id) > 0;
+    return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.variantId}" ${ok ? '' : 'disabled'}>
+      ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
+  }).join('')}</div>` : '';
+  const chs = chains();
+  const dropKey = s.chain && s.chain.lenCm ? (DROPS.find((d) => d.cm === s.chain.lenCm) || {}).key || 'mid' : 'none';
+  const drops = chs.length ? `<div class="bd-label">How it hangs</div>
+    <div class="bd-chips">${DROPS.map((d) => `<button class="bd-chip" data-drop="${d.key}" aria-pressed="${d.key === dropKey}">
+      ${esc(d.label)}${d.cm ? ` · ${d.cm} cm` : ''}</button>`).join('')}</div>
+    ${s.chain ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
+        data-chain="${esc(c.id)}" aria-pressed="${c.id === s.chain.itemId}">
+        ${charmArt(c, firstInStock(c)).src ? `<img src="${esc(charmArt(c, firstInStock(c)).src)}" alt="">` : ''}${esc(c.name)}</button>`).join('')}</div>` : ''}` : '';
+  const price = item.price + (s.chain && s.chain.lenCm ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, s.chain.lenCm) : 0);
+  return `${head}
+    <div class="bd-chosen">
+      <span class="art">${charmArt(item, s.variantId).src ? `<img src="${esc(charmArt(item, s.variantId).src)}" alt="">` : esc(item.glyph)}</span>
+      <div><div class="nm">${esc(item.name)}</div>
+        <div class="sub">${hasSize(item) ? `${sizeLabel(item, true)} · ` : ''}${money(price)}</div>
+        <div class="acts"><button data-bd="remove" class="warnbtn">Take off</button></div></div>
+    </div>
+    ${colours}${drops}
+    <p style="font-size:14px">Pick another charm below to swap it.</p>`;
+}
+
+function pickerHtml() {
+  const b = S.build;
+  const list = hangables();
+  const secs = [...new Set(list.map((i) => i.category))].map((slugValue) => sectionOf(slugValue));
+  const q = b.find.trim().toLowerCase();
+  const shown = list.filter((i) => (!b.filter || i.category === b.filter)
+    && (!q || i.name.toLowerCase().includes(q) || (i.note || '').toLowerCase().includes(q)));
+  const cur = b.slots[b.sel];
+  return `<section>
+    <div class="bd-find"><input type="search" id="bd-find" placeholder="Search charms" aria-label="Search charms" value="${esc(b.find)}"></div>
+    ${secs.length > 1 ? `<div class="bd-cats"><button class="bd-chip" data-cat="" aria-pressed="${!b.filter}">All</button>${secs.map((s) =>
+      `<button class="bd-chip" data-cat="${esc(s.slug)}" aria-pressed="${b.filter === s.slug}">${esc(s.name)}</button>`).join('')}</div>` : ''}
+    <div class="bd-grid">${shown.length ? shown.map((it) => {
+      const out = itemAddable(it) <= 0 && !(cur && cur.itemId === it.id);
+      const art = charmArt(it, firstInStock(it));
+      return `<button class="bd-charm${cur && cur.itemId === it.id ? ' cur' : ''}" data-charm="${esc(it.id)}" ${out ? 'disabled' : ''}
+          aria-label="${esc(it.name)}, ${esc(money(it.price))}${out ? ', sold out' : ''}">
+        <span class="art">${art.src ? `<img src="${esc(art.src)}" alt="" loading="lazy">` : `<span style="font-size:34px">${esc(it.glyph)}</span>`}</span>
+        <span class="nm">${esc(it.name)}</span>
+        ${out ? '<span class="out">Sold out</span>' : `<span class="pr">${money(it.price)}</span>`}
+      </button>`;
+    }).join('') : '<p>Nothing matches that search.</p>'}</div>
+  </section>`;
+}
+
+function paintBuilder() {
+  if (S.mode !== 'build') return;
+  const b = S.build;
+  const base = itemOf(b.baseId);
+  // With exactly one bangle to be had there is no question to ask.
+  if (!base && !b.choosing) {
+    const list = bangles().filter((i) => itemAddable(i) > 0);
+    if (list.length === 1 && S.ready) { chooseBangle(list[0].id); return; }
+  }
+  const panel = $('#bd-panel');
+  const keepScroll = window.scrollY;
+  if (!base || b.choosing) {
+    panel.innerHTML = banglePicker();
+  } else {
+    const n = hungCount();
+    panel.innerHTML = `<section>${stepsHtml(n ? 1 : 1)}
+        <div class="bd-base">${charmArt(base, b.baseVariant).src ? `<img src="${esc(charmArt(base, b.baseVariant).src)}" alt="">` : ''}
+          <div><div class="nm">${esc(label(base, b.baseVariant))}</div>
+          <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
+          <span class="spacer"></span>
+          ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : ''}</div>
+      </section>
+      <section>${spotHtml()}</section>
+      ${pickerHtml()}
+      <section>
+        <div class="bd-tools">
+          <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
+          <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror left to right</button>
+          <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
+        </div>
+        <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
+      </section>`;
+  }
+  window.scrollTo({ top: keepScroll });
+  paintStageSvg();
+  paintBuildBar(base);
+  const am = $('#bd-amend');
+  am.hidden = !S.amending;
+  if (S.amending) $('#bd-amend-no').textContent = S.amending.no;
+}
+
+function paintBuildBar(base) {
+  const lines = billLines();
+  const total = lines.reduce((s, l) => s + l.total, 0);
+  const n = hungCount();
+  $('#bd-count').textContent = !base ? 'Choose a bangle to begin'
+    : n ? `Bangle + ${n} charm${n === 1 ? '' : 's'}` : 'Your bangle — add charms';
+  $('#bd-total').textContent = base ? money(total) : '—';
+  $('#bd-order').disabled = !base || !n;
+  $('#bd-caption').textContent = !base ? ''
+    : n ? 'Shown at its real size. Tap a charm to change it, or a numbered spot to add one.'
+      : 'Tap a numbered spot, then pick a charm to hang there.';
+}
+
+/* ----------------------------------------------------------------- wiring */
+
+function wireBuilder() {
+  $('#mode-build').addEventListener('click', () => backToBuilder());
+  $('#bd-order').addEventListener('click', () => startOrder());
+  $('#bd-amend-drop').addEventListener('click', () => dropAmend());
+
+  const pickSlot = (e) => {
+    const g = e.target.closest('[data-slot]');
+    if (!g) return;
+    const i = Number(g.dataset.slot);
+    S.build.sel = i;
+    paintBuilder();
+    if (S.build.slots[i]) swing(i, 6);
+    // On a phone the list is below the stage; bring it up.
+    if (matchMedia('(max-width: 900px)').matches) {
+      const pick = $('#bd-panel .bd-spot');
+      if (pick) pick.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+  $('#bd-stage').addEventListener('click', pickSlot);
+  $('#bd-stage').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickSlot(e); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest('.hung')) unhang(Number(e.target.closest('.hung').dataset.slot));
+  });
+
+  const panel = $('#bd-panel');
+  panel.addEventListener('click', (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    const b = S.build;
+    if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
+    if (t.dataset.charm) return hang(t.dataset.charm);
+    if (t.dataset.colour) return setColour(t.dataset.colour);
+    if (t.dataset.drop) return setDrop(t.dataset.drop);
+    if (t.dataset.chain) {
+      const d = DROPS.find((x) => x.cm === (b.slots[b.sel] || {}).chain?.lenCm) || DROPS[2];
+      return setDrop(d.key, t.dataset.chain);
+    }
+    if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
+    switch (t.dataset.bd) {
+      case 'prev': b.sel = (b.sel - 1 + b.slots.length) % b.slots.length; return paintBuilder();
+      case 'next': b.sel = (b.sel + 1) % b.slots.length; return paintBuilder();
+      case 'remove': return unhang();
+      case 'fill': return fillEmpty();
+      case 'mirror': return mirror();
+      case 'clear': return clearBuild();
+      case 'free': return toFreeLayout();
+      case 'bangles': b.choosing = true; return paintBuilder();
+      case 'close-bangles': b.choosing = false; return paintBuilder();
+      case 'browse': return setMode('browse');
+      default: return undefined;
+    }
+  });
+  panel.addEventListener('input', (e) => {
+    if (e.target.id !== 'bd-find') return;
+    S.build.find = e.target.value;
+    const at = e.target.selectionStart;
+    paintBuilder();
+    const f = $('#bd-find');
+    if (f) { f.focus(); f.setSelectionRange(at, at); }
+  });
+}
+</script>
+
+<script>
+'use strict';
+
 /* ------------------------------------------------------- design snapshot */
 
 const loadImage = (src) => new Promise((res, rej) => {
@@ -5677,6 +6853,9 @@ const loadImage = (src) => new Promise((res, rej) => {
  * the bench is asked to make.
  */
 async function renderSnapshot(size = 560) {
+  if (S.build.active) {
+    try { return await buildSnapshot(size); } catch { return ''; }
+  }
   try {
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -6360,11 +7539,21 @@ function askCancelReason(id, by) {
  */
 async function startAmend(order) {
   if (!canCustomerAmend(order)) { toast('The hour to change this order has passed.', 'bad'); return; }
-  if (S.charms.length) {
+  // A bare bangle waiting in Create is not work that would be lost.
+  const inHand = S.build.active ? hungCount() : S.charms.length;
+  if (inHand) {
     if (!await ask('Open this order for changes?',
       'What is on the canvas now will be cleared so the order can be loaded.', 'Open it')) return;
   }
   await moveOrder(order.id, 'amending', 'Customer is changing the design.', 'customer');
+
+  // Whatever Create was holding goes back to the shop before the order's pieces come in.
+  if (S.build.active) {
+    S.build.slots.forEach(releaseSlot);
+    if (S.build.baseId) release(S.build.baseId, S.build.baseVariant, 1);
+    resetBuild();
+  }
+  S.charms = [];
 
   for (const i of order.items || []) trayAdd(i.itemId || i.id, i.variantId || 'v0', i.qty);
   const d = order.design || {};
@@ -6379,6 +7568,19 @@ async function startAmend(order) {
   S.zTop = S.charms.length + 1;
   S.amending = { id: order.id, no: order.no, createdAt: order.createdAt };
   $('#dlg-order').close();
+  if (d.build && d.build.baseId) {
+    S.build.active = true;
+    S.build.baseId = d.build.baseId;
+    S.build.baseVariant = d.build.baseVariant;
+    S.build.slots = (d.build.slots || []).map((x) => (x && x.itemId ? { ...x } : null));
+    S.build.sel = 0;
+    reconcileBuild();
+    saveBuild();
+    setMode('build');
+    toast(`Order ${order.no} is open for changes.`, 'good');
+    return;
+  }
+  S.build.active = false;
   setMode('design');
   toast(`Order ${order.no} is open for changes.`, 'good');
 }
@@ -6391,6 +7593,7 @@ async function dropAmend() {
   for (const i of order.items || []) trayTake(i.itemId || i.id, i.variantId || 'v0', i.qty);
   S.charms = [];
   clearPicked();
+  resetBuild();
   S.amending = null;
   await moveOrder(order.id, 'new', 'Customer kept the original design.', 'customer');
   setMode('mine');
@@ -6471,7 +7674,7 @@ function wireExtras() {
 
   $('#auth-in').addEventListener('click', () => setAuthTab('in'));
   $('#auth-up').addEventListener('click', () => setAuthTab('up'));
-  $('#auth-cancel').addEventListener('click', () => $('#dlg-auth').close());
+  $('#auth-cancel').addEventListener('click', () => { S.orderAfterAuth = false; $('#dlg-auth').close(); });
   $('#form-auth').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = $('#auth-error');
@@ -6483,6 +7686,8 @@ function wireExtras() {
       const rec = $('#auth-signup').hidden ? await doSignIn(form) : await doSignUp(form);
       $('#dlg-auth').close();
       toast(`Welcome, ${rec.name}.`, 'good');
+      // Signing in was a step on the way to ordering, so carry on to checkout.
+      if (S.orderAfterAuth) { S.orderAfterAuth = false; startOrder(); }
     } catch (ex) {
       err.hidden = false;
       err.textContent = ex && ex.code ? dbFail(ex) : ex.message;
@@ -6517,7 +7722,7 @@ function wireExtras() {
     await S.db.doc(`restock/${id}`).update({ urgentStage: 'declined', declineReason: why, urgentEta: '' });
     toast('Declined, with your reason.', 'good');
   }));
-  $('#cta-design').addEventListener('click', () => setMode('design'));
+  $('#cta-design').addEventListener('click', () => backToBuilder());
 
   // The floating twin appears exactly when the seated one leaves the viewport.
   if ('IntersectionObserver' in window) {
@@ -6541,6 +7746,12 @@ wirePieceDialog();
 wireStart();
 wireShell();
 wireExtras();
-setMode('browse');
+loadBuild();
+wireBuilder();
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#studio') { $('#mode-studio').hidden = false; $('#mode-studio').click(); }
+});
+setMode(location.hash === '#collection' ? 'browse' : 'build');
+if (location.hash === '#studio') setTimeout(() => $('#mode-studio').click(), 0);
 connect();
 </script>

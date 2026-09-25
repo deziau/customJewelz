@@ -11,7 +11,8 @@
     "seed": "node scripts/seed.js",
     "reset": "node scripts/seed.js --reset",
     "test": "node test/smoke.js",
-    "icons": "node scripts/icons.js"
+    "icons": "node scripts/icons.js",
+    "test:ui": "node test/ui.js"
   },
   "engines": {
     "node": ">=18"
@@ -22,5 +23,8 @@
     "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
     "multer": "^2.3.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
   }
 }
