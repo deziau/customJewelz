@@ -167,7 +167,7 @@ async function run(browser, label, viewport) {
 
   // The right hand is designed on its own; here it starts as a copy of the left.
   const left = await page.evaluate(() => hungCount('left'));
-  await page.click('#bd-panel [data-hand="right"]');
+  await page.click('#bd-handbar [data-hand="right"]');
   await page.click('#bd-panel [data-bd="copy-back"]');
   const [l2, right] = await page.evaluate(() => [hungCount('left'), hungCount('right')]);
   assert.equal(l2, left, 'the left hand is untouched');
@@ -177,7 +177,10 @@ async function run(browser, label, viewport) {
 
   // Nothing sideways-scrolls, at any width.
   const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
-  assert.ok(sw <= iw, `page overflows sideways: ${sw} > ${iw}`);
+  const wide = sw > iw ? await page.evaluate(() => [...document.querySelectorAll('body *')]
+    .filter((e) => e.getBoundingClientRect().right > innerWidth + 0.5 && e.offsetParent !== null)
+    .slice(0, 5).map((e) => `${e.tagName.toLowerCase()}.${e.className}`).join(', ')) : '';
+  assert.ok(sw <= iw, `page overflows sideways: ${sw} > ${iw} (${wide})`);
 
   // The tray always equals the piece, so checkout never asks about leftovers.
   const trayVsPiece = await page.evaluate(() => S.tray.every((r) => placedQty(r.itemId, r.variantId) === r.qty));
@@ -241,6 +244,10 @@ async function run(browser, label, viewport) {
   await page.evaluate(() => { location.hash = '#studio'; });
   await page.waitForTimeout(50);
   assert.equal(await page.isHidden('#studio'), true, 'a shopper cannot open the studio');
+
+  await page.click('#mode-browse');
+  await page.waitForSelector('#catalogue .card');
+  await shot('5-collection');
 
   assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
   await ctx.close();

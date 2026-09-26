@@ -2,96 +2,100 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CustomJewelz — Build your bangle</title>
+<title>CustomJewelz · Create your kaleera</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+/* An open trousseau case: peacock velvet for the jewellery, cool mineral
+   surfaces around it, one teal accent. The stage stays dark in both themes so
+   gold and enamel always read as metal and colour. */
 :root {
-  --ground: #f3f1ec;
-  --surface: #fffefc;
-  --surface-2: #eeebe4;
-  --ink: #241b26;
-  --muted: #756b76;
-  --line: #ddd7d3;
-  --line-strong: #c6bdc0;
-  --accent: #6d2f4a;
+  --ground: #eef2f1;
+  --surface: #ffffff;
+  --surface-2: #e3ebe8;
+  --ink: #172c28;
+  --muted: #526760;
+  --line: #cedbd5;
+  --line-strong: #748c82;
+  --accent: #075e63;
   --accent-ink: #ffffff;
-  --accent-soft: #f2e6ea;
-  --gold: #a8791f;
-  --jade: #2f6b52;
-  --jade-soft: #e3ede8;
+  --accent-soft: #dceeea;
+  --gold: #a57d12;
+  --jade: #246341;
+  --jade-soft: #dcefe3;
   --ochre: #8a5f12;
   --ochre-soft: #f5ecd8;
-  --crimson: #a3302e;
-  --crimson-soft: #f7e4e2;
+  --crimson: #aa302c;
+  --crimson-soft: #f7e1df;
   --crimson-solid: #9c2d2b;
-  --jade-solid: #276146;
-  --velvet-1: #f6f2ef;
-  --velvet-2: #e2d8dd;
-  --shadow-sm: 0 1px 2px rgba(36, 27, 38, .07);
-  --shadow-md: 0 2px 4px rgba(36, 27, 38, .05), 0 10px 28px rgba(36, 27, 38, .08);
-  --shadow-lg: 0 24px 70px rgba(36, 27, 38, .28);
-  --radius: 10px;
-  --display: "Marcellus", Georgia, "Times New Roman", serif;
-  --body: "Karla", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --jade-solid: #246341;
+  --velvet-1: #1f4744;
+  --velvet-2: #071b1c;
+  --shadow-sm: 0 1px 2px rgba(7, 27, 28, .08);
+  --shadow-md: 0 2px 4px rgba(7, 27, 28, .05), 0 12px 32px rgba(7, 27, 28, .12);
+  --shadow-lg: 0 24px 70px rgba(7, 27, 28, .3);
+  --radius: 12px;
+  --display: "Tenor Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #171319;
-    --surface: #221b25;
-    --surface-2: #2c242f;
-    --ink: #efe9ec;
-    --muted: #a295a0;
-    --muted: #a396a1;
-    --line: #3a303d;
-    --line-strong: #4e414f;
-    --accent: #c9789a;
-    --accent-ink: #22101a;
-    --accent-soft: #3a2432;
-    --gold: #d7a343;
-    --jade: #7fc0a0;
-    --jade-soft: #1f3a2e;
+    --ground: #101918;
+    --surface: #182522;
+    --surface-2: #22332e;
+    --ink: #eff5f2;
+    --muted: #adc0b7;
+    --line: #354b42;
+    --line-strong: #78978a;
+    --accent: #8cd4cb;
+    --accent-ink: #102b27;
+    --accent-soft: #233f38;
+    --gold: #e0b94a;
+    --jade: #9ed8b3;
+    --jade-soft: #1b3a2b;
     --ochre: #d3a44f;
     --ochre-soft: #392e18;
-    --crimson: #ec8280;
-    --crimson-soft: #3b2020;
+    --crimson: #ffb4ab;
+    --crimson-soft: #3d1f1d;
     --crimson-solid: #b23f3c;
     --jade-solid: #2f7d5b;
-    --velvet-1: #26202b;
-    --velvet-2: #171220;
+    --velvet-1: #1f4744;
+    --velvet-2: #050f10;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
-    --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
     --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
+    color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --ground: #171319;
-  --surface: #221b25;
-  --surface-2: #2c242f;
-  --ink: #efe9ec;
-  --muted: #a396a1;
-  --line: #3a303d;
-  --line-strong: #4e414f;
-  --accent: #c9789a;
-  --accent-ink: #22101a;
-  --accent-soft: #3a2432;
-  --gold: #d7a343;
-  --jade: #7fc0a0;
-  --jade-soft: #1f3a2e;
+  --ground: #101918;
+  --surface: #182522;
+  --surface-2: #22332e;
+  --ink: #eff5f2;
+  --muted: #adc0b7;
+  --line: #354b42;
+  --line-strong: #78978a;
+  --accent: #8cd4cb;
+  --accent-ink: #102b27;
+  --accent-soft: #233f38;
+  --gold: #e0b94a;
+  --jade: #9ed8b3;
+  --jade-soft: #1b3a2b;
   --ochre: #d3a44f;
   --ochre-soft: #392e18;
-  --crimson: #ec8280;
-  --crimson-soft: #3b2020;
+  --crimson: #ffb4ab;
+  --crimson-soft: #3d1f1d;
   --crimson-solid: #b23f3c;
   --jade-solid: #2f7d5b;
-  --velvet-1: #26202b;
-  --velvet-2: #171220;
+  --velvet-1: #1f4744;
+  --velvet-2: #050f10;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
   --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -102,14 +106,14 @@ body {
   background: var(--ground);
   color: var(--ink);
   font-family: var(--body);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
-h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; letter-spacing: .01em; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; letter-spacing: .01em; text-wrap: balance; }
 h1 { font-size: 21px; }
 h2 { font-size: 17px; }
 h3 { font-size: 15px; }
@@ -125,19 +129,21 @@ h3 { font-size: 15px; }
 /* ------------------------------------------------------------------ chrome */
 
 .masthead {
-  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-  padding: 13px 22px; background: var(--surface); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  min-height: 64px; padding: 0 40px; background: var(--surface); border-bottom: 1px solid var(--line);
 }
-.wordmark { font-family: var(--display); font-size: 20px; letter-spacing: .04em; }
+.wordmark { font-family: var(--display); font-size: 22px; letter-spacing: .06em; }
 .wordmark em { font-style: normal; color: var(--accent); }
 .masthead .spacer { flex: 1; }
 
-.modes { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; }
+.modes { display: flex; gap: 8px; align-self: stretch; }
 .modes button {
-  border: none; background: none; font: inherit; font-size: 13px; font-weight: 600;
-  color: var(--muted); padding: 6px 15px; border-radius: 999px; cursor: pointer;
+  border: none; border-radius: 0; background: none; font: inherit; font-size: 16px; font-weight: 600;
+  color: var(--muted); padding: 0 12px; min-height: 44px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s;
 }
-.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.modes button:hover:not(:disabled) { color: var(--ink); }
+.modes button[aria-pressed="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
 
 /* --------------------------------------------------------------- bill rail */
 
@@ -376,43 +382,43 @@ h3 { font-size: 15px; }
 .sum > div { display: flex; justify-content: space-between; gap: 12px; }
 .sum .grand {
   margin-top: 6px; padding-top: 9px; border-top: 1px solid var(--line);
-  font-family: var(--display); font-size: 20px; color: var(--accent);
+  font-family: var(--body); font-weight: 700; font-size: 22px; color: var(--ink);
 }
 .sum .grand span:last-child { font-variant-numeric: tabular-nums; }
 
 /* ----------------------------------------------------------------- controls */
 
 button, .btn {
-  font: inherit; font-size: 13.5px; border: 1px solid var(--line-strong); background: var(--surface);
-  color: var(--ink); border-radius: 8px; padding: 7px 13px; cursor: pointer;
+  font: inherit; font-size: 15px; border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--ink); border-radius: 10px; padding: 9px 16px; min-height: 44px; cursor: pointer;
   transition: border-color .14s, background .14s;
 }
 button:hover:not(:disabled), .btn:hover { border-color: var(--accent); }
 button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
+  outline: 2px solid var(--accent); outline-offset: 3px;
 }
 button:disabled { opacity: .45; cursor: not-allowed; }
 .solid { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.solid:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.solid:hover:not(:disabled) { filter: brightness(.92); border-color: var(--accent); }
 .ghost { border-color: transparent; background: none; }
 .warnbtn { color: var(--crimson); border-color: var(--crimson-soft); }
 .full { width: 100%; }
-.tiny { padding: 4px 9px; font-size: 12px; }
+.tiny { padding: 4px 10px; font-size: 13px; min-height: 32px; }
 
-label.f { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); margin-bottom: 11px; }
+label.f { display: grid; gap: 6px; font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 14px; }
 input, select, textarea {
-  font: inherit; font-size: 14px; width: 100%; padding: 8px 10px; color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+  font: inherit; font-size: 16px; font-weight: 400; width: 100%; padding: 10px 12px; min-height: 44px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
 }
-textarea { min-height: 64px; resize: vertical; font-size: 13.5px; }
+textarea { min-height: 72px; resize: vertical; font-size: 16px; }
 fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; margin: 0 0 13px; }
-legend { padding: 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+legend { padding: 0 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .choice {
   display: grid; gap: 3px; border: 1px solid var(--line-strong); border-radius: 9px;
-  padding: 10px 11px; cursor: pointer; font-size: 12.5px; color: var(--muted);
+  padding: 12px 14px; cursor: pointer; font-size: 14px; color: var(--muted);
 }
-.choice b { font-size: 13.5px; color: var(--ink); font-weight: 600; }
+.choice b { font-size: 15px; color: var(--ink); font-weight: 600; }
 .choice input { position: absolute; opacity: 0; width: 0; height: 0; }
 .choice.on { border-color: var(--accent); background: var(--accent-soft); }
 
@@ -466,21 +472,22 @@ td .unit { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 /* ----------------------------------------------------------------- dialogs */
 
 dialog {
-  padding: 0; border: 1px solid var(--line); border-radius: 14px; max-width: 540px;
+  padding: 0; border: 1px solid var(--line); border-radius: 20px; max-width: 560px;
   width: calc(100% - 30px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg);
 }
-dialog::backdrop { background: rgba(36, 27, 38, .5); }
-dialog > header { padding: 15px 19px; border-bottom: 1px solid var(--line); }
-dialog .body { padding: 17px 19px; max-height: 64vh; overflow: auto; }
-dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
+dialog::backdrop { background: rgba(7, 27, 28, .55); backdrop-filter: blur(2px); }
+dialog > header { padding: 20px 24px; border-bottom: 1px solid var(--line); }
+dialog > header h2 { font-size: 24px; line-height: 30px; }
+dialog .body { padding: 20px 24px; max-height: 68vh; overflow: auto; }
+dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 
 .notice { padding: 9px 12px; border-radius: 8px; font-size: 13px; background: var(--crimson-soft); color: var(--crimson); }
 
 .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: grid; gap: 8px; justify-items: end; }
 .toast {
-  background: var(--ink); color: var(--ground); padding: 10px 14px; border-radius: 9px;
-  font-size: 13px; max-width: 340px; box-shadow: var(--shadow-md); animation: lift .18s ease-out;
+  background: var(--ink); color: var(--ground); padding: 12px 16px; border-radius: 10px;
+  font-size: 15px; max-width: 360px; box-shadow: var(--shadow-md); animation: lift .18s ease-out;
 }
 .toast.bad { background: var(--crimson-solid); color: #fff; }
 .toast.good { background: var(--jade-solid); color: #fff; }
@@ -590,6 +597,14 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 /* ---------------------------------------------------------- product sheet */
 
 #dlg-item { max-width: 720px; }
+#dlg-checkout { max-width: 1040px; }
+.ck-body:has(> .ck-look:not([hidden])) { display: grid; grid-template-columns: 56fr 44fr; column-gap: 28px; align-items: start; }
+.ck-body:has(> .ck-look:not([hidden])) > * { grid-column: 2; }
+.ck-body:has(> .ck-look:not([hidden])) > .ck-look { grid-column: 1; grid-row: 1 / span 20; display: grid; gap: 12px; position: sticky; top: 0; }
+.ck-shot { aspect-ratio: 2 / 1; border-radius: 16px; overflow: hidden; background: radial-gradient(120% 95% at 40% 30%, #2b5a56, #133331 45%, #071b1c); }
+.ck-shot img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ck-look p { margin: 0; font-size: 15px; }
+@media (max-width: 760px) { .ck-body:has(> .ck-look:not([hidden])) { display: block; } .ck-body > .ck-look { position: static; margin-bottom: 16px; } }
 .sheet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .gallery { display: grid; gap: 9px; align-content: start; }
 .gallery .main {
@@ -835,7 +850,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 /* --------------------------------------------------------- accounts & misc */
 
 .acct { display: flex; align-items: center; gap: 7px; }
-.acct .who { font-size: 12.5px; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct .who { font-size: 15px; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .seg { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 999px; margin-bottom: 14px; }
 .seg button {
@@ -948,44 +963,71 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 }
 
 /* ================================================================ builder */
-/* The shop's front door: one bangle, big, with the spots things can hang from.
-   Everything a customer needs is on this one screen; nothing measures. */
+/* The shop's front door: the bangle on a velvet stage, the decisions beside it
+   in the order a kaleera is made. The stage is velvet in both themes, lit from
+   the upper left, so gold reads as gold and enamel as enamel. */
 
 :root {
-  --stage-1: #fffdf8;
-  --stage-2: #efe7dc;
+  --stage-1: #2b5a56;
+  --stage-2: #071b1c;
+  --stage-ink: #f1f6f3;
+  --stage-muted: #bcd0ca;
+  --glow: #8cd4cb;
   --metal-note: #8a6a2a;
+  --bar-h: 80px;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --stage-1: #2d2530; --stage-2: #161118; --metal-note: #d7b370; }
+  :root:not([data-theme="light"]) { --stage-1: #24504c; --stage-2: #040d0e; --metal-note: #d7b370; }
 }
-:root[data-theme="dark"] { --stage-1: #2d2530; --stage-2: #161118; --metal-note: #d7b370; }
+:root[data-theme="dark"] { --stage-1: #24504c; --stage-2: #040d0e; --metal-note: #d7b370; }
 
-#builder { padding-bottom: 84px; }
+#builder { padding-bottom: calc(var(--bar-h) + 24px); }
+.bd-head {
+  max-width: 1360px; margin: 0 auto; padding: 28px 40px 0;
+  display: flex; align-items: end; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap;
+}
+.bd-head h1 { font-size: 36px; line-height: 44px; }
+.bd-head p { margin: 4px 0 0; color: var(--muted); font-size: 16px; max-width: 52ch; }
 .bd {
-  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
-  gap: 24px; padding: 24px; max-width: 1360px; margin: 0 auto; align-items: start;
+  display: grid; grid-template-columns: minmax(0, 760fr) minmax(340px, 568fr);
+  gap: 32px; padding: 24px 40px; max-width: 1360px; margin: 0 auto; align-items: start;
 }
-.bd-stage-col { position: sticky; top: 16px; display: grid; gap: 10px; }
+.bd-stage-col { position: sticky; top: 16px; display: grid; gap: 12px; }
 .bd-stage {
-  position: relative; aspect-ratio: 1 / 1; width: 100%; max-height: calc(100vh - 230px);
-  border-radius: 20px; overflow: hidden; border: 1px solid var(--line);
-  background: radial-gradient(120% 90% at 50% 30%, var(--stage-1) 0%, var(--stage-2) 100%);
-  box-shadow: var(--shadow-md); touch-action: manipulation;
+  position: relative; aspect-ratio: 760 / 640; width: 100%; max-height: calc(100vh - 150px);
+  border-radius: 20px; overflow: hidden; color: var(--stage-ink);
+  background:
+    radial-gradient(70% 55% at 28% 16%, rgba(255, 246, 214, .16) 0%, rgba(255, 246, 214, 0) 70%),
+    radial-gradient(120% 95% at 40% 30%, var(--stage-1) 0%, #133331 45%, var(--stage-2) 100%);
+  box-shadow: inset 0 0 140px rgba(0, 0, 0, .42), 0 12px 32px rgba(7, 27, 28, .22);
+  touch-action: manipulation;
 }
-.bd-stage svg { display: block; width: 100%; height: 100%; }
+/* Velvet: a fine grain over the gradient, so the stage reads as cloth, not paint. */
+.bd-stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .22; mix-blend-mode: soft-light;
+  background-image: repeating-linear-gradient(115deg, rgba(255,255,255,.06) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(25deg, rgba(0,0,0,.08) 0 1px, transparent 1px 4px);
+}
+.bd-stage svg { position: relative; display: block; width: 100%; height: 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .bd-stage svg.fresh { animation: bd-fade .18s ease-out; }
+}
+@keyframes bd-fade { from { opacity: 0; } }
 .bd-stage .empty-note {
   position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
-  padding: 24px; color: var(--muted); font-size: 16px; gap: 6px;
+  padding: 24px; color: var(--stage-muted); font-size: 16px; gap: 6px;
 }
+.bd-stage .empty-note b { color: var(--stage-ink); }
 .bd-caption { margin: 0; text-align: center; color: var(--muted); font-size: 14px; }
+.bd-expand { display: none; }
 
+/* Spots on the stage: a soft glow where something can hang, not a badge on the gold. */
 .bd .slot { cursor: pointer; outline: none; }
-.bd .slot .mark { fill: var(--surface); fill-opacity: .82; stroke: var(--accent); stroke-width: .45; stroke-dasharray: 1.1 .8; }
-.bd .slot .num { fill: var(--accent); font: 600 3.1px var(--body); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.bd .slot:hover .mark, .bd .slot:focus-visible .mark { fill: var(--accent-soft); fill-opacity: 1; }
-.bd .slot.sel .mark { fill: var(--accent); fill-opacity: 1; stroke-dasharray: none; }
-.bd .slot.sel .num { fill: var(--accent-ink); }
+.bd .slot .mark { fill: rgba(241, 246, 243, .08); stroke: rgba(188, 208, 202, .55); stroke-width: .3; }
+.bd .slot .num { fill: var(--stage-muted); font: 600 2.6px var(--body); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.bd .slot:hover .mark, .bd .slot:focus-visible .mark { fill: rgba(140, 212, 203, .22); stroke: var(--glow); }
+.bd .slot.sel .mark { fill: rgba(140, 212, 203, .32); stroke: var(--glow); stroke-width: .45; filter: url(#bd-glow); }
+.bd .slot.sel .num { fill: var(--stage-ink); }
 .bd .hung { cursor: pointer; outline: none; }
 /* Hit only where the charm's metal is, not its picture's transparent corners. */
 .bd .hung image { pointer-events: none; }
@@ -999,149 +1041,216 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 #spots-pick .dot { pointer-events: all; cursor: pointer; display: grid; place-items: center;
   width: 18px; height: 18px; margin: -9px 0 0 -9px; font: 700 10px/1 var(--body); color: var(--accent); }
 .bd .hung .halo { pointer-events: all; }
-.bd .hung.sel .halo { stroke: var(--accent); stroke-width: .5; fill: none; stroke-dasharray: 1.2 .9; }
-.bd .hung:focus-visible .halo { stroke: var(--accent); stroke-width: .5; fill: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .bd .slot.sel .mark { animation: bd-pulse 1.6s ease-in-out infinite; }
-}
-@keyframes bd-pulse { 50% { fill-opacity: .7; } }
+.bd .hung.sel .halo { stroke: var(--glow); stroke-width: .4; fill: rgba(140, 212, 203, .05); stroke-dasharray: 1.2 .9; }
+.bd .hung:focus-visible .halo { stroke: var(--glow); stroke-width: .5; fill: none; }
 
-.bd-panel {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
-  box-shadow: var(--shadow-sm); display: grid; align-content: start; min-width: 0;
+/* ---- the two hands, above the stage ---- */
+.bd-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 1px solid var(--line); }
+.bd-hands button {
+  min-height: 52px; border: none; border-radius: 0; background: none; font: inherit; color: var(--muted);
+  display: grid; gap: 0; justify-items: center; align-content: center; cursor: pointer;
+  box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s, background .15s;
 }
-.bd-panel > section { padding: 20px 22px; border-top: 1px solid var(--line); display: grid; gap: 14px; }
-.bd-panel > section:first-child { border-top: none; }
-.bd-panel h2 { font-size: 24px; line-height: 1.2; }
-.bd-panel h3 { font-family: var(--body); font-size: 15px; font-weight: 700; }
+.bd-hands button b { font-size: 16px; font-weight: 600; color: inherit; }
+.bd-hands button small { font-size: 13px; }
+.bd-hands button:hover { color: var(--ink); }
+.bd-hands button[aria-pressed="true"] { color: var(--ink); background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* ---- the panel ---- */
+.bd-panel { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.bd-panel > section {
+  padding: 20px 24px; display: grid; gap: 16px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 16px;
+}
+.bd-panel h2 { font-size: 22px; line-height: 28px; }
+.bd-panel h3 { font-family: var(--body); font-size: 16px; font-weight: 600; }
 .bd-panel p { margin: 0; font-size: 15px; color: var(--muted); }
+.bd-sect-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bd-sect-head .aside { font-size: 14px; color: var(--muted); }
 
-.bd-steps { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
-.bd-steps li { display: flex; align-items: center; gap: 6px; }
+.bd-steps { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+.bd-steps li { display: flex; align-items: center; gap: 8px; }
 .bd-steps li b {
-  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
-  border: 1px solid var(--line-strong); font-size: 12px;
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--line-strong); font-size: 13px;
 }
 .bd-steps li.now { color: var(--ink); font-weight: 600; }
 .bd-steps li.now b { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .bd-steps li.done b { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
-.bd-steps li + li::before { content: ""; width: 14px; height: 1px; background: var(--line-strong); margin-right: 2px; }
+.bd-steps li + li::before { content: ""; width: 20px; height: 1px; background: var(--line-strong); margin-right: 2px; }
 
-.bd-bangles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.bd-bangles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .bd-bangle {
-  display: grid; gap: 6px; padding: 12px; text-align: left; border-radius: 14px;
-  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: inherit;
+  display: grid; gap: 6px; padding: 10px; text-align: left; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: inherit; min-width: 0;
 }
 .bd-bangle:hover:not(:disabled) { border-color: var(--accent); }
 .bd-bangle[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.bd-bangle { min-width: 0; }
-.bd-bangle .art { position: relative; aspect-ratio: 1; width: 100%; border-radius: 10px; overflow: hidden;
-  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
-.bd-bangle .art img { position: absolute; inset: 9%; width: 82%; height: 82%; object-fit: contain; }
-.bd-bangle .nm { font-weight: 600; font-size: 15px; }
-.bd-bangle .sub { font-size: 13px; color: var(--muted); }
-
-.bd-base { display: flex; align-items: center; gap: 12px; }
-.bd-base img { width: 48px; height: 48px; object-fit: contain; }
-.bd-base .nm { font-weight: 600; }
-.bd-base .sub { font-size: 13px; color: var(--muted); }
-.bd-base .spacer { flex: 1; }
-
-.bd-spot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.bd-spot .step { width: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 18px; }
-.bd-spot .where { flex: 1; min-width: 140px; }
-.bd-spot .where b { display: block; font-size: 17px; }
-.bd-spot .where span { font-size: 13px; color: var(--muted); }
-
-.bd-chosen {
-  display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center;
-  padding: 12px; border-radius: 14px; background: var(--surface-2);
+.bd-bangle .art, .bd-charm .art, .bd-base .art {
+  position: relative; aspect-ratio: 1; width: 100%; border-radius: 12px; overflow: hidden;
+  background: radial-gradient(90% 80% at 35% 25%, var(--stage-1) 0%, #133331 55%, var(--stage-2) 100%);
 }
-.bd-chosen .art { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 10px; overflow: hidden;
-  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
-.bd-chosen .art img { max-width: 80%; max-height: 80%; object-fit: contain; }
-.bd-chosen .nm { font-weight: 700; font-size: 16px; }
-.bd-chosen .sub { font-size: 13px; color: var(--muted); }
-.bd-chosen .acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.bd-bangle .art img { position: absolute; inset: 10%; width: 80%; height: 80%; object-fit: contain; }
+.bd-bangle .nm { font-weight: 600; font-size: 16px; }
+.bd-bangle .sub { font-size: 14px; color: var(--muted); }
+
+.bd-base { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 14px; }
+.bd-base .art { width: 56px; }
+.bd-base .art img { position: absolute; inset: 8%; width: 84%; height: 84%; object-fit: contain; }
+.bd-base .nm { font-weight: 600; font-size: 16px; }
+.bd-base .sub { font-size: 14px; color: var(--muted); }
+
+/* ---- spots: one numbered button per spot on the bangle ---- */
+.bd-spots { display: flex; gap: 6px; flex-wrap: wrap; }
+.bd-spots button {
+  position: relative; width: 44px; height: 44px; padding: 0; border-radius: 10px; font: 600 16px var(--body);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer;
+}
+.bd-spots button.filled { background: var(--surface-2); border-color: var(--surface-2); }
+.bd-spots button.filled::after {
+  content: ""; position: absolute; right: 4px; top: 4px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--gold);
+}
+.bd-spots button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* ---- strand length: a 3 by 2 set of presets ---- */
+.bd-lens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.bd-lens button {
+  min-height: 48px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface);
+  font: 600 15px var(--body); color: var(--ink); cursor: pointer; display: grid; gap: 0; align-content: center;
+}
+.bd-lens button small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.bd-lens button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.bd-lens button[aria-pressed="true"] small { color: inherit; opacity: .85; }
+.bd-lens button:disabled { opacity: .45; cursor: not-allowed; }
 
 .bd-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .bd-chip {
   border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit;
-  font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer; min-height: 38px;
+  font-size: 15px; padding: 8px 14px; border-radius: 10px; cursor: pointer; min-height: 44px;
   display: inline-flex; align-items: center; gap: 8px;
 }
 .bd-chip:hover:not(:disabled) { border-color: var(--accent); }
 .bd-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.bd-chip .sw { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
-.bd-chip img { width: 20px; height: 20px; object-fit: contain; }
-.bd-label { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
-.bd-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.bd-hands .bd-chip { justify-content: center; flex-direction: column; gap: 0; border-radius: 12px; padding: 8px 10px; }
-.bd-hands small { font-size: 12px; font-weight: 400; opacity: .8; }
-.bd-on { display: inline-flex; }
-.bd-on .bd-chip:first-child { border-radius: 999px 0 0 999px; }
-.bd-on .bd-chip.x { border-radius: 0 999px 999px 0; border-left: none; padding: 7px 11px; }
-.bd-strand-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.bd-chip .sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
+.bd-chip img { width: 24px; height: 24px; object-fit: contain; }
+.bd-label { font-size: 14px; font-weight: 600; color: var(--muted); }
 
-.bd-find { display: flex; gap: 8px; align-items: center; }
-.bd-find input { flex: 1; min-width: 0; font-size: 15px; }
-.bd-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
-.bd-cats .bd-chip { flex: none; font-size: 13px; min-height: 34px; padding: 5px 12px; }
-
-.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
-.bd-charm {
-  display: grid; gap: 4px; padding: 8px 8px 10px; border-radius: 14px; border: 1px solid var(--line);
-  background: var(--surface); cursor: pointer; font: inherit; color: inherit; text-align: center;
-  transition: border-color .14s, transform .1s;
+/* ---- the charms on the selected strand, top to bottom ---- */
+.bd-list { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.bd-on {
+  display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  min-height: 56px; padding: 8px 8px 8px 14px; border-top: 1px solid var(--line); background: var(--surface);
 }
-.bd-charm:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
-.bd-charm:disabled { opacity: .45; }
-.bd-charm { min-width: 0; }
-.bd-charm .art { position: relative; aspect-ratio: 1; width: 100%; border-radius: 10px; overflow: hidden;
-  background: radial-gradient(circle at 50% 35%, var(--stage-1), var(--stage-2)); }
-.bd-charm .art img { position: absolute; inset: 11%; width: 78%; height: 78%; object-fit: contain;
-  filter: drop-shadow(0 1px 1.5px rgba(40, 24, 10, .28)); }
-.bd-charm .nm { font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
-.bd-charm .pr { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.bd-charm .out { font-size: 12px; color: var(--crimson); font-weight: 600; }
-.bd-charm.cur { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.bd-on:first-child { border-top: none; }
+.bd-on.swapping { background: var(--accent-soft); }
+.bd-on .n { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+.bd-on .thumb { position: relative; width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+  background: radial-gradient(90% 80% at 35% 25%, var(--stage-1), var(--stage-2)); }
+.bd-on .thumb img { position: absolute; inset: 8%; width: 84%; height: 84%; object-fit: contain; }
+.bd-on .nm { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-on .acts { display: flex; gap: 2px; }
+.bd-on .acts button {
+  min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent; background: none;
+  font: 600 14px var(--body); color: var(--accent); cursor: pointer;
+}
+.bd-on .acts button:hover { border-color: var(--line-strong); }
+.bd-on .acts button.x { color: var(--crimson); }
+.bd-swapnote {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 8px 8px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); font-size: 15px;
+}
+.bd-swapnote button { min-height: 40px; }
+.bd-strand-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+.bd-strand-sum b { font-variant-numeric: tabular-nums; }
+
+/* ---- the catalogue ---- */
+.bd-find { display: flex; gap: 8px; align-items: center; }
+.bd-find input { flex: 1; min-width: 0; font-size: 16px; min-height: 44px; }
+.bd-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.bd-cats .bd-chip { flex: none; font-size: 14px; min-height: 40px; padding: 6px 14px; border-radius: 999px; }
+
+.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 16px 12px; }
+.bd-charm {
+  display: grid; gap: 4px; padding: 0; border: none; background: none; cursor: pointer;
+  font: inherit; color: inherit; text-align: left; min-width: 0;
+}
+.bd-charm .art { margin-bottom: 6px; transition: box-shadow .15s, transform .12s; }
+.bd-charm:hover:not(:disabled) .art { box-shadow: 0 0 0 2px var(--accent), var(--shadow-md); transform: translateY(-1px); }
+.bd-charm:focus-visible { outline: none; }
+.bd-charm:focus-visible .art { box-shadow: 0 0 0 3px var(--accent); }
+.bd-charm:active:not(:disabled) .art { transform: scale(.98); }
+.bd-charm .art img { position: absolute; inset: 14%; width: 72%; height: 72%; object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .45)); }
+.bd-charm .nm { font-size: 15px; line-height: 20px; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; }
+.bd-charm .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bd-charm .pr { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums lining-nums; }
+.bd-charm .add { font-size: 14px; font-weight: 600; color: var(--accent); }
+.bd-charm .out { font-size: 14px; color: var(--crimson); font-weight: 600; }
+.bd-charm:disabled { cursor: not-allowed; }
+.bd-charm:disabled .art img { filter: grayscale(.6) drop-shadow(0 4px 6px rgba(0,0,0,.45)); opacity: .7; }
+.bd-charm.cur .art { box-shadow: 0 0 0 2px var(--accent); }
 
 .bd-tools { display: flex; gap: 8px; flex-wrap: wrap; }
-.bd-tools button { font-size: 14px; }
-.bd-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-size: 14px; }
+.bd-tools button { font-size: 15px; min-height: 44px; }
+.bd-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-size: 15px; min-height: 44px; }
 
+/* ---- the purchase bar ---- */
 .bd-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  display: flex; align-items: center; gap: 16px; padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
-  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(36, 27, 38, .08);
+  display: flex; align-items: center; gap: 16px; min-height: var(--bar-h);
+  padding: 12px max(40px, calc((100vw - 1360px) / 2 + 40px)) calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(7, 27, 28, .08);
 }
-.bd-bar .bd-sum { flex: 1; display: flex; align-items: baseline; gap: 14px; min-width: 0; }
-.bd-bar .bd-sum span { color: var(--muted); font-size: 14px; }
-.bd-bar .bd-sum b { font-family: var(--display); font-size: 26px; font-weight: 400; color: var(--accent); font-variant-numeric: tabular-nums; }
-.bd-bar .solid { font-size: 16px; padding: 12px 22px; border-radius: 999px; }
+.bd-bar .bd-sum { flex: 1; display: flex; align-items: baseline; gap: 16px; min-width: 0; }
+.bd-bar .bd-sum span { color: var(--muted); font-size: 15px; }
+.bd-bar .bd-sum b { font-family: var(--body); font-size: 26px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums lining-nums; }
+.bd-bar .solid { font-size: 16px; min-width: 208px; min-height: 48px; padding: 0 24px; border-radius: 10px; }
 .bd-amend {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 24px;
-  background: var(--ochre-soft); font-size: 14px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 40px;
+  background: var(--ochre-soft); font-size: 15px;
 }
 .bd-amend span { flex: 1; }
+body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
 
 @media (max-width: 560px) {
-  .masthead { padding: 10px 12px; gap: 10px; flex-wrap: nowrap; }
-  .wordmark { font-size: 17px; letter-spacing: .02em; }
-  .modes button { padding: 6px 11px; }
+  /* Wordmark and account on one row, the sections on their own row beneath. */
+  .masthead { padding: 8px 16px 0; gap: 4px 12px; flex-wrap: wrap; min-height: 56px; }
+  .wordmark { font-size: 18px; letter-spacing: .03em; flex: 1; }
+  .modes { order: 3; width: 100%; gap: 0; }
+  .modes button { flex: 1; padding: 0 4px; font-size: 15px; }
+  .acct .who { max-width: 12ch; }
   .acct button { padding: 6px 10px; }
 }
 @media (max-width: 900px) {
-  .bd { grid-template-columns: 1fr; padding: 12px 12px 0; gap: 12px; }
-  .bd-stage-col { position: sticky; top: 0; z-index: 5; background: var(--ground); padding-bottom: 6px; }
-  .bd-stage { aspect-ratio: auto; height: min(46vh, 92vw); max-height: none; border-radius: 16px; }
+  .bd-head { padding: 16px 16px 0; }
+  .bd-head h1 { font-size: 28px; line-height: 36px; }
+  .bd-head .bd-steps { display: none; }
+  .bd { grid-template-columns: 1fr; padding: 12px 16px 0; gap: 12px; }
+  .bd-stage-col { position: sticky; top: 0; z-index: 5; background: var(--ground); padding: 8px 0; gap: 8px; }
+  .bd-stage { aspect-ratio: auto; height: 300px; max-height: none; border-radius: 16px; transition: height .16s ease-out; }
+  /* Choosing charms: the stage becomes a strip, so the catalogue has the room. */
+  #builder.compact .bd-stage { height: 104px; }
+  #builder.compact .bd-caption { display: none; }
+  #builder.compact .bd-expand { display: inline-flex; }
+  .bd-expand {
+    position: absolute; right: 8px; bottom: 8px; z-index: 2; min-height: 36px; padding: 0 12px;
+    border-radius: 8px; border: 1px solid rgba(241,246,243,.4); background: rgba(7,27,28,.6);
+    color: var(--stage-ink); font: 600 13px var(--body); align-items: center;
+  }
   .bd-caption { font-size: 13px; }
   .bd-panel > section { padding: 16px; }
   .bd-panel h2 { font-size: 21px; }
-  .bd-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .bd-bar { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
+  .bd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+  .bd-bar { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 12px; }
   .bd-bar .bd-sum { flex-direction: column; gap: 0; }
   .bd-bar .bd-sum b { font-size: 22px; }
+  .bd-bar .solid { min-width: 0; }
+  .bd-amend { padding: 10px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bd-stage { transition: none; }
 }
 </style>
 
@@ -1172,8 +1281,16 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
     <span>Changing order <b id="bd-amend-no">—</b>. Place it again to save the changes to the same order.</span>
     <button id="bd-amend-drop">Keep it as it was</button>
   </div>
+  <header class="bd-head">
+    <div>
+      <h1>Create your kaleera pair</h1>
+      <p>Choose a bangle for each hand, then hang strands of charms from its spots.</p>
+    </div>
+    <div id="bd-progress"></div>
+  </header>
   <div class="bd">
     <section class="bd-stage-col" aria-label="Your bangle">
+      <div class="bd-hands" id="bd-handbar" role="group" aria-label="Which hand"></div>
       <div class="bd-stage" id="bd-stage"></div>
       <p class="bd-caption" id="bd-caption"></p>
     </section>
@@ -1181,7 +1298,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </div>
   <div class="bd-bar">
     <div class="bd-sum">
-      <span id="bd-count">Nothing hung yet</span>
+      <span id="bd-count">Nothing on it yet</span>
       <b id="bd-total">—</b>
     </div>
     <button class="solid" id="bd-order" disabled>Review &amp; order</button>
@@ -1419,9 +1536,10 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 </dialog>
 
 <dialog id="dlg-checkout">
-  <header><h2>Confirm your piece</h2></header>
+  <header><h2 id="ck-title">Review your pair</h2></header>
   <form id="form-checkout">
-    <div class="body">
+    <div class="body ck-body">
+      <div class="ck-look" id="ck-preview" hidden></div>
       <div id="ck-lines"></div>
       <fieldset>
         <legend>How you'll receive it</legend>
@@ -1444,7 +1562,7 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
         <label class="f"><span>Your name *</span><input name="name" required autocomplete="name"></label>
         <label class="f"><span>Phone *</span><input name="phone" required inputmode="tel" autocomplete="tel"></label>
       </div>
-      <label class="f"><span>Email * — we'll email you as your order moves along</span>
+      <label class="f"><span>Email * (we email you as your order moves along)</span>
         <input name="email" type="email" required autocomplete="email"></label>
       <label class="f"><span>Notes for the maker</span><textarea name="notes" placeholder="Initial letters, wrist size, engraving, the date you need it by…"></textarea></label>
       <p class="notice" id="ck-error" hidden></p>
@@ -1763,12 +1881,15 @@ function money(n) {
   });
 }
 
+/** One message at a time: a newer one replaces the last, so they never pile up over the page. */
 function toast(msg, kind = '') {
+  const box = $('#toasts');
+  box.setAttribute('role', 'status');
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
   el.textContent = msg;
-  $('#toasts').append(el);
-  setTimeout(() => el.remove(), 4300);
+  box.replaceChildren(el);
+  setTimeout(() => el.remove(), kind === 'bad' ? 6000 : 4300);
 }
 
 /**
@@ -2608,7 +2729,7 @@ function hangFromSheet(item, v) {
   if (item.role === 'bangle') { S.build.choosing = false; setMode('build'); chooseBangle(item.id, v.id); return; }
   setMode('build');
   if (item.role === 'chain') { toast('Tap a spot on your bangle, then choose a strand length and this chain.'); return; }
-  if (!S.build.baseId) { toast('Choose your bangle first — then the charm goes on it.'); return; }
+  if (!S.build.baseId) { toast('Choose your bangle first, then the charm goes on it.'); return; }
   const b = S.build;
   b.at = -1;
   let hung = 0;
@@ -2625,7 +2746,7 @@ function hangFromSheet(item, v) {
     if (hungCount() === before) break;
     hung++;
   }
-  if (!hung) toast('Every spot is taken — choose a longer strand, or tap a charm on the bangle to swap it.', 'bad');
+  if (!hung) toast('Every spot is taken. Choose a longer strand, or tap a charm on the bangle to swap it.', 'bad');
 }
 
 /* ------------------------------------------------------------ tray dialog */
@@ -3794,12 +3915,26 @@ async function startOrder() {
 
 function openCheckout() {
   const { lines, items } = paintBill();
+  // The pair, as it will be made, beside what it costs: seen before it is ordered, not after.
+  const look = $('#ck-preview');
+  const pair = S.build.active && Object.values(S.build.hands).filter((h) => h.baseId).length === 2;
+  $('#ck-title').textContent = S.build.active ? (pair ? 'Review your pair' : 'Review your design') : 'Confirm your piece';
+  look.hidden = !S.build.active;
+  if (S.build.active) {
+    look.innerHTML = '<div class="ck-shot"></div>';
+    buildSnapshot(640).then((src) => {
+      if (src) look.querySelector('.ck-shot').innerHTML = `<img src="${src}" alt="Your ${pair ? 'pair' : 'design'}, as it will be made">`;
+    }).catch(() => {});
+    look.insertAdjacentHTML('beforeend', `<p class="muted">No payment is taken here. The studio checks your ${pair ? 'pair' : 'design'}, confirms it with you, then sends payment details.</p>
+      <button type="button" class="bd-link" id="ck-edit">Change the design</button>`);
+    $('#ck-edit').addEventListener('click', () => $('#dlg-checkout').close());
+  }
   $('#ck-lines').innerHTML = `<ul class="bill">${lines.map((l) =>
     `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
      <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
     <div class="sum" id="ck-sum"></div>`;
   $('#ck-area').innerHTML = S.zones.length
-    ? S.zones.map((z) => `<option value="${esc(z.id)}">${esc(z.area)} — ${money(z.cost)}${
+    ? S.zones.map((z) => `<option value="${esc(z.id)}">${esc(z.area)}, ${money(z.cost)}${
         z.eta ? ` · ${esc(z.eta)} days` : ''}</option>`).join('')
     : '<option value="">No delivery areas set up</option>';
   $('#ck-error').hidden = true;
@@ -3819,7 +3954,7 @@ function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) 
   if (node) {
     node.innerHTML = `
       <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
-      <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'free — collect in studio'}</span></div>
+      <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'Free, collect from the studio'}</span></div>
       <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
   }
   paintBill();
@@ -3854,7 +3989,7 @@ async function submitOrder(form) {
       if (free < l.qty) {
         short.push(free === 0
           ? `${label(item, l.variantId)} has just sold out.`
-          : `Only ${free} of ${label(item, l.variantId)} left to sell — your piece uses ${l.qty}.`);
+          : `Only ${free} of ${label(item, l.variantId)} left to sell. Your design uses ${l.qty}.`);
       }
     }
   }
@@ -3933,12 +4068,12 @@ async function submitOrder(form) {
 function showDone(order) {
   const left = S.tray.length;
   $('#done-body').innerHTML = `
-    <p>Thank you — order <b class="mono">${esc(order.no)}</b> is on the book.</p>
+    <p>Thank you. Order <b class="mono">${esc(order.no)}</b> is on the book.</p>
     ${order.snapshot ? `<img class="snapshot" src="${esc(order.snapshot)}"
       alt="The piece you designed" style="margin-bottom:14px">` : ''}
     <div class="sum">
       <div><span>Pieces used</span><span class="num">${money(order.itemsTotal)}</span></div>
-      <div><span>Delivery${order.area ? ` — ${esc(order.area)}` : ''}</span>
+      <div><span>Delivery${order.area ? ` to ${esc(order.area)}` : ''}</span>
         <span class="num">${order.shipping ? money(order.shipping) : 'free'}</span></div>
       <div class="grand"><span>Total</span><span>${money(order.total)}</span></div>
     </div>
@@ -3973,7 +4108,7 @@ const DEFAULT_COMMENT = {
   making: 'We have started making your piece.',
   ready: 'Your piece is ready.',
   dispatched: 'Your piece is on its way.',
-  done: 'Order completed — thank you.',
+  done: 'Order completed. Thank you.',
 };
 
 /* Once an order is Ready its pieces have been pulled out of the drawer and put
@@ -4318,8 +4453,8 @@ function viewSetup() {
           are charged only for what ends up on the piece; unused picks stay in their tray or go back.</p>
         <p style="margin:0"><b>Stock is per colour.</b> Each colour has its own SKU and count, so
           "gold heart" running out doesn't hide the silver one.</p>
-        <p class="muted" style="margin:0">The PIN keeps the studio out of the way on a shared screen —
-          it is not a security boundary. Anyone you send this link to can reach the shop.</p>
+        <p class="muted" style="margin:0">The studio opens only for the shop's owner and editors. Each
+          customer's details and orders are private to them and to you.</p>
       </div>
     </section>
   </div>`;
@@ -5546,6 +5681,7 @@ function setMode(mode) {
   $('#mode-design').hidden = S.build.active && mode !== 'design';
   $('#mode-studio').hidden = !S.isStudio;
   $('#builder').hidden = mode !== 'build' || !S.ready;
+  document.body.classList.toggle('in-build', mode === 'build');
   // "live / reconnecting" is for the studio; a shopper only needs to hear if it fails.
   $('#conn').hidden = mode !== 'studio' && !/offline|read-only/.test($('#conn').textContent);
   $('#browse').hidden = mode !== 'browse' || !S.ready;
@@ -6568,10 +6704,13 @@ function paintStageSvg() {
   if (!host) return;
   const L = layout();
   if (!L) {
-    host.innerHTML = `<div class="empty-note"><b style="font-size:18px;color:var(--ink)">Your bangle appears here</b>
+    host.innerHTML = `<div class="empty-note"><b style="font-size:18px">Your bangle appears here</b>
       <span>Choose one to start.</span></div>`;
     return;
   }
+  // A different hand fades in, so it is clear the stage changed over.
+  const fresh = paintStageSvg.hand !== S.build.hand;
+  paintStageSvg.hand = S.build.hand;
   const v = L.view;
   const sel = S.build.sel;
   // Outer spots first, so the middle charm sits in front, as it does when worn.
@@ -6597,38 +6736,47 @@ function paintStageSvg() {
       <text class="num" x="${s.ring.x}" y="${s.ring.y + 1.7}">${s.i + 1}</text>
     </g>`)).join('');
 
-  host.innerHTML = `<svg viewBox="${v.x} ${v.y} ${v.w} ${v.h}" xmlns="http://www.w3.org/2000/svg" role="img"
+  host.innerHTML = `<svg class="${fresh ? 'fresh' : ''}" viewBox="${v.x} ${v.y} ${v.w} ${v.h}" xmlns="http://www.w3.org/2000/svg" role="img"
       aria-label="Your ${HANDS[S.build.hand].toLowerCase()} bangle with ${hungCount()} charm${hungCount() === 1 ? '' : 's'}">
     <defs>
       ${metalGradient('bd-metal', L.metal)}
       <filter id="bd-shadow" x="-30%" y="-30%" width="160%" height="170%">
-        <feDropShadow dx=".35" dy=".9" stdDeviation=".65" flood-color="#2a1a0c" flood-opacity=".32"/>
+        <feDropShadow dx=".45" dy="1.1" stdDeviation=".8" flood-color="#000" flood-opacity=".55"/>
       </filter>
-      <radialGradient id="bd-floor"><stop offset="0" stop-color="#2a1a0c" stop-opacity=".16"/>
-        <stop offset="1" stop-color="#2a1a0c" stop-opacity="0"/></radialGradient>
+      <filter id="bd-glow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation=".9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <radialGradient id="bd-floor"><stop offset="0" stop-color="#000" stop-opacity=".38"/>
+        <stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
     </defs>
     <ellipse cx="0" cy="${L.H / 2 + 3}" rx="${L.W * 0.55}" ry="${L.W * 0.09}" fill="url(#bd-floor)"/>
     <g filter="url(#bd-shadow)">${pieceSvg({ ...L.baseImg, glyph: L.baseImg.glyph })}</g>
     ${hungs}
     ${marks}
-  </svg>`;
+  </svg><button class="bd-expand" data-bd="expand" type="button">Expand preview</button>`;
   warmArt();
+  if (fresh) swayAll();
 }
 
-/* A charm that has just been hung swings, and settles — a pendulum, damped. */
-function swing(i, amp = 13) {
+/* A charm that has just been hung swings, and settles: a pendulum, damped. */
+function swing(i, amp = 7) {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const t0 = performance.now();
   const frame = (now) => {
     const g = $(`#bd-stage .hung[data-slot="${i}"] .swing`);
     if (!g) return;
     const t = (now - t0) / 1000;
-    const a = amp * Math.exp(-t / 0.75) * Math.cos(t * 2 * Math.PI / 1.05);
+    const a = amp * Math.exp(-t / 0.5) * Math.cos(t * 2 * Math.PI / 0.95);
     g.setAttribute('transform', `rotate(${a.toFixed(2)} ${g.dataset.px} ${g.dataset.py})`);
-    if (t < 3) requestAnimationFrame(frame);
+    if (t < 2.2) requestAnimationFrame(frame);
     else g.removeAttribute('transform');
   };
   requestAnimationFrame(frame);
+}
+
+/* Every strand stirs a little, each a beat after the last, the way a pair does when it is picked up. */
+function swayAll(amp = 3) {
+  S.build.slots.forEach((s, i) => { if (s) setTimeout(() => swing(i, amp), (i % 4) * 70); });
 }
 
 /* ----------------------------------------------------- order picture (canvas) */
@@ -6645,8 +6793,9 @@ async function buildSnapshot(size = 560) {
   cv.width = size * hands.length; cv.height = size;
   const g = cv.getContext('2d');
 
-  const bg = g.createRadialGradient(cv.width / 2, size * 0.3, size * 0.05, cv.width / 2, size * 0.3, cv.width * 0.9);
-  bg.addColorStop(0, '#fffdf8'); bg.addColorStop(1, '#efe7dc');
+  // The same velvet as the stage, so the order's picture is what the customer saw.
+  const bg = g.createRadialGradient(cv.width * 0.4, size * 0.3, size * 0.05, cv.width * 0.4, size * 0.3, cv.width * 0.9);
+  bg.addColorStop(0, '#2b5a56'); bg.addColorStop(0.45, '#133331'); bg.addColorStop(1, '#071b1c');
   g.fillStyle = bg; g.fillRect(0, 0, cv.width, size);
 
   for (const [n, hand] of hands.entries()) {
@@ -6679,7 +6828,7 @@ async function buildSnapshot(size = 560) {
     };
 
     if (hands.length > 1) {
-      g.fillStyle = '#7a6a5c'; g.font = `600 ${Math.round(size / 32)}px system-ui, sans-serif`; g.textAlign = 'center';
+      g.fillStyle = '#bcd0ca'; g.font = `600 ${Math.round(size / 32)}px system-ui, sans-serif`; g.textAlign = 'center';
       g.fillText(HANDS[hand], n * size + size / 2, size / 20);
     }
     await piece(F.baseImg);
@@ -7063,39 +7212,44 @@ function commit() {
 /* --------------------------------------------------------------- the panel */
 
 function stepsHtml(now) {
-  const names = ['Bangle', 'Charms', 'Order'];
+  const names = ['Bangle', 'Charms', 'Review'];
   return `<ol class="bd-steps">${names.map((n, i) => `<li class="${i === now ? 'now' : i < now ? 'done' : ''}">
     <b>${i < now ? '✓' : i + 1}</b>${n}</li>`).join('')}</ol>`;
 }
 
 /** The two hands of the pair, each designed on its own. */
 function handsHtml() {
-  return `<div class="bd-hands" role="group" aria-label="Which hand">${Object.entries(HANDS).map(([h, name]) => {
+  return Object.entries(HANDS).map(([h, name]) => {
     const n = hungCount(h);
     const base = S.build.hands[h].baseId;
-    return `<button class="bd-chip" data-hand="${h}" aria-pressed="${h === S.build.hand}">
-      ${name}<small>${base ? `${n} charm${n === 1 ? '' : 's'}` : 'not started'}</small></button>`;
-  }).join('')}</div>`;
+    return `<button type="button" data-hand="${h}" aria-pressed="${h === S.build.hand}">
+      <b>${name}</b><small>${base ? `${n} charm${n === 1 ? '' : 's'}` : 'Not started'}</small></button>`;
+  }).join('');
 }
+
+const artImg = (it, variantId, lazy) => {
+  const src = it ? charmArt(it, variantId).src : '';
+  return src ? `<img src="${esc(src)}" alt=""${lazy ? ' loading="lazy"' : ''}>` : `<span style="font-size:30px">${esc(it ? it.glyph : '')}</span>`;
+};
 
 function banglePicker() {
   const list = bangles();
   if (!list.length) {
-    return `<section>${stepsHtml(0)}<h2>Bangles are on their way</h2>
-      <p>The studio hasn't listed a bangle yet. Browse the collection meanwhile.</p>
+    return `<section><h2>Bangles are on their way</h2>
+      <p>The studio has not listed a bangle yet. Browse the collection meanwhile.</p>
       <div><button class="solid" data-bd="browse">See the collection</button></div></section>`;
   }
   const other = HANDS[otherHand()].toLowerCase();
-  return `<section>${handsHtml()}${stepsHtml(0)}<h2>Choose the bangle for your ${HANDS[S.build.hand].toLowerCase()}</h2>
-    <p>Everything you pick hangs from it, at its real size.</p>
+  return `<section><h2>Choose the bangle for your ${HANDS[S.build.hand].toLowerCase()}</h2>
+    <p>Every strand hangs from it, drawn in proportion.</p>
     ${!S.build.baseId && S.build.hands[otherHand()].baseId ? `<div class="bd-tools">
-      <button data-bd="copy-back">Same as the ${other}</button>
+      <button class="solid" data-bd="copy-back">Same as the ${other}</button>
       <button data-bd="mirror-back">Mirror the ${other}</button></div>` : ''}
     <div class="bd-bangles">${list.map((it) => {
       const free = itemAddable(it) + (it.id === S.build.baseId ? 1 : 0);
       return `<button class="bd-bangle" data-bangle="${esc(it.id)}" aria-pressed="${it.id === S.build.baseId}"
           ${free > 0 ? '' : 'disabled'}>
-        <span class="art">${charmArt(it, firstInStock(it)).src ? `<img src="${esc(charmArt(it, firstInStock(it)).src)}" alt="">` : shotHtml(it, firstInStock(it))}</span>
+        <span class="art">${artImg(it, firstInStock(it))}</span>
         <span class="nm">${esc(it.name)}</span>
         <span class="sub">${hasSize(it) ? `${cm(it.widthMm)} cm across · ` : ''}${money(it.price)}${free > 0 ? '' : ' · sold out'}</span>
       </button>`;
@@ -7105,37 +7259,39 @@ function banglePicker() {
 
 function spotHtml() {
   const b = S.build;
-  const n = b.slots.length;
   const s = b.slots[b.sel];
   const used = b.slots.filter(Boolean).length;
-  const head = `<div class="bd-spot">
-      <button class="step" data-bd="prev" aria-label="Previous spot">‹</button>
-      <div class="where"><b>Spot ${b.sel + 1} of ${n}</b>
-        <span>${used} of ${n} spots used — tap any spot on the bangle</span></div>
-      <button class="step" data-bd="next" aria-label="Next spot">›</button>
-    </div>`;
+  const spots = `<div class="bd-sect-head"><h3>Spot ${b.sel + 1}</h3>
+      <span class="aside">${used} of ${b.slots.length} spots used</span></div>
+    <div class="bd-spots" role="group" aria-label="Spots on the bangle">${b.slots.map((x, i) =>
+      `<button type="button" data-spot-pick="${i}" class="${x ? 'filled' : ''}" aria-pressed="${i === b.sel}"
+        aria-label="Spot ${i + 1}${x ? `, ${x.charms.length} charm${x.charms.length === 1 ? '' : 's'}` : ', empty'}">${i + 1}</button>`).join('')}</div>`;
   const chs = chains();
   const len = lenOf(s);
   const lengths = chs.length ? `<div class="bd-label">Strand length</div>
-    <div class="bd-chips">${LENGTHS.map((c) => `<button class="bd-chip" data-len="${c}" aria-pressed="${c === len}"
+    <div class="bd-lens" role="group" aria-label="Strand length">${LENGTHS.map((c) => `<button type="button" data-len="${c}" aria-pressed="${c === len}"
       ${!c && s && s.charms.length > 1 ? 'disabled title="Room for one charm without a chain"' : ''}>
-      ${c ? `${c} cm` : 'On the bangle'}</button>`).join('')}</div>
+      ${c ? `${c} cm<small>up to ${Math.max(1, Math.floor(c / CM_PER_CHARM))} charms</small>` : 'No chain<small>one charm, on the bangle</small>'}</button>`).join('')}</div>
     ${len ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
         data-chain="${esc(c.id)}" aria-pressed="${c.id === s.chain.itemId}">
         ${charmArt(c, firstInStock(c)).src ? `<img src="${esc(charmArt(c, firstInStock(c)).src)}" alt="">` : ''}${esc(c.name)}</button>`).join('')}</div>` : ''}` : '';
   if (!s) {
-    return `${head}<p>Pick a charm below and it hangs on spot ${b.sel + 1}${chs.length ? ' — or choose a length first, to hang several down a strand' : ''}.</p>${lengths}`;
+    return `${spots}${lengths}<p>Pick a charm below to hang it here${chs.length ? ', or choose a length first to hang several down a strand' : ''}.</p>`;
   }
   const k = focusAt();
-  const on = s.charms.length ? `<div class="bd-label">On this strand${len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}` : ''}</div>
-    <div class="bd-chips">${s.charms.map((c, i) => {
-      const it = itemOf(c.itemId);
-      const art = charmArt(it, c.variantId).src;
-      return `<span class="bd-on"><button class="bd-chip" data-at="${i}" aria-pressed="${i === k}">
-          ${art ? `<img src="${esc(art)}" alt="">` : ''}${esc(label(it, c.variantId))}</button><button class="bd-chip x"
-          data-off="${i}" aria-label="Take ${esc(it.name)} off">×</button></span>`;
-    }).join('')}</div>` : '';
+  const swapping = b.at >= 0 && k >= 0;
   const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
+  const list = s.charms.length ? `<div class="bd-label">On this strand${len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}` : ''}</div>
+    <div class="bd-list">${s.charms.map((c, i) => {
+      const it = itemOf(c.itemId);
+      return `<div class="bd-on${swapping && i === k ? ' swapping' : ''}">
+        <span class="n">${i + 1}</span>
+        <span class="thumb">${artImg(it, c.variantId)}</span>
+        <span class="nm">${esc(label(it, c.variantId))}</span>
+        <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
+          data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
+      </div>`;
+    }).join('')}</div>` : '';
   const colours = focus && focus.variants.length > 1 ? `<div class="bd-label">Colour of ${esc(focus.name)}</div><div class="bd-chips">${focus.variants.map((v) => {
     const ok = v.id === s.charms[k].variantId || addable(focus, v.id) > 0;
     return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
@@ -7143,15 +7299,16 @@ function spotHtml() {
   }).join('')}</div>` : '';
   const price = s.charms.reduce((t, c) => t + ((itemOf(c.itemId) || {}).price || 0), 0)
     + (len ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, len) : 0);
-  const hint = k >= 0 && len ? `Pick a charm below to swap ${esc(focus.name)}, or tap it again to add instead.`
-    : k >= 0 ? 'Pick another charm below to swap it.'
-      : s.charms.length < roomOn(s) ? 'Pick charms below to add them down the strand.'
-        : 'This strand is full — choose a longer one to add more.';
-  return `${head}
+  const note = swapping
+    ? `<div class="bd-swapnote"><span>Replacing <b>${esc(focus.name)}</b>. Pick a charm below.</span>
+        <button type="button" data-bd="cancel-swap">Cancel</button></div>`
+    : `<p>${k >= 0 ? 'Pick another charm below to swap it.'
+      : s.charms.length < roomOn(s) ? 'Add charms from top to bottom.'
+        : 'This strand is full. Choose a longer chain to add more.'}</p>`;
+  return `${spots}
     <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
-      <button data-bd="remove" class="warnbtn">Take the strand off</button></div>
-    ${lengths}${on}${colours}
-    <p style="font-size:14px">${hint}</p>`;
+      <button data-bd="remove" class="warnbtn">Remove strand</button></div>
+    ${lengths}${list}${colours}${note}`;
 }
 
 function pickerHtml() {
@@ -7164,20 +7321,21 @@ function pickerHtml() {
   const s = b.slots[b.sel];
   const k = focusAt();
   const cur = s && k >= 0 ? s.charms[k] : null;
-  return `<section>
+  const verb = cur ? 'Swap' : 'Add';
+  return `<section id="bd-charms">
+    <div class="bd-sect-head"><h3>Charms</h3><span class="aside">${shown.length} to choose from</span></div>
     <div class="bd-find"><input type="search" id="bd-find" placeholder="Search charms" aria-label="Search charms" value="${esc(b.find)}"></div>
     ${secs.length > 1 ? `<div class="bd-cats"><button class="bd-chip" data-cat="" aria-pressed="${!b.filter}">All</button>${secs.map((sec) =>
       `<button class="bd-chip" data-cat="${esc(sec.slug)}" aria-pressed="${b.filter === sec.slug}">${esc(sec.name)}</button>`).join('')}</div>` : ''}
     <div class="bd-grid">${shown.length ? shown.map((it) => {
       const out = itemAddable(it) <= 0 && !(cur && cur.itemId === it.id);
-      const art = charmArt(it, firstInStock(it));
       return `<button class="bd-charm${cur && cur.itemId === it.id ? ' cur' : ''}" data-charm="${esc(it.id)}" ${out ? 'disabled' : ''}
-          aria-label="${esc(it.name)}, ${esc(money(it.price))}${out ? ', sold out' : ''}">
-        <span class="art">${art.src ? `<img src="${esc(art.src)}" alt="" loading="lazy">` : `<span style="font-size:34px">${esc(it.glyph)}</span>`}</span>
+          aria-label="${verb} ${esc(it.name)}, ${esc(money(it.price))}${out ? ', sold out' : ''}">
+        <span class="art">${artImg(it, firstInStock(it), true)}</span>
         <span class="nm">${esc(it.name)}</span>
-        ${out ? '<span class="out">Sold out</span>' : `<span class="pr">${money(it.price)}</span>`}
+        <span class="meta"><span class="pr">${money(it.price)}</span>${out ? '<span class="out">Sold out</span>' : `<span class="add">${verb}</span>`}</span>
       </button>`;
-    }).join('') : '<p>Nothing matches that search.</p>'}</div>
+    }).join('') : `<p>Nothing matches that search. <button class="bd-link" data-bd="clear-find">Clear search</button></p>`}</div>
   </section>`;
 }
 
@@ -7185,7 +7343,7 @@ function paintBuilder() {
   if (S.mode !== 'build') return;
   const b = S.build;
   const base = itemOf(b.baseId);
-  // With exactly one bangle to be had there is no question to ask — for the
+  // With exactly one bangle to be had there is no question to ask, for the
   // first hand. The second may want to follow the first instead.
   if (!base && !b.choosing && !b.hands[otherHand()].baseId) {
     const list = bangles().filter((i) => itemAddable(i) > 0);
@@ -7193,39 +7351,55 @@ function paintBuilder() {
   }
   const panel = $('#bd-panel');
   const keepScroll = window.scrollY;
+  const focused = document.activeElement && document.activeElement.closest('#bd-panel') ? focusKey(document.activeElement) : '';
+  $('#bd-handbar').innerHTML = handsHtml();
+  $('#bd-progress').innerHTML = stepsHtml(!base || b.choosing ? 0 : 1);
   if (!base || b.choosing) {
     panel.innerHTML = banglePicker();
   } else {
     const n = hungCount();
     const other = HANDS[otherHand()].toLowerCase();
-    panel.innerHTML = `<section>${handsHtml()}${stepsHtml(1)}
-        <div class="bd-base">${charmArt(base, b.baseVariant).src ? `<img src="${esc(charmArt(base, b.baseVariant).src)}" alt="">` : ''}
+    panel.innerHTML = `<section>
+        <div class="bd-base"><span class="art">${artImg(base, b.baseVariant)}</span>
           <div><div class="nm">${esc(label(base, b.baseVariant))}</div>
           <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
-          <span class="spacer"></span>
-          ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : ''}</div>
+          ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : '<span></span>'}</div>
       </section>
       <section>${spotHtml()}</section>
       ${pickerHtml()}
       <section>
+        <div class="bd-sect-head"><h3>Finish the pair</h3></div>
+        <div class="bd-tools">
+          <button data-bd="copy" class="${n ? 'solid' : ''}" ${n ? '' : 'disabled'}>Copy to ${other}</button>
+          <button data-bd="copy-mirror" ${n ? '' : 'disabled'}>Mirror onto ${other}</button>
+        </div>
         <div class="bd-tools">
           <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
           <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
           <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
         </div>
-        <div class="bd-tools">
-          <button data-bd="copy" ${n ? '' : 'disabled'}>Copy to ${other}</button>
-          <button data-bd="copy-mirror" ${n ? '' : 'disabled'}>Mirror onto ${other}</button>
-        </div>
         <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
       </section>`;
   }
   window.scrollTo({ top: keepScroll });
+  // Put the keyboard back where it was, since the panel was redrawn under it.
+  if (focused) { const el = panel.querySelector(focused); if (el) el.focus({ preventScroll: true }); }
   paintStageSvg();
   paintBuildBar();
   const am = $('#bd-amend');
   am.hidden = !S.amending;
   if (S.amending) $('#bd-amend-no').textContent = S.amending.no;
+}
+
+/** A selector that finds the same control again after a redraw. */
+function focusKey(el) {
+  for (const k of ['charm', 'len', 'spotPick', 'at', 'off', 'bd', 'cat', 'colour', 'chain', 'bangle']) {
+    if (el.dataset && el.dataset[k] !== undefined) {
+      const attr = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+      return `[data-${attr}="${CSS.escape(el.dataset[k])}"]`;
+    }
+  }
+  return el.id ? `#${CSS.escape(el.id)}` : '';
 }
 
 function paintBuildBar() {
@@ -7234,12 +7408,14 @@ function paintBuildBar() {
   const bases = Object.values(S.build.hands).filter((h) => h.baseId).length;
   const n = pairCount();
   $('#bd-count').textContent = !bases ? 'Choose a bangle to begin'
-    : n ? `${bases === 2 ? 'A pair' : 'Bangle'} + ${n} charm${n === 1 ? '' : 's'}` : 'Your bangle — add charms';
-  $('#bd-total').textContent = bases ? money(total) : '—';
+    : n ? `${bases === 2 ? 'A pair' : 'One hand'} · ${n} charm${n === 1 ? '' : 's'}` : 'Your bangle, ready to add charms';
+  $('#bd-total').textContent = bases ? money(total) : '';
   $('#bd-order').disabled = !bases || !n;
+  $('#bd-order').textContent = bases === 2 ? 'Review your pair' : 'Review your design';
+  const s = S.build.slots[S.build.sel];
   $('#bd-caption').textContent = !S.build.baseId ? ''
-    : hungCount() ? 'Shown at its real size. Tap a strand to change it, or a numbered spot to start one.'
-      : 'Tap a numbered spot, then pick a length and charms to hang there.';
+    : hungCount() ? `Shown in proportion.${lenOf(s) ? ` Chain length: ${lenOf(s)} cm.` : ''} Tap a strand to change it.`
+      : 'Tap a spot on the bangle, then pick a length and charms.';
 }
 
 /* ----------------------------------------------------------------- wiring */
@@ -7260,11 +7436,30 @@ function wireBuilder() {
     if (S.build.slots[i]) swing(i, 6);
     // On a phone the list is below the stage; bring it up.
     if (matchMedia('(max-width: 900px)').matches) {
-      const pick = $('#bd-panel .bd-spot');
+      const pick = $('#bd-panel .bd-spots');
       if (pick) pick.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
-  $('#bd-stage').addEventListener('click', pickSlot);
+  $('#bd-stage').addEventListener('click', (e) => {
+    if (e.target.closest('[data-bd="expand"]')) { $('#builder').classList.remove('compact'); window.scrollTo({ top: 0 }); return; }
+    pickSlot(e);
+  });
+  $('#bd-handbar').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-hand]');
+    if (t) switchHand(t.dataset.hand);
+  });
+  // On a phone, once the catalogue is being browsed the stage shrinks to a strip.
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const grid = $('#bd-charms');
+      const small = matchMedia('(max-width: 900px)').matches && grid && grid.getBoundingClientRect().top < window.innerHeight * 0.5;
+      $('#builder').classList.toggle('compact', Boolean(small));
+    });
+  }, { passive: true });
   $('#bd-stage').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickSlot(e); }
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest('.hung')) unhang(Number(e.target.closest('.hung').dataset.slot));
@@ -7278,7 +7473,7 @@ function wireBuilder() {
     const t = e.target.closest('button');
     if (!t) return;
     const b = S.build;
-    if (t.dataset.hand) return switchHand(t.dataset.hand);
+    if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
     if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
     if (t.dataset.charm) return hang(t.dataset.charm);
     if (t.dataset.colour) return setColour(t.dataset.colour);
@@ -7293,8 +7488,8 @@ function wireBuilder() {
     }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
     switch (t.dataset.bd) {
-      case 'prev': b.sel = (b.sel - 1 + b.slots.length) % b.slots.length; b.at = -1; return paintBuilder();
-      case 'next': b.sel = (b.sel + 1) % b.slots.length; b.at = -1; return paintBuilder();
+      case 'cancel-swap': b.at = -1; return paintBuilder();
+      case 'clear-find': b.find = ''; return paintBuilder();
       case 'remove': return unhang();
       case 'fill': return fillEmpty();
       case 'mirror': return mirror();
