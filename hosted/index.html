@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CustomJewelz · Create your kaleera</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -1195,6 +1196,32 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .bd-tools button { font-size: 15px; min-height: 44px; }
 .bd-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-size: 15px; min-height: 44px; }
+
+
+/* ---- the 3D view and its switch ---- */
+.bd-stage canvas.bd-3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.bd-stage canvas.bd-3d:active { cursor: grabbing; }
+.bd-viewtoggle {
+  position: absolute; left: 12px; top: 12px; z-index: 2; min-height: 36px; padding: 0 14px;
+  border-radius: 999px; border: 1px solid rgba(241, 246, 243, .35); background: rgba(7, 27, 28, .55);
+  color: var(--stage-ink); font: 600 14px var(--body); backdrop-filter: blur(6px);
+}
+.bd-viewtoggle:hover:not(:disabled) { border-color: var(--glow); }
+.bd-viewtoggle[aria-pressed="true"] { background: var(--glow); color: #102b27; border-color: var(--glow); }
+
+/* ---- shapes: charms per strand, middle out ---- */
+.bd-shapes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.bd-shape {
+  display: grid; gap: 2px; justify-items: center; padding: 10px 6px; min-height: 0; border-radius: 12px;
+  border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font: inherit; color: var(--ink);
+}
+.bd-shape:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.bd-shape .bars { display: flex; align-items: flex-start; justify-content: center; gap: 3px; height: 40px; width: 100%; margin-bottom: 4px; }
+.bd-shape .bars i { width: 4px; border-radius: 0 0 3px 3px; background: linear-gradient(var(--gold), #e8c15a); }
+.bd-shape b { font-size: 14px; }
+.bd-shape small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bd-shape-own { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+@media (max-width: 420px) { .bd-shapes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---- the purchase bar ---- */
 .bd-bar {
@@ -6316,7 +6343,7 @@ function wireShell() {
 
 const BUILD_KEY = 'cj.build.v1';
 const SLOT_DEFAULT = 7;          // spots along the lower edge of a bangle
-const SLOT_SPREAD = 64;          // degrees either side of the bottom they run to
+const SLOT_SPREAD = 78;          // degrees either side of the bottom they run to, as real kaleeras fan out
 const RING_R = 2.3;              // jump ring radius, mm
 const RING_W = 0.62;             // jump ring wire, mm
 const VIRTUAL_MM = 160;          // how much the free layout's canvas is taken to cover
@@ -6711,6 +6738,14 @@ function paintStageSvg() {
   // A different hand fades in, so it is clear the stage changed over.
   const fresh = paintStageSvg.hand !== S.build.hand;
   paintStageSvg.hand = S.build.hand;
+  const toggle = `<button class="bd-viewtoggle" data-bd="view3d" type="button" aria-pressed="${K3.on}">${K3.on ? 'Flat view' : '3D view'}</button>`;
+  if (K3.on) {
+    // Keep the 3D canvas (it holds the GL context); replace only the controls around it.
+    for (const n of [...host.children]) if (!n.classList.contains('bd-3d')) n.remove();
+    host.insertAdjacentHTML('beforeend', `${toggle}<button class="bd-expand" data-bd="expand" type="button">Expand preview</button>`);
+    paint3D(host, L);
+    return;
+  }
   const v = L.view;
   const sel = S.build.sel;
   // Outer spots first, so the middle charm sits in front, as it does when worn.
@@ -6753,7 +6788,7 @@ function paintStageSvg() {
     <g filter="url(#bd-shadow)">${pieceSvg({ ...L.baseImg, glyph: L.baseImg.glyph })}</g>
     ${hungs}
     ${marks}
-  </svg><button class="bd-expand" data-bd="expand" type="button">Expand preview</button>`;
+  </svg>${toggle}<button class="bd-expand" data-bd="expand" type="button">Expand preview</button>`;
   warmArt();
   if (fresh) swayAll();
 }
@@ -6761,6 +6796,7 @@ function paintStageSvg() {
 /* A charm that has just been hung swings, and settles: a pendulum, damped. */
 function swing(i, amp = 7) {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (K3.on) { kick3D(i, amp / 60); return; }
   const t0 = performance.now();
   const frame = (now) => {
     const g = $(`#bd-stage .hung[data-slot="${i}"] .swing`);
@@ -6777,6 +6813,258 @@ function swing(i, amp = 7) {
 /* Every strand stirs a little, each a beat after the last, the way a pair does when it is picked up. */
 function swayAll(amp = 3) {
   S.build.slots.forEach((s, i) => { if (s) setTimeout(() => swing(i, amp), (i % 4) * 70); });
+}
+
+/* ----------------------------------------------------------------- 3D view
+ * The same layout as the drawing, built in three dimensions: a polished gold
+ * bangle with its band of ghungroo bells across the lower half, a chain from
+ * each spot with little bell clusters along it, and every charm's own picture
+ * hung on a real jump ring. Studio-lit, swaying, and turned with a finger.
+ * three.js is fetched from the CDN only when the view is first opened.
+ */
+const K3 = { on: false, lib: null, ctx: null, failed: false };
+try { K3.on = localStorage.getItem('cj.view3d') === '1'; } catch { /* private */ }
+
+function set3D(on) {
+  K3.on = Boolean(on);
+  try { localStorage.setItem('cj.view3d', K3.on ? '1' : '0'); } catch { /* private */ }
+  paintStageSvg();
+}
+
+async function load3D() {
+  if (K3.lib) return K3.lib;
+  const [THREE, controls, env] = await Promise.all([
+    import('three'),
+    import('three/addons/controls/OrbitControls.js'),
+    import('three/addons/environments/RoomEnvironment.js'),
+  ]);
+  K3.lib = { THREE, OrbitControls: controls.OrbitControls, RoomEnvironment: env.RoomEnvironment };
+  return K3.lib;
+}
+
+/** The renderer, camera and shared parts, made once and kept. */
+function make3D(lib) {
+  const { THREE, OrbitControls, RoomEnvironment } = lib;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.domElement.className = 'bd-3d';
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const key = new THREE.DirectionalLight(0xfff0d0, 2.2);
+  key.position.set(-80, 120, 160);
+  scene.add(key, new THREE.AmbientLight(0xffffff, 0.25));
+  const camera = new THREE.PerspectiveCamera(28, 1, 1, 6000);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.enablePan = false;
+  controls.minAzimuthAngle = -0.9; controls.maxAzimuthAngle = 0.9;
+  controls.minPolarAngle = Math.PI * 0.3; controls.maxPolarAngle = Math.PI * 0.7;
+  let touched = 0;
+  controls.addEventListener('start', () => { touched = performance.now(); });
+
+  const root = new THREE.Group();
+  scene.add(root);
+  const mat = (color, rough, extra = {}) => new THREE.MeshPhysicalMaterial({ color, metalness: 1, roughness: rough, ...extra });
+  const shared = {
+    gold: mat(0xe8c15a, 0.2, { clearcoat: 0.4, clearcoatRoughness: 0.2 }),
+    silver: mat(0xd9dde2, 0.18, { clearcoat: 0.4 }),
+    rose: mat(0xe7a992, 0.22, { clearcoat: 0.4 }),
+    pearl: new THREE.MeshPhysicalMaterial({ color: 0xf6f0e4, metalness: 0, roughness: 0.25, clearcoat: 1, sheen: 1, sheenColor: 0xffe9d6 }),
+    sphere: new THREE.SphereGeometry(1, 16, 12),
+    link: new THREE.TorusGeometry(0.62, 0.2, 8, 16),
+    ring: new THREE.TorusGeometry(1, 0.28, 10, 28),
+  };
+  const ctx = { lib, renderer, scene, camera, controls, root, shared, textures: new Map(), strands: [], aim: null };
+
+  renderer.setAnimationLoop((ms) => {
+    const t = ms / 1000;
+    const el = renderer.domElement;
+    const w = el.parentElement ? el.parentElement.clientWidth : 0;
+    const h = el.parentElement ? el.parentElement.clientHeight : 0;
+    if (w && h && (el.width !== Math.round(w * renderer.getPixelRatio()) || el.height !== Math.round(h * renderer.getPixelRatio()))) {
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      if (ctx.aim) fit3D(ctx);
+    }
+    // Left alone, the piece turns gently to show off its metal; a drag takes over.
+    if (performance.now() - touched > 4000 && !reduceMotion()) root.rotation.y = Math.sin(t * 0.35) * 0.32;
+    for (const s of ctx.strands) {
+      const k = reduceMotion() ? 0 : 1;
+      s.group.rotation.z = k * (Math.sin(t * s.speed + s.phase) * 0.022 + s.kick * Math.exp(-(t - s.kickAt) * 2) * Math.sin((t - s.kickAt) * 7));
+      s.group.rotation.x = k * Math.sin(t * s.speed * 0.8 + s.phase) * 0.03;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+  });
+  return ctx;
+}
+
+const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Frames the whole piece, as the drawing does. */
+function fit3D(ctx) {
+  const { camera, controls, aim } = ctx;
+  const dist = (aim.h / 2) / Math.tan((camera.fov * Math.PI) / 360) * 1.05
+    / Math.min(1, camera.aspect * aim.h / aim.w);
+  controls.target.set(aim.x, aim.y, 0);
+  camera.position.set(aim.x, aim.y + aim.h * 0.04, dist);
+  camera.near = dist / 20; camera.far = dist * 20;
+  camera.updateProjectionMatrix();
+}
+
+function texture3D(ctx, src) {
+  const { THREE } = ctx.lib;
+  if (!ctx.textures.has(src)) {
+    const tx = new THREE.TextureLoader().load(src);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    tx.anisotropy = 4;
+    ctx.textures.set(src, tx);
+  }
+  return ctx.textures.get(src);
+}
+
+/** Builds this hand in 3D from the same layout the drawing uses (millimetres, y down). */
+function build3D(ctx, L) {
+  const { THREE } = ctx.lib;
+  const { root, shared } = ctx;
+  for (const child of [...root.children]) {
+    root.remove(child);
+    child.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.userData.ownGeo) o.geometry.dispose(); if (o.userData.ownMat) o.material.dispose(); });
+  }
+  ctx.strands = [];
+  const metal = shared[L.metal] || shared.gold;
+  const P = (x, y, z = 0) => new THREE.Vector3(x, -y, z);
+  const dummy = new THREE.Object3D();
+  /** Many small copies of one shape, in one draw. */
+  const many = (geo, material, spots) => {
+    const m = new THREE.InstancedMesh(geo, material, Math.max(1, spots.length));
+    spots.forEach((s, i) => {
+      dummy.position.copy(s.p);
+      dummy.rotation.set(s.rx || 0, s.ry || 0, s.rz || 0);
+      dummy.scale.setScalar(s.r || 1);
+      dummy.updateMatrix();
+      m.setMatrixAt(i, dummy.matrix);
+    });
+    m.count = spots.length;
+    return m;
+  };
+
+  // The bangle: a polished band, a granulated edge, and its bells across the lower half.
+  const R = L.R;
+  const tube = Math.max(1.8, L.W * 0.045);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 32, 220), metal);
+  band.userData.ownGeo = true;
+  band.scale.z = 0.7;
+  root.add(band);
+  const edge = [];
+  for (let a = 0; a < 360; a += 2.2) {
+    const t = (a * Math.PI) / 180;
+    for (const side of [-1, 1]) {
+      edge.push({ p: new THREE.Vector3(Math.cos(t) * (R + tube * 0.95), Math.sin(t) * (R + tube * 0.95), side * tube * 0.45), r: 0.55 });
+    }
+  }
+  root.add(many(shared.sphere, metal, edge));
+  const bells = [];
+  const rows = 3;
+  for (let row = 0; row < rows; row++) {
+    const rr = R + tube + 1.6 + row * 2.5;
+    const step = 360 / ((2 * Math.PI * rr) / 3.1);
+    for (let a = 200 + (row % 2) * step / 2; a <= 340; a += step) {
+      const t = (a * Math.PI) / 180;
+      bells.push({ p: new THREE.Vector3(Math.cos(t) * rr, Math.sin(t) * rr, (row - 1) * 0.8), r: 1.45 - row * 0.12 });
+    }
+  }
+  root.add(many(shared.sphere, metal, bells));
+
+  // Each spot: a pivot at its ring, so the whole strand swings from there.
+  for (const s of L.slots) {
+    if (!s.filled) continue;
+    const pivot = new THREE.Group();
+    // Alternate strands sit a little in front and behind, as they do on a worn kaleera.
+    pivot.position.copy(P(s.ring.x, s.ring.y, (s.i % 2 ? -2.4 : 2.4)));
+    root.add(pivot);
+    const local = (x, y, z = 0) => new THREE.Vector3(x - s.ring.x, -(y - s.ring.y), z);
+    const top = new THREE.Mesh(shared.ring, metal);
+    top.scale.setScalar(s.ring.r);
+    pivot.add(top);
+    if (s.chain) {
+      const pick = S.build.slots[s.i] && S.build.slots[s.i].chain;
+      const item = pick ? itemOf(pick.itemId) : null;
+      const pearly = /pearl|moti/i.test(item ? item.name : '');
+      const links = []; const pearls = []; const clusters = [];
+      for (let y = 0.8; y < s.chain.len; y += pearly ? 2.6 : 1.25) {
+        const k = links.length;
+        if (pearly && k % 2 === 1) pearls.push({ p: local(s.chain.x, s.chain.y + y), r: 1.05 });
+        else links.push({ p: local(s.chain.x, s.chain.y + y), ry: k % 2 ? Math.PI / 2 : 0, rz: Math.PI / 2 });
+      }
+      // A little cluster of bells between charms, the way these strands are made.
+      const cys = s.charms.map((c) => c.box.y).concat([s.chain.y + s.chain.len]);
+      let prev = s.chain.y;
+      for (const cy of cys) {
+        const at = (prev + cy) / 2;
+        if (cy - prev > 14) {
+          for (const [dx, dy] of [[-1.3, 0], [1.3, 0], [0, 1.2]]) clusters.push({ p: local(s.chain.x + dx, at + dy, 0.6), r: 1.05 });
+        }
+        prev = cy;
+      }
+      pivot.add(many(shared.link, metal, links));
+      if (pearls.length) pivot.add(many(shared.sphere, shared.pearl, pearls));
+      if (clusters.length) pivot.add(many(shared.sphere, metal, clusters));
+    }
+    s.charms.forEach((c, k) => {
+      if (c.ring) {
+        const ring = new THREE.Mesh(shared.ring, metal);
+        ring.position.copy(local(c.ring.x, c.ring.y));
+        ring.scale.setScalar(c.ring.r);
+        ring.rotation.y = Math.PI / 2;
+        pivot.add(ring);
+      }
+      if (!c.src) return;
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(c.w, c.h), new THREE.MeshStandardMaterial({
+        map: texture3D(ctx, c.src), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide,
+        metalness: 0.25, roughness: 0.4,
+      }));
+      plate.userData.ownGeo = true;
+      plate.userData.ownMat = true;
+      plate.position.copy(local(c.x + c.w / 2, c.y + c.h / 2, 0.9 + k * 0.05));
+      plate.rotation.y = ((k % 2 ? 1 : -1) * 0.12);
+      pivot.add(plate);
+    });
+    ctx.strands.push({ group: pivot, i: s.i, speed: 0.9 + (s.i % 3) * 0.17, phase: s.i * 1.3, kick: 0, kickAt: 0 });
+  }
+
+  const v = L.view;
+  ctx.aim = { x: v.x + v.w / 2, y: -(v.y + v.h / 2), w: v.w, h: v.h };
+  fit3D(ctx);
+}
+
+/** A strand that has just changed swings in 3D too. */
+function kick3D(i, amp = 0.12) {
+  const ctx = K3.ctx;
+  if (!ctx) return;
+  const s = ctx.strands.find((x) => x.i === i);
+  if (s) { s.kick = amp; s.kickAt = performance.now() / 1000; }
+}
+
+async function paint3D(host, L) {
+  try {
+    const lib = await load3D();
+    if (!K3.on || !host.isConnected) return;
+    if (!K3.ctx) K3.ctx = make3D(lib);
+    const ctx = K3.ctx;
+    if (ctx.renderer.domElement.parentElement !== host) host.prepend(ctx.renderer.domElement);
+    build3D(ctx, L);
+  } catch (err) {
+    K3.on = false;
+    K3.failed = true;
+    toast('The 3D view could not load here, so the drawing is shown instead.', 'bad');
+    paintStageSvg();
+  }
 }
 
 /* ----------------------------------------------------- order picture (canvas) */
@@ -7155,6 +7443,113 @@ async function copyHand(mirrored) {
   commit();
 }
 
+/* ------------------------------------------------------------------ shapes
+ * How kaleeras are usually made: the middle strand longest, each one out from
+ * it a little shorter, the two sides mirrored. A shape names the charms per
+ * strand from the middle outwards, so 7-6-5-4 hangs 4 5 6 7 6 5 4 across the
+ * bangle. Making one lays the strands out and fills them with a mix of charms
+ * that are in stock; the customer swaps whatever they like afterwards.
+ */
+const SHAPES = [
+  { name: 'Waterfall', counts: [7, 6, 5, 4] },
+  { name: 'Short', counts: [5, 4, 3] },
+  { name: 'Grand', counts: [9, 8, 7, 6, 5] },
+  { name: 'Even', counts: [5, 5, 5, 5] },
+];
+const CM_PER_SHAPED_CHARM = 3;     // room each charm gets down a shaped strand
+
+/** "7-6-5-4", "7 6 5 4" or "7,6,5,4": charms per strand from the middle out. */
+function parseShape(text) {
+  const counts = String(text || '').split(/[^0-9]+/).filter(Boolean).map(Number)
+    .filter((n) => n >= 1 && n <= 16);
+  return counts.length ? counts : null;
+}
+
+/** The whole row across the bangle, trimmed from the outside to the spots it has. */
+function shapeRow(counts, spots) {
+  const row = [...counts.slice(1).reverse(), ...counts];
+  while (row.length > spots) { row.shift(); row.pop(); }
+  return row;
+}
+
+async function applyShape(counts) {
+  const b = S.build;
+  if (!b.baseId || !counts) return;
+  if (hungCount() && !await ask(`Lay out ${counts.join('-')} on the ${HANDS[b.hand].toLowerCase()}?`,
+    'The strands on this hand go back to the shop and the new shape is made in their place.', 'Make it')) return;
+  b.slots.forEach(releaseSlot);
+  b.slots = b.slots.map(() => null);
+
+  const row = shapeRow(counts, b.slots.length);
+  const start = Math.floor((b.slots.length - row.length) / 2);
+  const mid = (row.length - 1) / 2;
+  const chain = chains()[0];
+  // The mix comes from the section being browsed, or from every charm.
+  const pool = hangables().filter((i) => !b.filter || i.category === b.filter);
+  let short = 0;
+  // What is left to sell of each charm, counted down as the plan takes them, so
+  // the two sides of the bangle are chosen together and always match.
+  const left = new Map(pool.map((it) => [it.id, addable(it, firstInStock(it))]));
+  const plan = new Map();              // distance from the middle -> charm ids, top to bottom
+  const pick = (want, copies) => {
+    for (let t = 0; t < pool.length; t++) {
+      const it = pool[(want + t) % pool.length];
+      if ((left.get(it.id) || 0) >= copies) { left.set(it.id, left.get(it.id) - copies); return it; }
+    }
+    return null;
+  };
+  row.forEach((n, j) => {
+    const d = Math.round(Math.abs(j - mid));
+    if (plan.has(d)) return;
+    const copies = d === 0 || row.length - 1 - j === j ? 1 : 2;
+    plan.set(d, Array.from({ length: n }, (_, q) => pick(q * 3 + d * 2, copies)));
+  });
+  row.forEach((n, j) => {
+    const d = Math.round(Math.abs(j - mid));
+    const s = { chain: null, charms: [] };
+    const cm = Math.min(25, Math.max(5, Math.ceil(n * CM_PER_SHAPED_CHARM)));
+    const cv = chain && firstInStock(chain);
+    if (cv && addable(chain, cv) >= cm) {
+      trayAdd(chain.id, cv, cm);
+      s.chain = { itemId: chain.id, variantId: cv, lenCm: cm };
+    }
+    const room = s.chain ? n : 1;
+    for (const it of plan.get(d).slice(0, room)) {
+      const v = it && firstInStock(it);
+      if (it && v && addable(it, v) >= 1) { trayAdd(it.id, v, 1); s.charms.push({ itemId: it.id, variantId: v }); } else short++;
+    }
+    short += n - room;
+    b.slots[start + j] = s.chain || s.charms.length ? s : null;
+  });
+  b.sel = start + Math.floor(row.length / 2);
+  b.at = -1;
+  commit();
+  swayAll(5);
+  toast(short ? `Laid out ${counts.join('-')}. The shop ran short of ${short} charm${short === 1 ? '' : 's'}; add or swap to finish it.`
+    : `Laid out ${counts.join('-')}. Tap any charm to swap it.`, short ? 'bad' : 'good');
+}
+
+function shapeHtml() {
+  const spots = S.build.slots.length;
+  const sec = S.build.filter ? sectionOf(S.build.filter).name.toLowerCase() : 'every charm';
+  return `<section id="bd-shape">
+    <div class="bd-sect-head"><h3>Start from a shape</h3><span class="aside">${spots} spots on this bangle</span></div>
+    <div class="bd-shapes">${SHAPES.map((sh) => {
+      const row = shapeRow(sh.counts, spots);
+      const top = Math.max(...row);
+      return `<button type="button" class="bd-shape" data-shape="${sh.counts.join('-')}" aria-label="${sh.name}, ${sh.counts.join('-')}">
+        <span class="bars" aria-hidden="true">${row.map((n) => `<i style="height:${Math.round((n / top) * 100)}%"></i>`).join('')}</span>
+        <b>${sh.name}</b><small>${sh.counts.join('-')}</small></button>`;
+    }).join('')}</div>
+    <form class="bd-shape-own" id="bd-shape-own">
+      <label class="f" style="margin:0"><span>Or your own, middle strand first</span>
+        <input name="shape" inputmode="numeric" placeholder="7-6-5-4" autocomplete="off"></label>
+      <button class="solid" type="submit">Make it</button>
+    </form>
+    <p>Filled with a mix from ${esc(sec)}. Swap any charm afterwards.</p>
+  </section>`;
+}
+
 function switchHand(hand) {
   const b = S.build;
   if (!HANDS[hand] || hand === b.hand) return;
@@ -7365,6 +7760,7 @@ function paintBuilder() {
           <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
           ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : '<span></span>'}</div>
       </section>
+      ${shapeHtml()}
       <section>${spotHtml()}</section>
       ${pickerHtml()}
       <section>
@@ -7441,6 +7837,7 @@ function wireBuilder() {
     }
   };
   $('#bd-stage').addEventListener('click', (e) => {
+    if (e.target.closest('[data-bd="view3d"]')) { set3D(!K3.on); return; }
     if (e.target.closest('[data-bd="expand"]')) { $('#builder').classList.remove('compact'); window.scrollTo({ top: 0 }); return; }
     pickSlot(e);
   });
@@ -7473,6 +7870,7 @@ function wireBuilder() {
     const t = e.target.closest('button');
     if (!t) return;
     const b = S.build;
+    if (t.dataset.shape) return applyShape(parseShape(t.dataset.shape));
     if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
     if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
     if (t.dataset.charm) return hang(t.dataset.charm);
@@ -7504,6 +7902,13 @@ function wireBuilder() {
       case 'browse': return setMode('browse');
       default: return undefined;
     }
+  });
+  panel.addEventListener('submit', (e) => {
+    if (e.target.id !== 'bd-shape-own') return;
+    e.preventDefault();
+    const counts = parseShape(new FormData(e.target).get('shape'));
+    if (!counts) { toast('Type the charms per strand from the middle out, like 7-6-5-4.', 'bad'); return; }
+    applyShape(counts);
   });
   panel.addEventListener('input', (e) => {
     if (e.target.id !== 'bd-find') return;

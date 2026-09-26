@@ -360,6 +360,39 @@ async function fixedLoops(browser) {
   console.log('✓ fixed loops');
 }
 
+
+/** A shape lays a hand out middle-out and mirrored; the 3D view builds it (needs the CDN). */
+async function shapes(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await ctx.addInitScript(installStore, { seed: CATALOG });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const shot = async (name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `shape-${name}.png`) }); };
+  await page.goto(PAGE);
+  await page.waitForSelector('#bd-stage svg');
+  await page.fill('#bd-shape-own input[name=shape]', '7-6-5-4');
+  await page.click('#bd-shape-own button[type=submit]');
+  const [counts, lens] = await page.evaluate(() => [S.build.slots.map((x) => (x ? x.charms.length : 0)),
+    S.build.slots.map((x) => (x && x.chain ? x.chain.lenCm : 0))]);
+  assert.deepEqual(counts, [4, 5, 6, 7, 6, 5, 4], 'charms per strand, middle out');
+  assert.deepEqual(lens, [12, 15, 18, 21, 18, 15, 12], 'each strand long enough for its charms');
+  const mirrored = await page.evaluate(() => S.build.slots[0].charms.map((c) => c.itemId).join()
+    === S.build.slots[6].charms.map((c) => c.itemId).join());
+  assert.ok(mirrored, 'the two sides match');
+  await shot('flat');
+  if (process.env.NET3D) {
+    await page.click('#bd-stage [data-bd="view3d"]');
+    await page.waitForSelector('#bd-stage canvas.bd-3d', { timeout: 30000 });
+    await page.waitForTimeout(2500);
+    await shot('3d');
+    assert.ok(await page.evaluate(() => K3.ctx && K3.ctx.strands.length === 7), 'every strand built in 3D');
+  }
+  assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
+  await ctx.close();
+  console.log(`✓ shapes${process.env.NET3D ? ' and 3D' : ''}`);
+}
+
 (async () => {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch({ executablePath: chromePath() });
@@ -368,6 +401,7 @@ async function fixedLoops(browser) {
     await run(browser, 'phone', { width: 390, height: 844 });
     await studio(browser);
     await fixedLoops(browser);
+    await shapes(browser);
     console.log('UI tests passed');
   } finally {
     await browser.close();
