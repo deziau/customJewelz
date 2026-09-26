@@ -127,41 +127,52 @@ async function run(browser, label, viewport) {
   assert.equal(await page.$$eval('#bd-stage .slot', (n) => n.length), 7, 'seven empty spots');
   await shot('1-start');
 
-  // Hang three charms; each fills the next spot, from the middle outwards.
-  for (const id of ['heart', 'star', 'heart']) await page.click(`#bd-panel [data-charm="${id}"]`);
+  // Hang three charms, each on a spot tapped on the bangle, from the middle outwards.
+  const tapEmpty = async () => {
+    const i = await page.evaluate(() => nextEmpty(-1));
+    await page.dispatchEvent(`#bd-stage .slot[data-slot="${i}"]`, 'click');
+  };
+  for (const id of ['heart', 'star', 'heart']) { await tapEmpty(); await page.click(`#bd-panel [data-charm="${id}"]`); }
   assert.equal(await page.$$eval('#bd-stage .hung', (n) => n.length), 3);
   assert.match(await text('#bd-total'), /A\$63/);                 // 45 + 3 × 6
 
   // Sold out is not offered; the last pearl can be hung once and only once.
   assert.equal(await page.$eval('#bd-panel [data-charm="bell"]', (b) => b.disabled), true);
+  await tapEmpty();
   await page.click('#bd-panel [data-charm="pearl"]');
   assert.equal(await page.$eval('#bd-panel [data-charm="pearl"]', (b) => b.disabled), true, 'pearl now all used');
 
-  // Hanging moves on to the next empty spot; tap the pearl to dress it.
-  await page.dispatchEvent('#bd-stage .hung[aria-label*="Pearl"] .halo', 'click');
-  assert.match(await text('#bd-panel .bd-on'), /Pearl/);
+  // Tapping the pearl itself on the bangle opens it for changing.
+  await page.dispatchEvent('#bd-stage .charm[aria-label*="Pearl"] .pick', 'click');
+  assert.match(await text('#bd-edit .bd-focus'), /Pearl/);
+  await page.click('#bd-edit [data-bd="cancel-swap"]');
   // Hanging the pearl on 5 cm of chain adds the chain at A$30/m.
+  await page.click('#bd-edit .bd-more summary');
   await page.click('#bd-panel [data-len="5"]');
   assert.match(await text('#bd-total'), /A\$73\.50/);             // 45 + 18 + 9 + 1.50
   assert.equal(await page.$$eval('#bd-stage .hung rect[fill^="url(#bd-ch"], #bd-stage .hung ellipse', (n) => n.length) > 0, true);
 
   // Mirror copies the left spots of the bangle onto its right.
+  await page.click('#bd-panel [data-more="tools"] summary');
   await page.click('#bd-panel [data-bd="mirror"]');
   assert.ok(await page.$$eval('#bd-stage .hung', (n) => n.length) >= 4, 'mirror should add pieces');
 
-  // A strand: a length of chain with several charms down it, the last one ending it.
+  // A strand: keep adding to one spot and a chain is added, the last charm ending it.
   const empty = await page.evaluate(() => S.build.slots.findIndex((s) => !s));
   assert.ok(empty >= 0, 'a spot is still empty');
   await page.dispatchEvent(`#bd-stage .slot[data-slot="${empty}"]`, 'click');
-  await page.click('#bd-panel [data-len="12"]');
   for (const id of ['star', 'heart', 'star']) await page.click(`#bd-panel [data-charm="${id}"]`);
+  assert.equal(await page.evaluate((i) => S.build.slots[i].chain.lenCm, empty), 5, 'a chain added by itself');
+  if (!(await page.$('#bd-panel [data-len="12"]:visible'))) await page.click('#bd-edit .bd-more summary');
+  await page.click('#bd-panel [data-len="12"]');
   const ys = await page.evaluate((i) => layout().slots[i].charms.map((c) => c.box.y), empty);
   assert.equal(ys.length, 3, 'three charms on the strand');
   assert.ok(ys[0] < ys[1] && ys[1] < ys[2], `charms spread down the strand: ${ys}`);
-  // Tapping one charm on the strand and picking another swaps just that one.
-  await page.click('#bd-panel .bd-on [data-at="1"]');
+  // Tapping one hanging charm and picking another swaps just that one.
+  await page.dispatchEvent(`#bd-stage .hung[data-slot="${empty}"] .charm[data-at="1"] .pick`, 'click');
   await page.click('#bd-panel [data-charm="star"]');
   assert.deepEqual(await page.evaluate((i) => S.build.slots[i].charms.map((c) => c.itemId), empty), ['star', 'star', 'star']);
+  await page.click('#bd-edit [data-bd="cancel-swap"]');
   const hung = await page.$$eval('#bd-stage .hung', (n) => n.length);
   await shot('2-built');
 
@@ -364,7 +375,7 @@ async function fixedLoops(browser) {
 /** A shape lays a hand out middle-out and mirrored; the 3D view builds it (needs the CDN). */
 async function shapes(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await ctx.addInitScript(installStore, { seed: CATALOG });
+  await ctx.addInitScript(installStore, { seed: { ...CATALOG, moon: piece('Moon', 'charms', 7, [12, 12], 12, { art: 'charm-star', order: 7 }) } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -380,6 +391,15 @@ async function shapes(browser) {
   const mirrored = await page.evaluate(() => S.build.slots[0].charms.map((c) => c.itemId).join()
     === S.build.slots[6].charms.map((c) => c.itemId).join());
   assert.ok(mirrored, 'the two sides match');
+  // Any charm down any strand can be tapped and changed in place.
+  await page.dispatchEvent('#bd-stage .hung[data-slot="3"] .charm[data-at="4"] .pick', 'click');
+  assert.match(await page.textContent("#bd-edit h3"), /Charm 5 on strand 4/);
+  assert.equal(await page.$$eval('#bd-stage .charm.on', (n) => n.length), 1, 'the tapped charm is marked');
+  const other = await page.evaluate(() => [...document.querySelectorAll('#bd-panel [data-charm]:not(:disabled)')]
+    .map((x) => x.dataset.charm).find((id) => id !== S.build.slots[3].charms[4].itemId));
+  await page.click(`#bd-panel [data-charm="${other}"]`);
+  assert.equal(await page.evaluate(() => S.build.slots[3].charms[4].itemId), other);
+  assert.equal(await page.evaluate(() => S.build.slots[3].charms.length), 7, 'swapped, not added');
   await shot('flat');
   if (process.env.NET3D) {
     await page.click('#bd-stage [data-bd="view3d"]');
@@ -387,6 +407,17 @@ async function shapes(browser) {
     await page.waitForTimeout(2500);
     await shot('3d');
     assert.ok(await page.evaluate(() => K3.ctx && K3.ctx.strands.length === 7), 'every strand built in 3D');
+    // Tapping in 3D picks the charm under the finger, as the drawing does.
+    const picked = await page.evaluate(() => {
+      const { camera, root } = K3.ctx;
+      const o = [];
+      root.traverse((x) => { if (x.userData.pick && x.userData.pick.at === 2 && x.userData.pick.slot === 3) o.push(x); });
+      const p = o[0].getWorldPosition(new o[0].position.constructor()).project(camera);
+      const r = document.querySelector('canvas.bd-3d').getBoundingClientRect();
+      return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+    });
+    await page.mouse.click(picked.x, picked.y);
+    assert.deepEqual(await page.evaluate(() => [S.build.sel, S.build.at]), [3, 2], 'a tap in 3D picks that charm');
   }
   assert.deepEqual(errors, [], `page errors: ${errors.join('; ')}`);
   await ctx.close();

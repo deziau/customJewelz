@@ -1044,6 +1044,18 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd .hung .halo { pointer-events: all; }
 .bd .hung.sel .halo { stroke: var(--glow); stroke-width: .4; fill: rgba(140, 212, 203, .05); stroke-dasharray: 1.2 .9; }
 .bd .hung:focus-visible .halo { stroke: var(--glow); stroke-width: .5; fill: none; }
+/* Each charm is its own target, above its strand's halo, so a tap changes that one charm. */
+.bd .charm { outline: none; }
+.bd .charm .pick { fill: transparent; pointer-events: all; }
+.bd .charm:hover .pick, .bd .charm:focus-visible .pick { stroke: var(--glow); stroke-width: .3; stroke-dasharray: .8 .6; }
+.bd .charm.on .pick { fill: rgba(140, 212, 203, .16); stroke: var(--glow); stroke-width: .45; filter: url(#bd-glow); }
+.bd .slot.add .mark { fill: var(--glow); stroke: none; }
+.bd .slot.add .num { fill: #071b1c; font-size: 3.6px; }
+#bd-edit { scroll-margin-top: 16px; }
+/* On a phone the stage stays pinned above the panel and the total below it; anything scrolled to lands between them. */
+@media (max-width: 900px) {
+  #bd-edit, #bd-panel button, #bd-panel summary, #bd-panel input { scroll-margin-top: 330px; scroll-margin-bottom: 96px; }
+}
 
 /* ---- the two hands, above the stage ---- */
 .bd-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 1px solid var(--line); }
@@ -1137,33 +1149,23 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-chip img { width: 24px; height: 24px; object-fit: contain; }
 .bd-label { font-size: 14px; font-weight: 600; color: var(--muted); }
 
-/* ---- the charms on the selected strand, top to bottom ---- */
-.bd-list { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.bd-on {
-  display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  min-height: 56px; padding: 8px 8px 8px 14px; border-top: 1px solid var(--line); background: var(--surface);
+/* ---- the editor: the tapped charm, or the strand's charms top to bottom ---- */
+.bd-focus {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 8px 8px 8px 8px; border-radius: 12px; background: var(--accent-soft);
 }
-.bd-on:first-child { border-top: none; }
-.bd-on.swapping { background: var(--accent-soft); }
-.bd-on .n { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
-.bd-on .thumb { position: relative; width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+.bd-focus .nm { font-size: 16px; font-weight: 600; display: grid; overflow: hidden; }
+.bd-focus .nm small { font-weight: 400; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bd-focus .thumb, .bd-thumbs button { position: relative; width: 56px; height: 56px; border-radius: 10px; overflow: hidden;
   background: radial-gradient(90% 80% at 35% 25%, var(--stage-1), var(--stage-2)); }
-.bd-on .thumb img { position: absolute; inset: 8%; width: 84%; height: 84%; object-fit: contain; }
-.bd-on .nm { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bd-on .acts { display: flex; gap: 2px; }
-.bd-on .acts button {
-  min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent; background: none;
-  font: 600 14px var(--body); color: var(--accent); cursor: pointer;
-}
-.bd-on .acts button:hover { border-color: var(--line-strong); }
-.bd-on .acts button.x { color: var(--crimson); }
-.bd-swapnote {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 8px 8px 8px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); font-size: 15px;
-}
-.bd-swapnote button { min-height: 40px; }
-.bd-strand-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 15px; }
-.bd-strand-sum b { font-variant-numeric: tabular-nums; }
+.bd-focus .thumb img, .bd-thumbs button img { position: absolute; inset: 8%; width: 84%; height: 84%; object-fit: contain; }
+.bd-focus .x { min-height: 44px; }
+.bd-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.bd-thumbs button { width: 48px; height: 48px; padding: 0; border: 1px solid transparent; cursor: pointer; }
+.bd-thumbs button:hover, .bd-thumbs button:focus-visible { border-color: var(--glow); }
+.bd-more { border-top: 1px solid var(--line); padding-top: 10px; }
+.bd-more summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; color: var(--accent); }
+.bd-more[open] { display: grid; gap: 10px; }
 
 /* ---- the catalogue ---- */
 .bd-find { display: flex; gap: 8px; align-items: center; }
@@ -6444,12 +6446,10 @@ const pairCount = () => hungCount('left') + hungCount('right');
 const lenOf = (s) => (s && s.chain ? s.chain.lenCm : 0);
 /** How many charms a strand can carry: one straight off the bangle, more down a chain. */
 const roomOn = (s) => (lenOf(s) ? Math.max(1, Math.floor(lenOf(s) / CM_PER_CHARM)) : 1);
-/** The charm on the selected strand that swaps and recolours, or -1 to add a new one. */
+/** The charm on the selected strand that was tapped to swap and recolour, or -1 to add a new one. */
 function focusAt() {
   const s = S.build.slots[S.build.sel];
-  if (!s) return -1;
-  if (S.build.at >= 0 && S.build.at < s.charms.length) return S.build.at;
-  return !lenOf(s) && s.charms.length ? 0 : -1;
+  return s && S.build.at >= 0 && S.build.at < s.charms.length ? S.build.at : -1;
 }
 const firstInStock = (item) => (item.variants.find((v) => freeToSell(item, v.id) > 0) || item.variants[0] || {}).id;
 
@@ -6760,11 +6760,19 @@ function paintStageSvg() {
       <g class="swing" data-px="${s.P.x}" data-py="${s.P.y}">
         <rect class="halo" x="${bx.x - 1.2}" y="${bx.y - 1}" width="${bx.w + 2.4}" height="${bx.h + 2.2}" rx="2" fill="transparent"/>
         ${s.chain ? chainSvg(s.chain, L.metal, s.i) : ''}
-        ${s.charms.map((c) => `<g data-at="${c.k}"><g filter="url(#bd-shadow)">${pieceSvg(c)}</g>
+        ${s.charms.map((c) => `<g data-at="${c.k}" class="charm${s.i === sel && c.k === S.build.at ? ' on' : ''}" tabindex="0" role="button"
+            aria-label="Change ${esc(itemName(S.build.slots[s.i].charms[c.k]))}">
+          <rect class="pick" x="${c.box.x - 0.8}" y="${c.box.y - 0.8}" width="${c.box.w + 1.6}" height="${c.box.h + 1.6}" rx="1.6"/>
+          <g filter="url(#bd-shadow)">${pieceSvg(c)}</g>
           ${c.ring ? ringSvg(c.ring, L.metal) : ''}</g>`).join('')}
         ${ringSvg(s.ring, L.metal)}
       </g></g>`;
   }).join('');
+  // Under the chosen strand, a + adds another charm to the end of it.
+  const cur = L.slots[sel];
+  const plus = cur && cur.filled ? `<g class="slot add" data-slot="${sel}" tabindex="0" role="button" aria-label="Add a charm to this strand">
+      <circle class="mark" cx="${cur.ring.x}" cy="${cur.box.y + cur.box.h + 3.6}" r="2.8"/>
+      <text class="num" x="${cur.ring.x}" y="${cur.box.y + cur.box.h + 3.7}">+</text></g>` : '';
   const marks = L.slots.map((s) => (s.filled ? '' : `
     <g class="slot${s.i === sel ? ' sel' : ''}" data-slot="${s.i}" tabindex="0" role="button" aria-label="Spot ${s.i + 1}, empty">
       <circle class="mark" cx="${s.ring.x}" cy="${s.ring.y + 1.6}" r="3.3"/>
@@ -6788,6 +6796,7 @@ function paintStageSvg() {
     <g filter="url(#bd-shadow)">${pieceSvg({ ...L.baseImg, glyph: L.baseImg.glyph })}</g>
     ${hungs}
     ${marks}
+    ${plus}
   </svg>${toggle}<button class="bd-expand" data-bd="expand" type="button">Expand preview</button>`;
   warmArt();
   if (fresh) swayAll();
@@ -6865,6 +6874,18 @@ function make3D(lib) {
   controls.minPolarAngle = Math.PI * 0.3; controls.maxPolarAngle = Math.PI * 0.7;
   let touched = 0;
   controls.addEventListener('start', () => { touched = performance.now(); });
+  // A tap (not a turn) on a charm, a strand or an empty spot picks it, as in the drawing.
+  let down = null;
+  const el = renderer.domElement;
+  el.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+  el.addEventListener('pointerup', (e) => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
+    const r = el.getBoundingClientRect();
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    const hit = ray.intersectObjects(ctx.root.children, true).find((h) => h.object.userData.pick);
+    if (hit) pickAt(hit.object.userData.pick.slot, hit.object.userData.pick.at);
+  });
 
   const root = new THREE.Group();
   scene.add(root);
@@ -6928,6 +6949,51 @@ function texture3D(ctx, src) {
   return ctx.textures.get(src);
 }
 
+/** A chain's picture cut to its metal, to repeat down a strand (one texture per chain; each strand repeats it through its own UVs). */
+function tile3D(ctx, src, box) {
+  const key = `${src}#tile`;
+  if (!ctx.textures.has(key)) {
+    const { THREE } = ctx.lib;
+    // A fixed size: the GPU keeps the size it first saw, and the strip stretches one tile over it anyway.
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 256;
+    const tx = new THREE.CanvasTexture(cv);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    tx.wrapT = THREE.RepeatWrapping;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const w = img.naturalWidth || 300; const h = img.naturalHeight || 150;
+      cv.getContext('2d').drawImage(img, box.x * w, box.y * h, box.w * w, box.h * h, 0, 0, cv.width, cv.height);
+      tx.needsUpdate = true;
+    };
+    img.src = src;
+    ctx.textures.set(key, tx);
+  }
+  return ctx.textures.get(key);
+}
+
+/** The numbered mark on an empty spot, drawn as in the flat view. */
+function markSprite3D(ctx, n, sel) {
+  const key = `mark${n}${sel ? 's' : ''}`;
+  if (!ctx.textures.has(key)) {
+    const { THREE } = ctx.lib;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g = cv.getContext('2d');
+    g.beginPath(); g.arc(32, 32, 28, 0, Math.PI * 2);
+    g.fillStyle = sel ? '#8cd4cb' : 'rgba(140,212,203,.28)'; g.fill();
+    g.lineWidth = 3; g.strokeStyle = '#8cd4cb'; g.stroke();
+    g.fillStyle = sel ? '#071b1c' : '#eef2f1';
+    g.font = '600 30px "Source Sans 3", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), 32, 34);
+    const tx = new THREE.CanvasTexture(cv);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    ctx.textures.set(key, new THREE.SpriteMaterial({ map: tx, depthTest: false }));
+  }
+  return ctx.textures.get(key);
+}
+
 /** Builds this hand in 3D from the same layout the drawing uses (millimetres, y down). */
 function build3D(ctx, L) {
   const { THREE } = ctx.lib;
@@ -6954,32 +7020,37 @@ function build3D(ctx, L) {
     return m;
   };
 
-  // The bangle: a polished band, a granulated edge, and its bells across the lower half.
-  const R = L.R;
-  const tube = Math.max(1.8, L.W * 0.045);
-  const band = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 32, 220), metal);
-  band.userData.ownGeo = true;
-  band.scale.z = 0.7;
-  root.add(band);
-  const edge = [];
-  for (let a = 0; a < 360; a += 2.2) {
-    const t = (a * Math.PI) / 180;
-    for (const side of [-1, 1]) {
-      edge.push({ p: new THREE.Vector3(Math.cos(t) * (R + tube * 0.95), Math.sin(t) * (R + tube * 0.95), side * tube * 0.45), r: 0.55 });
+  /** A picture given a little thickness: the same cut-out stacked a few times, so it reads as solid metal when turned. */
+  const slab = (src, w, h, depth, layers) => {
+    const g = new THREE.Group();
+    const geo = new THREE.PlaneGeometry(w, h);
+    const m = new THREE.MeshStandardMaterial({ map: texture3D(ctx, src), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, metalness: 0.25, roughness: 0.4 });
+    for (let j = 0; j < layers; j++) {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.position.z = layers > 1 ? -depth / 2 + (depth * j) / (layers - 1) : 0;
+      if (!j) { mesh.userData.ownGeo = true; mesh.userData.ownMat = true; }
+      g.add(mesh);
     }
+    return g;
+  };
+
+  // The bangle: the same picture as the drawing, so both views show the bangle that was chosen.
+  const bi = L.baseImg;
+  if (bi.src) {
+    const b = slab(bi.src, bi.w, bi.h, 3, 6);
+    b.position.copy(P(bi.x + bi.w / 2, bi.y + bi.h / 2));
+    root.add(b);
   }
-  root.add(many(shared.sphere, metal, edge));
-  const bells = [];
-  const rows = 3;
-  for (let row = 0; row < rows; row++) {
-    const rr = R + tube + 1.6 + row * 2.5;
-    const step = 360 / ((2 * Math.PI * rr) / 3.1);
-    for (let a = 200 + (row % 2) * step / 2; a <= 340; a += step) {
-      const t = (a * Math.PI) / 180;
-      bells.push({ p: new THREE.Vector3(Math.cos(t) * rr, Math.sin(t) * rr, (row - 1) * 0.8), r: 1.45 - row * 0.12 });
-    }
+
+  // Empty spots are marked, as in the drawing, and can be tapped.
+  for (const s of L.slots) {
+    if (s.filled) continue;
+    const mark = new THREE.Sprite(markSprite3D(ctx, s.i + 1, s.i === S.build.sel));
+    mark.position.copy(P(s.ring.x, s.ring.y + 1.6, 3));
+    mark.scale.setScalar(6.6);
+    mark.userData.pick = { slot: s.i, at: -1 };
+    root.add(mark);
   }
-  root.add(many(shared.sphere, metal, bells));
 
   // Each spot: a pivot at its ring, so the whole strand swings from there.
   for (const s of L.slots) {
@@ -6992,29 +7063,26 @@ function build3D(ctx, L) {
     const top = new THREE.Mesh(shared.ring, metal);
     top.scale.setScalar(s.ring.r);
     pivot.add(top);
-    if (s.chain) {
-      const pick = S.build.slots[s.i] && S.build.slots[s.i].chain;
-      const item = pick ? itemOf(pick.itemId) : null;
-      const pearly = /pearl|moti/i.test(item ? item.name : '');
-      const links = []; const pearls = []; const clusters = [];
-      for (let y = 0.8; y < s.chain.len; y += pearly ? 2.6 : 1.25) {
-        const k = links.length;
-        if (pearly && k % 2 === 1) pearls.push({ p: local(s.chain.x, s.chain.y + y), r: 1.05 });
-        else links.push({ p: local(s.chain.x, s.chain.y + y), ry: k % 2 ? Math.PI / 2 : 0, rz: Math.PI / 2 });
-      }
-      // A little cluster of bells between charms, the way these strands are made.
-      const cys = s.charms.map((c) => c.box.y).concat([s.chain.y + s.chain.len]);
-      let prev = s.chain.y;
-      for (const cy of cys) {
-        const at = (prev + cy) / 2;
-        if (cy - prev > 14) {
-          for (const [dx, dy] of [[-1.3, 0], [1.3, 0], [0, 1.2]]) clusters.push({ p: local(s.chain.x + dx, at + dy, 0.6), r: 1.05 });
-        }
-        prev = cy;
+    const c0 = s.chain;
+    if (c0 && c0.src && c0.tileMm) {
+      // The chain's own picture, repeated down the strand exactly as the drawing tiles it.
+      const geo = new THREE.PlaneGeometry(c0.w, c0.len);
+      const reps = c0.len / c0.tileMm;
+      const uv = geo.attributes.uv;
+      for (let j = 0; j < uv.count; j++) uv.setY(j, 1 - (1 - uv.getY(j)) * reps);
+      const strip = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+        map: tile3D(ctx, c0.src, c0.box), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, metalness: 0.25, roughness: 0.4,
+      }));
+      strip.userData.ownGeo = true; strip.userData.ownMat = true;
+      strip.userData.pick = { slot: s.i, at: -1 };
+      strip.position.copy(local(c0.x, c0.y + c0.len / 2));
+      pivot.add(strip);
+    } else if (c0) {
+      const links = [];
+      for (let y = 0.8; y < c0.len; y += 1.25) {
+        links.push({ p: local(c0.x, c0.y + y), ry: links.length % 2 ? Math.PI / 2 : 0, rz: Math.PI / 2 });
       }
       pivot.add(many(shared.link, metal, links));
-      if (pearls.length) pivot.add(many(shared.sphere, shared.pearl, pearls));
-      if (clusters.length) pivot.add(many(shared.sphere, metal, clusters));
     }
     s.charms.forEach((c, k) => {
       if (c.ring) {
@@ -7025,12 +7093,10 @@ function build3D(ctx, L) {
         pivot.add(ring);
       }
       if (!c.src) return;
-      const plate = new THREE.Mesh(new THREE.PlaneGeometry(c.w, c.h), new THREE.MeshStandardMaterial({
-        map: texture3D(ctx, c.src), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide,
-        metalness: 0.25, roughness: 0.4,
-      }));
-      plate.userData.ownGeo = true;
-      plate.userData.ownMat = true;
+      const plate = slab(c.src, c.w, c.h, 0.8, 3);
+      plate.traverse((o) => { o.userData.pick = { slot: s.i, at: k }; });
+      // The charm being changed glows, as its outline does in the drawing.
+      if (s.i === S.build.sel && k === S.build.at) plate.children[0].material.emissive.set(0x2f8a80);
       plate.position.copy(local(c.x + c.w / 2, c.y + c.h / 2, 0.9 + k * 0.05));
       plate.rotation.y = ((k % 2 ? 1 : -1) * 0.12);
       pivot.add(plate);
@@ -7300,23 +7366,27 @@ function hang(itemId, variantId, at = S.build.sel) {
     release(was.itemId, was.variantId, 1);
     if (!claim(item, vId, 1)) { trayAdd(was.itemId, was.variantId, 1); return; }
     s.charms[k] = { itemId, variantId: vId };
-    b.at = -1;
+    // The swapped charm stays chosen, so its colour can be changed straight away.
     commit();
     swing(at);
     return;
   }
+  // A full strand grows to the next length that has room; nobody has to work out centimetres first.
   if (s && s.charms.length >= roomOn(s)) {
-    toast(lenOf(s) ? `This strand is full at ${roomOn(s)} charms — choose a longer one, or another spot.`
-      : 'Choose a length to hang more than one charm here.', 'bad');
-    return;
+    const cm = LENGTHS.find((c) => c > lenOf(s) && Math.floor(c / CM_PER_CHARM) > s.charms.length);
+    if (!cm || !chains().length || at !== b.sel) {
+      toast(`This strand is full at ${roomOn(s)} charms. Take one off, or add to another strand.`, 'bad');
+      return;
+    }
+    setLength(cm);
+    if (lenOf(b.slots[at]) !== cm) return;
   }
   if (!claim(item, vId, 1)) return;
   if (s) s.charms.push({ itemId, variantId: vId });
   else b.slots[at] = { chain: null, charms: [{ itemId, variantId: vId }] };
+  b.at = -1;
   commit();
   swing(at);
-  // Filling an empty spot moves on to the next one; a strand stays put to take more.
-  if (!s) { b.sel = nextEmpty(at); b.at = -1; paintBuilder(); }
 }
 
 /** Takes one charm off a strand, or (k < 0) the whole strand off its spot. */
@@ -7533,7 +7603,7 @@ function shapeHtml() {
   const spots = S.build.slots.length;
   const sec = S.build.filter ? sectionOf(S.build.filter).name.toLowerCase() : 'every charm';
   return `<section id="bd-shape">
-    <div class="bd-sect-head"><h3>Start from a shape</h3><span class="aside">${spots} spots on this bangle</span></div>
+    <div class="bd-sect-head"><h3>${hungCount() ? "Start again from a shape" : "Start from a shape"}</h3><span class="aside">${spots} spots on this bangle</span></div>
     <div class="bd-shapes">${SHAPES.map((sh) => {
       const row = shapeRow(sh.counts, spots);
       const top = Math.max(...row);
@@ -7652,12 +7722,55 @@ function banglePicker() {
     ${S.build.baseId ? '<div><button data-bd="close-bangles">Keep my bangle</button></div>' : ''}</section>`;
 }
 
+/**
+ * The editor for whatever was tapped on the piece: one charm (swap, colour,
+ * remove), a strand (add to its end), or an empty spot. Which spot, how long
+ * and on what chain are settings most people never open: adding charms
+ * lengthens a strand by itself.
+ */
 function spotHtml() {
   const b = S.build;
   const s = b.slots[b.sel];
   const used = b.slots.filter(Boolean).length;
-  const spots = `<div class="bd-sect-head"><h3>Spot ${b.sel + 1}</h3>
-      <span class="aside">${used} of ${b.slots.length} spots used</span></div>
+  const k = focusAt();
+  const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
+  const price = s ? s.charms.reduce((t, c) => t + ((itemOf(c.itemId) || {}).price || 0), 0)
+    + (lenOf(s) ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, lenOf(s)) : 0) : 0;
+  let head;
+  if (focus) {
+    const c = s.charms[k];
+    const colours = focus.variants.length > 1 ? `<div class="bd-chips" role="group" aria-label="Colour">${focus.variants.map((v) => {
+      const ok = v.id === c.variantId || addable(focus, v.id) > 0;
+      return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === c.variantId}" ${ok ? '' : 'disabled'}>
+        ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
+    }).join('')}</div>` : '';
+    head = `<div class="bd-sect-head"><h3>Charm ${k + 1} on strand ${b.sel + 1}</h3>
+        <button type="button" data-bd="cancel-swap">Done</button></div>
+      <div class="bd-focus"><span class="thumb">${artImg(focus, c.variantId)}</span>
+        <span class="nm">${esc(label(focus, c.variantId))}<small>${money(focus.price)}</small></span>
+        <button type="button" class="x warnbtn" data-off="${k}" aria-label="Remove ${esc(focus.name)}">Remove</button></div>
+      ${colours}
+      <p>Pick a charm below to put in its place.</p>`;
+  } else if (s) {
+    head = `<div class="bd-sect-head"><h3>Strand ${b.sel + 1}</h3>
+        <span class="aside">${s.charms.length} charm${s.charms.length === 1 ? '' : 's'} · ${money(price)}</span></div>
+      ${s.charms.length ? `<div class="bd-thumbs" role="group" aria-label="Charms on this strand, top to bottom">${s.charms.map((c, i) => {
+        const it = itemOf(c.itemId);
+        return `<button type="button" data-at="${i}" aria-label="Change ${esc(it.name)}">${artImg(it, c.variantId)}</button>`;
+      }).join('')}</div>` : ''}
+      <p>Tap any charm, here or on the bangle, to change it. Charms picked below are added to the end of this strand.</p>`;
+  } else {
+    head = `<div class="bd-sect-head"><h3>Spot ${b.sel + 1}</h3>
+        <span class="aside">${used} of ${b.slots.length} spots used</span></div>
+      <p>Pick a charm below to hang it here. Keep adding and a chain is added for you.</p>`;
+  }
+  return `${head}<details class="bd-more"${b.more ? ' open' : ''}><summary>Strand settings</summary>${strandSettings()}</details>`;
+}
+
+function strandSettings() {
+  const b = S.build;
+  const s = b.slots[b.sel];
+  const spots = `<div class="bd-label">Spot</div>
     <div class="bd-spots" role="group" aria-label="Spots on the bangle">${b.slots.map((x, i) =>
       `<button type="button" data-spot-pick="${i}" class="${x ? 'filled' : ''}" aria-pressed="${i === b.sel}"
         aria-label="Spot ${i + 1}${x ? `, ${x.charms.length} charm${x.charms.length === 1 ? '' : 's'}` : ', empty'}">${i + 1}</button>`).join('')}</div>`;
@@ -7670,40 +7783,7 @@ function spotHtml() {
     ${len ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
         data-chain="${esc(c.id)}" aria-pressed="${c.id === s.chain.itemId}">
         ${charmArt(c, firstInStock(c)).src ? `<img src="${esc(charmArt(c, firstInStock(c)).src)}" alt="">` : ''}${esc(c.name)}</button>`).join('')}</div>` : ''}` : '';
-  if (!s) {
-    return `${spots}${lengths}<p>Pick a charm below to hang it here${chs.length ? ', or choose a length first to hang several down a strand' : ''}.</p>`;
-  }
-  const k = focusAt();
-  const swapping = b.at >= 0 && k >= 0;
-  const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
-  const list = s.charms.length ? `<div class="bd-label">On this strand${len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}` : ''}</div>
-    <div class="bd-list">${s.charms.map((c, i) => {
-      const it = itemOf(c.itemId);
-      return `<div class="bd-on${swapping && i === k ? ' swapping' : ''}">
-        <span class="n">${i + 1}</span>
-        <span class="thumb">${artImg(it, c.variantId)}</span>
-        <span class="nm">${esc(label(it, c.variantId))}</span>
-        <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
-          data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
-      </div>`;
-    }).join('')}</div>` : '';
-  const colours = focus && focus.variants.length > 1 ? `<div class="bd-label">Colour of ${esc(focus.name)}</div><div class="bd-chips">${focus.variants.map((v) => {
-    const ok = v.id === s.charms[k].variantId || addable(focus, v.id) > 0;
-    return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
-      ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
-  }).join('')}</div>` : '';
-  const price = s.charms.reduce((t, c) => t + ((itemOf(c.itemId) || {}).price || 0), 0)
-    + (len ? lenPrice(itemOf(s.chain.itemId) || { price: 0 }, len) : 0);
-  const note = swapping
-    ? `<div class="bd-swapnote"><span>Replacing <b>${esc(focus.name)}</b>. Pick a charm below.</span>
-        <button type="button" data-bd="cancel-swap">Cancel</button></div>`
-    : `<p>${k >= 0 ? 'Pick another charm below to swap it.'
-      : s.charms.length < roomOn(s) ? 'Add charms from top to bottom.'
-        : 'This strand is full. Choose a longer chain to add more.'}</p>`;
-  return `${spots}
-    <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
-      <button data-bd="remove" class="warnbtn">Remove strand</button></div>
-    ${lengths}${list}${colours}${note}`;
+  return `${spots}${lengths}${s ? '<div><button data-bd="remove" class="warnbtn">Remove this strand</button></div>' : ''}`;
 }
 
 function pickerHtml() {
@@ -7760,8 +7840,8 @@ function paintBuilder() {
           <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
           ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : '<span></span>'}</div>
       </section>
-      ${shapeHtml()}
-      <section>${spotHtml()}</section>
+      ${n ? '' : shapeHtml()}
+      <section id="bd-edit">${spotHtml()}</section>
       ${pickerHtml()}
       <section>
         <div class="bd-sect-head"><h3>Finish the pair</h3></div>
@@ -7769,13 +7849,16 @@ function paintBuilder() {
           <button data-bd="copy" class="${n ? 'solid' : ''}" ${n ? '' : 'disabled'}>Copy to ${other}</button>
           <button data-bd="copy-mirror" ${n ? '' : 'disabled'}>Mirror onto ${other}</button>
         </div>
-        <div class="bd-tools">
-          <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
-          <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
-          <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
-        </div>
-        <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
-      </section>`;
+        <details class="bd-more" data-more="tools"${b.moreTools ? ' open' : ''}><summary>More tools</summary>
+          <div class="bd-tools">
+            <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
+            <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
+            <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
+          </div>
+          <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
+        </details>
+      </section>
+      ${n ? shapeHtml() : ''}`;
   }
   window.scrollTo({ top: keepScroll });
   // Put the keyboard back where it was, since the panel was redrawn under it.
@@ -7810,11 +7893,25 @@ function paintBuildBar() {
   $('#bd-order').textContent = bases === 2 ? 'Review your pair' : 'Review your design';
   const s = S.build.slots[S.build.sel];
   $('#bd-caption').textContent = !S.build.baseId ? ''
-    : hungCount() ? `Shown in proportion.${lenOf(s) ? ` Chain length: ${lenOf(s)} cm.` : ''} Tap a strand to change it.`
-      : 'Tap a spot on the bangle, then pick a length and charms.';
+    : hungCount() ? `Shown in proportion.${lenOf(s) ? ` Chain length: ${lenOf(s)} cm.` : ''} Tap any charm to change it.`
+      : 'Tap a spot on the bangle, then pick charms to hang there.';
 }
 
 /* ----------------------------------------------------------------- wiring */
+
+/** A tap on the piece: charm k of strand i to change it, or (k < 0) strand i to add to it. */
+function pickAt(i, k = -1) {
+  S.build.sel = i;
+  S.build.at = k;
+  paintBuilder();
+  if (S.build.slots[i]) swing(i, 6);
+  // Bring the editor for it into view, if it is not already.
+  const ed = $('#bd-edit');
+  if (ed) {
+    const r = ed.getBoundingClientRect();
+    if (r.top < 0 || r.top > innerHeight * 0.6) ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
 
 function wireBuilder() {
   $('#mode-build').addEventListener('click', () => backToBuilder());
@@ -7824,17 +7921,8 @@ function wireBuilder() {
   const pickSlot = (e) => {
     const g = e.target.closest('[data-slot]');
     if (!g) return;
-    const i = Number(g.dataset.slot);
     const c = e.target.closest('[data-at]');
-    S.build.sel = i;
-    S.build.at = c ? Number(c.dataset.at) : -1;
-    paintBuilder();
-    if (S.build.slots[i]) swing(i, 6);
-    // On a phone the list is below the stage; bring it up.
-    if (matchMedia('(max-width: 900px)').matches) {
-      const pick = $('#bd-panel .bd-spots');
-      if (pick) pick.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    pickAt(Number(g.dataset.slot), c ? Number(c.dataset.at) : -1);
   };
   $('#bd-stage').addEventListener('click', (e) => {
     if (e.target.closest('[data-bd="view3d"]')) { set3D(!K3.on); return; }
@@ -7859,13 +7947,21 @@ function wireBuilder() {
   }, { passive: true });
   $('#bd-stage').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickSlot(e); }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest('.hung')) unhang(Number(e.target.closest('.hung').dataset.slot));
+    if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest('.hung')) {
+      const c = e.target.closest('[data-at]');
+      unhang(Number(e.target.closest('.hung').dataset.slot), c ? Number(c.dataset.at) : -1);
+    }
   });
 
   /** The second hand, made from the first: switch to the first and copy it over. */
   const fromOther = (mirrored) => { S.build.hand = otherHand(); return copyHand(mirrored); };
 
   const panel = $('#bd-panel');
+  // The panel is redrawn on every change; remember which of the tucked-away sections are open.
+  panel.addEventListener('toggle', (e) => {
+    if (!e.target.matches('.bd-more')) return;
+    if (e.target.dataset.more === 'tools') S.build.moreTools = e.target.open; else S.build.more = e.target.open;
+  }, true);
   panel.addEventListener('click', (e) => {
     const t = e.target.closest('button');
     if (!t) return;
@@ -7881,7 +7977,7 @@ function wireBuilder() {
     if (t.dataset.at !== undefined) {
       // Tapping the chosen charm again goes back to adding.
       const i = Number(t.dataset.at);
-      b.at = focusAt() === i && lenOf(b.slots[b.sel]) ? -1 : i;
+      b.at = focusAt() === i ? -1 : i;
       return paintBuilder();
     }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
