@@ -1160,6 +1160,7 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 /* ---- strand length: a 3 by 2 set of presets ---- */
 /* Every length, scrolled through rather than a handful of fixed buttons. */
 .bd-hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+.bd-strand-sum.sub { margin-top: -4px; font-size: 13.5px; color: var(--muted); }
 /* The chain and its length: two lists, the second waiting on the first. */
 .bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
 .bd-pick:disabled { opacity: .5; cursor: not-allowed; }
@@ -1423,6 +1424,7 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
   <div class="bill-bar">
     <div class="stat"><span class="eyebrow">On the piece</span><b class="num" id="s-count">0</b></div>
     <div class="stat"><span class="eyebrow">Piece subtotal</span><b id="s-items">—</b></div>
+    <div class="stat"><span class="eyebrow">Making</span><b id="s-making">—</b></div>
     <div class="stat"><span class="eyebrow">Delivery</span><b id="s-ship">—</b></div>
     <div class="stat headline"><span class="eyebrow">Running total</span><b id="s-total">—</b></div>
     <div class="spacer"></div>
@@ -1926,7 +1928,7 @@ const TRAY_KEY = 'cj.tray.v2';
 const S = {
   db: null,
   ready: false,
-  settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, sections: [] },
+  settings: { businessName: 'CustomJewelz', currency: 'A$', threshold: 10, making: 20, sections: [] },
   uid: null,           // this viewer's id from the platform — their private corner of the database
   isStudio: false,     // the artifact's owner or an editor: the studio is theirs
   holds: [],           // stock spoken for by open orders, with no names attached
@@ -3903,6 +3905,7 @@ function shippingNow() {
 function paintBill() {
   const lines = billLines();
   const items = lines.reduce((s, l) => s + l.total, 0);
+  const making = makingOn(items);
   const ship = shippingNow();
   // Count what is on the piece, not its centimetres — a 78 cm strand is one
   // hanging, not seventy-eight of anything.
@@ -3910,8 +3913,9 @@ function paintBill() {
 
   $('#s-count').textContent = count;
   $('#s-items').textContent = count ? money(items) : '—';
+  $('#s-making').textContent = count ? money(making) : '—';
   $('#s-ship').textContent = ship ? money(ship) : '—';
-  $('#s-total').textContent = count ? money(items + ship) : '—';
+  $('#s-total').textContent = count ? money(items + making + ship) : '—';
 
   $('#bill').innerHTML = lines.length
     ? lines.map((l) => `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
@@ -3920,14 +3924,15 @@ function paintBill() {
 
   $('#sum').innerHTML = `
     <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
+    <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
     <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'chosen at checkout'}</span></div>
-    <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
+    <div class="grand"><span>Total</span><span>${money(items + making + ship)}</span></div>`;
 
   const ready = S.charms.length > 0;
   $('#s-order').disabled = !ready;
   $('#s-order-2').disabled = !ready;
   $('#s-clear').disabled = !S.charms.length;
-  return { lines, items, ship };
+  return { lines, items, making, ship };
 }
 
 function paint() {
@@ -4025,12 +4030,14 @@ function openCheckout() {
 
 function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) {
   const ship = shippingNow();
+  const making = makingOn(items);
   const node = $('#ck-sum');
   if (node) {
     node.innerHTML = `
       <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
+      <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
       <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'Free, collect from the studio'}</span></div>
-      <div class="grand"><span>Total</span><span>${money(items + ship)}</span></div>`;
+      <div class="grand"><span>Total</span><span>${money(items + making + ship)}</span></div>`;
   }
   paintBill();
 }
@@ -4113,7 +4120,9 @@ async function submitOrder(form) {
       charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, flipped }) =>
         ({ itemId, variantId, x, y, w, rot, z, lenCm, flipped: Boolean(flipped) })),
     },
-    itemsTotal, shipping: ship, total: itemsTotal + ship,
+    itemsTotal,
+    makingRate: makingRate(), making: makingOn(itemsTotal),
+    shipping: ship, total: itemsTotal + makingOn(itemsTotal) + ship,
     status: 'new',
     createdAt: amend ? amend.createdAt : new Date().toISOString(),
     history: [
@@ -4148,6 +4157,7 @@ function showDone(order) {
       alt="The piece you designed" style="margin-bottom:14px">` : ''}
     <div class="sum">
       <div><span>Pieces used</span><span class="num">${money(order.itemsTotal)}</span></div>
+      ${makingLine(order)}
       <div><span>Delivery${order.area ? ` to ${esc(order.area)}` : ''}</span>
         <span class="num">${order.shipping ? money(order.shipping) : 'free'}</span></div>
       <div class="grand"><span>Total</span><span>${money(order.total)}</span></div>
@@ -4207,6 +4217,16 @@ function windowLeft(order, span) {
 }
 
 const threshold = () => Number(S.settings.threshold) || 10;
+
+/**
+ * Making charges: the work of assembling the piece, as a percentage of the
+ * pieces it is made from. Set in the studio, and charged on every order.
+ */
+const makingRate = () => {
+  const n = Number(S.settings.making);
+  return Number.isFinite(n) && n >= 0 ? n : 20;
+};
+const makingOn = (items) => Math.round(items * makingRate()) / 100;
 
 /** Stock lives per colour, so the studio counts colours, not components. */
 function stockRows() {
@@ -4516,6 +4536,8 @@ function viewSetup() {
           <label class="f"><span>Currency symbol</span><input id="set-cur" value="${esc(S.settings.currency)}"></label>
           <label class="f"><span>Low-stock threshold</span>
             <input id="set-thr" type="number" min="1" step="1" value="${threshold()}"></label>
+          <label class="f"><span>Making charges, % of the pieces</span>
+            <input id="set-making" type="number" min="0" max="200" step="1" value="${makingRate()}"></label>
         </div>
         <button class="solid" id="set-save">Save</button>
       </div>
@@ -5079,14 +5101,22 @@ function wireAdmin() {
   $('#set-save')?.addEventListener('click', guard(async () => {
     const thr = parseInt($('#set-thr').value, 10);
     if (!Number.isInteger(thr) || thr < 1) return toast('The threshold must be a whole number above zero.', 'bad');
+    const making = Number($('#set-making').value);
+    if (!Number.isFinite(making) || making < 0) return toast('Making charges must be zero or more.', 'bad');
     await saveSettings({
       businessName: $('#set-name').value.trim() || 'CustomJewelz',
       currency: $('#set-cur').value.trim() || 'A$',
       threshold: thr,
+      making,
     });
     toast('Saved.', 'good');
   }));
 }
+
+/** What an order was charged for making, as its own line — blank for the orders
+ *  placed before making charges existed. */
+const makingLine = (o) => (o.making ? `<div><span>Making charges${
+  o.makingRate ? ` · ${o.makingRate}%` : ''}</span><span class="num">${money(o.making)}</span></div>` : '');
 
 /** One detail view, shared by the studio and the customer: the piece large on
  *  the left, everything else — the customer's note first — down the right. */
@@ -5127,6 +5157,7 @@ function orderDetailHtml(o, asStudio) {
 
       <div class="sum" style="margin-top:0">
         <div><span>Pieces</span><span class="num">${money(o.itemsTotal)}</span></div>
+        ${makingLine(o)}
         <div><span>Delivery</span><span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
         <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
       </div>
@@ -8217,6 +8248,8 @@ function spotHtml() {
   return `${spots}
     <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
       <button data-bd="remove" class="warnbtn">Remove strand</button></div>
+    ${s.charms.length ? `<div class="bd-strand-sum sub"><span>Start the charms again</span>
+      <button data-bd="strip" class="warnbtn">Take the charms off</button></div>` : ''}
     ${lengths}${list}${joined}${colours}${note}`;
 }
 
@@ -8311,7 +8344,6 @@ function paintBuilder() {
           <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
         </div>
         <div class="bd-tools">
-          <button data-bd="strip" class="warnbtn" ${n ? '' : 'disabled'}>Take the charms off</button>
           <button data-bd="clear" class="warnbtn" ${n || b.slots.some(Boolean) ? '' : 'disabled'}>Take it all off</button>
         </div>
         <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
@@ -8382,7 +8414,8 @@ function paintBuildTray() {
 
 function paintBuildBar() {
   const lines = billLines();
-  const total = lines.reduce((s, l) => s + l.total, 0);
+  const items = lines.reduce((s, l) => s + l.total, 0);
+  const total = items + makingOn(items);
   const bases = Object.values(S.build.hands).filter((h) => h.baseId).length;
   const n = pairCount();
   $('#bd-count').textContent = !bases ? 'Choose a bangle to begin'
@@ -8753,6 +8786,7 @@ function paintMine() {
           `${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''} ${lineAmount(i)}`).join('<br>')}</div>
         <div class="sum" style="margin-top:4px">
           <div><span>Pieces</span><span class="num">${money(o.itemsTotal)}</span></div>
+          ${makingLine(o)}
           <div><span>${o.fulfilment === 'ship' ? `Delivery — ${esc(o.area || '')}` : 'Collecting from the studio'}</span>
             <span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
           <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>

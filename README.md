@@ -568,9 +568,10 @@ spot by spot, in proportion, from what is in their tray.
 - **A spot with no strand asks to start one.** Taking a strand off leaves the
   spot reading "Spot 3 is empty" with an **Add strand** button where *Remove
   strand* was; the chain and length lists stay out of the way until it is
-  pressed. **Take the charms off** clears every charm from the piece while the
-  bangle and its strands stay standing (the charms go back to the tray, free to
-  hang again); **Take it all off** clears the strands too.
+  pressed. **Take the charms off** sits under *Remove strand* whenever the strand
+  in hand holds a charm: it clears every charm from the piece while the bangle
+  and its strands stay standing, and the charms go back to the tray, free to hang
+  again. **Take it all off**, under *Finish the pair*, clears the strands too.
 - **Where a charm sits is typed, not dragged.** Each charm on the list carries a
   *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
   the charm moves: up or down its own strand, or across to another spot on the
@@ -605,6 +606,16 @@ spot by spot, in proportion, from what is in their tray.
   lower loop the length below, so one strand becomes two lengths of the same
   chain held together by it. The bill, the saved design and the 3D view all show
   it that way.
+
+### Making charges
+
+Every order carries making charges — the work of assembling the piece — as a
+percentage of the components it is made from. It is **20%** to begin with, and
+the studio changes it under **Setup → Making charges**. It shows as its own line
+in the running bill, at checkout, on the order record and on the customer's copy,
+and an order keeps the rate it was placed at, so changing the rate never rewrites
+what someone has already been quoted. Orders placed before making charges existed
+simply have no such line.
 
 ## Before going live
 
