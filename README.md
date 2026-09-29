@@ -548,7 +548,7 @@ spot by spot, in proportion, from what is in their tray.
   and the price of the chosen length sits under the list.
 - **How much a chain carries** is the studio's number, not a guess. A chain
   record has *charms it can hold per 10 cm*, and a strand of it holds
-  `floor(length × per-10-cm ÷ 10) + 1` — the last one being the charm at the top,
+  `ceil(length × per-10-cm ÷ 10) + 1` — the last one being the charm at the top,
   where the strand meets the bangle. The piece's own capacity is those strands
   added up (a bare spot counting as one), shown beside the spots. Create refuses
   the charm that would go past a strand's room, and says so. A chain saved
@@ -565,6 +565,12 @@ spot by spot, in proportion, from what is in their tray.
 - **Charms can be switched.** Tapping a charm on a strand selects it; picking
   another then replaces it in place, and the one it replaced goes back to the
   tray.
+- **A spot with no strand asks to start one.** Taking a strand off leaves the
+  spot reading "Spot 3 is empty" with an **Add strand** button where *Remove
+  strand* was; the chain and length lists stay out of the way until it is
+  pressed. **Take the charms off** clears every charm from the piece while the
+  bangle and its strands stay standing (the charms go back to the tray, free to
+  hang again); **Take it all off** clears the strands too.
 - **Where a charm sits is typed, not dragged.** Each charm on the list carries a
   *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
   the charm moves: up or down its own strand, or across to another spot on the

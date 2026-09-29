@@ -6482,7 +6482,7 @@ const METALS = {
  */
 const emptySide = () => ({ baseId: '', baseVariant: '', slots: [] });
 S.build = { active: true, hand: 'left', hands: { left: emptySide(), right: emptySide() },
-  sel: 0, at: -1, filter: '', find: '', chainPick: '' };
+  sel: 0, at: -1, adding: -1, filter: '', find: '', chainPick: '' };
 // Create works on one hand at a time; these read and write the hand in front of the customer.
 for (const k of ['baseId', 'baseVariant', 'slots']) {
   Object.defineProperty(S.build, k, {
@@ -6574,12 +6574,12 @@ function holdsPer10(item) {
 }
 
 /**
- * How many charms a strand of this chain holds: what its length carries, plus
- * one at the top, where the strand meets the bangle.
+ * How many charms a strand of this chain holds: what its length carries, rounded
+ * up, plus one at the top where the strand meets the bangle.
  */
 function roomFor(cm, chainItem) {
   if (!cm) return 1;                                  // straight off the bangle
-  return Math.floor((cm * holdsPer10(chainItem)) / 10) + 1;
+  return Math.ceil((cm * holdsPer10(chainItem)) / 10) + 1;
 }
 
 const roomOn = (s) => roomFor(lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
@@ -6590,7 +6590,12 @@ const pieceRoom = (slots = S.build.slots) => slots.reduce((n, s) => n + roomOn(s
 /** The length of chain that carries this many charms, at least the shortest sold. */
 function cmForRoom(n, chainItem) {
   const per = holdsPer10(chainItem);
-  return Math.max(LEN_MIN, Math.ceil(((Math.max(1, n) - 1) * 10) / per));
+  const want = Math.max(1, n);
+  let cm = Math.max(LEN_MIN, Math.ceil(((want - 1) * 10) / per));
+  // Rounding up can buy more room than was asked for; back down to the shortest
+  // length that still carries it.
+  while (cm > LEN_MIN && roomFor(cm - 1, chainItem) >= want) cm -= 1;
+  return cm;
 }
 
 /**
@@ -7715,7 +7720,7 @@ function unhang(at = S.build.sel, k = -1) {
   const b = S.build;
   const s = b.slots[at];
   if (!s) return;
-  if (k < 0) { releaseSlot(s); b.slots[at] = null; }
+  if (k < 0) { releaseSlot(s); b.slots[at] = null; b.adding = -1; b.chainPick = ''; }
   else {
     s.charms.splice(k, 1);              // back to the tray, still picked
     if (!s.charms.length && !lenOf(s)) b.slots[at] = null;
@@ -8003,6 +8008,23 @@ function switchHand(hand) {
   paintBuilder();
 }
 
+/**
+ * Every charm off the piece, the bangle and its strands left as they are. The
+ * charms were the tray's all along, so they simply become free to hang again.
+ */
+async function stripCharms() {
+  const b = S.build;
+  if (!hungCount()) return;
+  if (!await ask('Take every charm off?',
+    'The bangle and its strands stay as they are, and the charms go back to your tray.',
+    'Take them off', true)) return;
+  for (const s of b.slots) { if (s) s.charms = []; }
+  b.slots = b.slots.map((s) => (s && lenOf(s) ? s : null));
+  b.at = -1;
+  commit();
+  toast('The charms are back in your tray — hang them where you like.', 'good');
+}
+
 async function clearBuild() {
   if (!hungCount()) return;
   if (!await ask('Take every charm off?', 'The bangle stays; the strands and charms go back to the shop.', 'Take them off', true)) return;
@@ -8136,7 +8158,16 @@ function spotHtml() {
         : opts.length ? `Up to ${fmtLen(opts[opts.length - 1])} of it left in your tray, at ${priceLabel(chosen)}.`
           : 'None of that chain is left in your tray — pick more in the Collection.'}</p>` : '';
   if (!s) {
-    return `${spots}${lengths}<p>Pick a charm below to hang it here${chs.length ? ', or choose a length first to hang several down a strand' : ''}.</p>`;
+    // Nothing on this spot: the chain and length are put away behind one button,
+    // so a spot just cleared reads as an empty one waiting for a new strand.
+    const open = b.adding === b.sel;
+    const start = `<div class="bd-strand-sum"><span>Spot ${b.sel + 1} is empty</span>
+      ${chs.length ? `<button data-bd="${open ? 'add-cancel' : 'add'}"${open ? '' : ' class="solid"'}>${
+        open ? 'Not just now' : 'Add strand'}</button>` : ''}</div>`;
+    return `${spots}${start}${open ? lengths : ''}
+      <p>${open ? 'Choose the chain, then how long this strand should be.'
+        : `Pick a charm below to hang it straight on the bangle here${
+          chs.length ? ', or add a strand to hang several down it' : ''}.`}</p>`;
   }
   const k = focusAt();
   const swapping = b.at >= 0 && k >= 0;
@@ -8278,7 +8309,10 @@ function paintBuilder() {
         <div class="bd-tools">
           <button data-bd="fill" ${b.slots[b.sel] ? '' : 'disabled'}>Repeat on empty spots</button>
           <button data-bd="mirror" ${n ? '' : 'disabled'}>Mirror across the bangle</button>
-          <button data-bd="clear" class="warnbtn" ${n ? '' : 'disabled'}>Take all off</button>
+        </div>
+        <div class="bd-tools">
+          <button data-bd="strip" class="warnbtn" ${n ? '' : 'disabled'}>Take the charms off</button>
+          <button data-bd="clear" class="warnbtn" ${n || b.slots.some(Boolean) ? '' : 'disabled'}>Take it all off</button>
         </div>
         <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
       </section>`;
@@ -8437,7 +8471,7 @@ function wireBuilder() {
     if (!t) return;
     const b = S.build;
     if (t.dataset.shape) return applyShape(parseShape(t.dataset.shape));
-    if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
+    if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; b.adding = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
     if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
     if (t.dataset.charm) return hang(t.dataset.charm, t.dataset.variant);
     if (t.dataset.join) return joinStrand(b.sel, t.dataset.join, t.dataset.variant);
@@ -8461,7 +8495,10 @@ function wireBuilder() {
       case 'copy-mirror': return copyHand(true);
       case 'copy-back': return fromOther(false);
       case 'mirror-back': return fromOther(true);
+      case 'strip': return stripCharms();
       case 'clear': return clearBuild();
+      case 'add': b.adding = b.sel; return paintBuilder();
+      case 'add-cancel': b.adding = -1; b.chainPick = ''; return paintBuilder();
       case 'free': return toFreeLayout();
       case 'bangles': b.choosing = true; return paintBuilder();
       case 'close-bangles': b.choosing = false; return paintBuilder();
