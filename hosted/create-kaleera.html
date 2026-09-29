@@ -1030,6 +1030,7 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-tray header { display: flex; align-items: baseline; gap: 10px; }
 .bd-tray h3 { font-family: var(--body); font-size: 15px; font-weight: 600; }
 .bd-tray .aside { font-size: 13px; color: var(--muted); margin-left: auto; }
+.bd-tray header .warnbtn { min-height: 30px; padding: 3px 10px; font-size: 12.5px; }
 .bd-tray .rows {
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, 1fr);
   gap: 8px; overflow-x: auto; padding-bottom: 2px;
@@ -1149,20 +1150,20 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 
 /* ---- strand length: a 3 by 2 set of presets ---- */
 /* Every length, scrolled through rather than a handful of fixed buttons. */
-.bd-lens {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
-  max-height: 208px; overflow: auto; padding: 2px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
-}
 .bd-hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
-.bd-lens button {
-  min-height: 48px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface);
-  font: 600 15px var(--body); color: var(--ink); cursor: pointer; display: grid; gap: 0; align-content: center;
+/* The chain and its length: two lists, the second waiting on the first. */
+.bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+.bd-pick:disabled { opacity: .5; cursor: not-allowed; }
+/* Where a charm sits — which strand, and how far down it. */
+.bd-on .place { display: flex; gap: 6px; align-items: center; }
+.bd-on .place label {
+  display: grid; gap: 1px; justify-items: center;
+  font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
 }
-.bd-lens button small { font-weight: 400; font-size: 12px; color: var(--muted); }
-.bd-lens button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.bd-lens button[aria-pressed="true"] small { color: inherit; opacity: .85; }
-.bd-lens button:disabled { opacity: .45; cursor: not-allowed; }
+.bd-on .place input {
+  width: 46px; min-height: 30px; padding: 3px 4px; text-align: center;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
 
 .bd-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .bd-chip {
@@ -1179,8 +1180,15 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 /* ---- the charms on the selected strand, top to bottom ---- */
 .bd-list { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .bd-on {
-  display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 8px 12px;
   min-height: 56px; padding: 8px 8px 8px 14px; border-top: 1px solid var(--line); background: var(--surface);
+}
+/* Narrow, and the name takes the row to itself with the controls under it. */
+@media (max-width: 460px) {
+  .bd-on { grid-template-columns: 20px 40px minmax(0, 1fr); }
+  .bd-on .place { grid-column: 2 / -1; justify-content: start; }
+  .bd-on .acts { grid-column: 2 / -1; }
 }
 .bd-on:first-child { border-top: none; }
 .bd-on.swapping { background: var(--accent-soft); }
@@ -1389,6 +1397,7 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
     <label class="tag flat" style="cursor:pointer;font-weight:400">
       <input type="checkbox" id="hide-out" style="width:auto;margin-right:6px">Hide sold out
     </label>
+    <button class="tiny warnbtn" id="shop-empty" hidden>Empty my tray</button>
   </div>
   <div class="catalogue" id="catalogue"></div>
 </div>
@@ -2849,6 +2858,7 @@ function trayRows() {
 function paintTrayPip() {
   const n = S.tray.length;
   $('#tray-empty').hidden = n === 0;
+  $('#shop-empty').hidden = n === 0;
   for (const pip of [$('#fab-pip'), $('#cta-pip')]) {
     pip.textContent = n;
     pip.hidden = n === 0;
@@ -4555,9 +4565,33 @@ const ADMIN_VIEWS = {
 };
 
 function paintAdmin() {
+  const body = $('#admin-body');
+  const keepScroll = window.scrollY;
+  const inner = [...body.querySelectorAll('.scroll')].map((el) => el.scrollLeft);
+  // A row is redrawn under whatever was being typed in; this puts the cursor
+  // back in the same cell rather than at the top of the table.
+  const live = document.activeElement;
+  const cell = live && live.closest && live.closest('#admin-body tr[data-id]') ? {
+    id: live.closest('tr').dataset.id,
+    variant: live.closest('tr').dataset.variant,
+    f: live.dataset.f || '',
+    at: typeof live.selectionStart === 'number' ? live.selectionStart : null,
+  } : null;
   $$('#admin-tabs .cat').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.adminView)));
-  $('#admin-body').innerHTML = (ADMIN_VIEWS[S.adminView] || viewOverview)();
+  body.innerHTML = (ADMIN_VIEWS[S.adminView] || viewOverview)();
   wireAdmin();
+  [...body.querySelectorAll('.scroll')].forEach((el, i) => { if (inner[i]) el.scrollLeft = inner[i]; });
+  if (cell && cell.f) {
+    const tr = body.querySelector(`tr[data-id="${CSS.escape(cell.id)}"][data-variant="${CSS.escape(cell.variant)}"]`);
+    const el = tr && tr.querySelector(`[data-f="${cell.f}"]`);
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (cell.at !== null && el.setSelectionRange) {
+        try { el.setSelectionRange(cell.at, cell.at); } catch { /* a number input may refuse */ }
+      }
+    }
+  }
+  window.scrollTo({ top: keepScroll });
 }
 </script>
 
@@ -5866,17 +5900,29 @@ function wireBrowse() {
 
 /** Quantities are changed where the tray is shown: in the design rail. */
 function wireTray() {
-  $('#tray-empty').addEventListener('click', async () => {
-    if (!S.tray.length) return;
-    if (!await ask('Empty your tray?',
-      'Nothing is ordered either way — the pieces simply go back to the shop.', 'Empty it', true)) return;
-    S.tray = [];
-    saveTray();
-    S.charms = [];
-    clearPicked();
-    paint();
-    toast('Tray emptied.', 'good');
-  });
+  $('#tray-empty').addEventListener('click', () => emptyTray());
+  $('#shop-empty').addEventListener('click', () => emptyTray());
+}
+
+/**
+ * Putting everything back. The tray is the whole of what a design is made from,
+ * so emptying it takes the piece apart too — which is why it asks first.
+ */
+async function emptyTray() {
+  if (!S.tray.length) return toast('Your tray is already empty.');
+  if (!await ask('Empty your tray?',
+    'Everything goes back to the shop, and the piece you have built comes apart. Nothing is ordered either way.',
+    'Empty it', true)) return;
+  S.tray = [];
+  saveTray();
+  S.charms = [];
+  clearPicked();
+  resetBuild();
+  // Back to the first question rather than straight into a bangle Create picked
+  // for them — an emptied tray should stay empty until they choose again.
+  S.build.choosing = true;
+  paint();
+  toast('Tray emptied.', 'good');
 }
 
 /**
@@ -6438,7 +6484,8 @@ const METALS = {
  *   Strand: { chain: { itemId, variantId, lenCm } | null, charms: [{ itemId, variantId }] }
  */
 const emptySide = () => ({ baseId: '', baseVariant: '', slots: [] });
-S.build = { active: true, hand: 'left', hands: { left: emptySide(), right: emptySide() }, sel: 0, at: -1, filter: '', find: '' };
+S.build = { active: true, hand: 'left', hands: { left: emptySide(), right: emptySide() },
+  sel: 0, at: -1, filter: '', find: '', chainPick: '' };
 // Create works on one hand at a time; these read and write the hand in front of the customer.
 for (const k of ['baseId', 'baseVariant', 'slots']) {
   Object.defineProperty(S.build, k, {
@@ -6537,18 +6584,18 @@ function roomFor(cm, chainItem) {
 const roomOn = (s) => roomFor(lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
 
 /**
- * Every length worth offering for this strand: a centimetre at a time to 30,
- * then every five — enough to scroll through rather than six fixed buttons.
- * It stops at what the shop can still cut from that chain.
+ * Every length worth offering for this strand, a centimetre at a time. The
+ * strand is cut from the chain the customer picked, so what is left of it in
+ * the tray — plus whatever this strand already uses — is what bounds the list.
+ * Less than the usual shortest strand and there is one length to be had: it all.
  */
 function lengthChoices(chainItem, nowCm, variantId) {
-  const v = variantId || (chainItem ? firstInStock(chainItem) : '');
-  const most = chainItem
-    ? Math.max(nowCm || 0, Math.min(LEN_MAX, chainRoom(chainItem, v) + (nowCm || 0)))
-    : LEN_MAX;
+  if (!chainItem) return [];
+  const v = variantId || firstInStock(chainItem);
+  const most = Math.min(LEN_MAX, sparePicks(chainItem.id, v) + (nowCm || 0));
   const out = [];
-  for (let n = LEN_MIN; n <= Math.min(most, 30); n += 1) out.push(n);
-  for (let n = 35; n <= most; n += 5) out.push(n);
+  if (most >= LEN_MIN) for (let n = LEN_MIN; n <= Math.floor(most); n += 1) out.push(n);
+  else if (most > 0) out.push(Math.round(most * 10) / 10);
   if (nowCm && !out.includes(nowCm)) out.push(nowCm);
   return out.sort((a, b) => a - b);
 }
@@ -7397,26 +7444,28 @@ function trayConnectors() {
 }
 
 /**
- * Chain for a strand: whatever the tray already holds is used first, and only
- * the shortfall is cut from the shop's reel. That way a customer who picked
- * 2 m of chain in the Collection hangs it here rather than buying more.
+ * Chain for a strand comes out of the tray and nowhere else: a strand is cut
+ * from the length the customer picked in the Collection, so the tray is what
+ * says how long it can be.
  */
 function takeChain(item, variantId, cm) {
   if (!item) return false;
   const spare = sparePicks(item.id, variantId);
   if (spare >= cm) return true;
-  const short = cm - spare;
-  if (addable(item, variantId) < short) {
-    toast(`Only ${fmtLen(spare + addable(item, variantId))} of ${label(item, variantId)} can be cut.`, 'bad');
-    return false;
-  }
-  trayAdd(item.id, variantId, short);
-  return true;
+  toast(spare > 0
+    ? `Your tray holds ${fmtLen(spare)} of ${label(item, variantId)} — pick more in the Collection for a longer strand.`
+    : `${label(item, variantId)} is not in your tray yet — pick it in the Collection first.`, 'bad');
+  return false;
 }
 
-/** How long a strand of this chain could be: the tray's, plus what the shop can add. */
-const chainRoom = (item, variantId) => (item
-  ? sparePicks(item.id, variantId) + addable(item, variantId) : 0);
+/** How long a strand of this chain could be: what the tray still holds of it. */
+const chainRoom = (item, variantId) => (item ? sparePicks(item.id, variantId) : 0);
+
+/** The chains in the tray, one row per colour, with how much of each is left. */
+function trayChainRows() {
+  return trayRows().filter((r) => r.item.role === 'chain' && forSale(r.item))
+    .map((r) => ({ ...r, spare: sparePicks(r.itemId, r.variantId) }));
+}
 
 /** Claim from the shop into this shopper's tray, if the shop can spare it. */
 function claim(item, variantId, n) {
@@ -7626,6 +7675,45 @@ function unhang(at = S.build.sel, k = -1) {
   commit();
 }
 
+/**
+ * Where a charm sits, typed rather than dragged: which strand holds it, and how
+ * far down that strand it hangs. Moving it to another strand takes the charm
+ * with it and follows it there, so the list stays under the eye.
+ */
+function moveCharm(i, toSlot, toPos) {
+  const b = S.build;
+  const from = b.slots[b.sel];
+  if (!from || !from.charms[i]) return;
+  const at = clamp(Number(toSlot), 0, b.slots.length - 1);
+  const c = from.charms[i];
+  if (at === b.sel) {
+    const pos = clamp(Number(toPos), 0, from.charms.length - 1);
+    if (pos === i) return;
+    from.charms.splice(i, 1);
+    from.charms.splice(pos, 0, c);
+    b.at = -1;
+    commit();
+    swing(b.sel);
+    return;
+  }
+  const to = b.slots[at] || { chain: null, charms: [] };
+  if (to.charms.length >= roomOn(to)) {
+    toast(lenOf(to) ? `Strand ${at + 1} is full at ${roomOn(to)} charms — give it a longer chain first.`
+      : `Spot ${at + 1} holds one charm without a chain — give it a chain first.`, 'bad');
+    paintBuilder();
+    return;
+  }
+  from.charms.splice(i, 1);
+  to.charms.splice(clamp(Number(toPos), 0, to.charms.length), 0, c);
+  b.slots[at] = to;
+  if (!from.charms.length && !lenOf(from)) b.slots[b.sel] = null;
+  b.sel = at;
+  b.at = -1;
+  commit();
+  swing(at);
+  toast(`${(itemOf(c.itemId) || {}).name || 'That charm'} moved to strand ${at + 1}.`, 'good');
+}
+
 function setColour(variantId) {
   const s = S.build.slots[S.build.sel];
   const k = focusAt();
@@ -7641,7 +7729,7 @@ function setColour(variantId) {
 }
 
 /** How long the selected spot's strand is, and on which chain; 0 hangs it straight off the bangle. */
-function setLength(cm, chainId) {
+function setLength(cm, chainId, chainVariant) {
   const b = S.build;
   const at = b.sel;
   let s = b.slots[at];
@@ -7656,16 +7744,17 @@ function setLength(cm, chainId) {
     swing(at, 8);
     return;
   }
-  const ch = itemOf(chainId || (was && was.itemId) || (chains()[0] || {}).id);
-  if (!ch) return;
-  const vId = was && was.itemId === ch.id ? was.variantId
-    : (trayRows().find((r) => r.itemId === ch.id) || {}).variantId || firstInStock(ch);
+  const ch = itemOf(chainId || (was && was.itemId) || (trayChainRows()[0] || {}).itemId);
+  if (!ch) { toast('Pick a chain for this strand first.', 'bad'); return; }
+  const vId = chainVariant || (was && was.itemId === ch.id ? was.variantId : '')
+    || (trayChainRows().find((r) => r.itemId === ch.id) || {}).variantId || firstInStock(ch);
   // The old length goes back to the tray before the new one is measured out.
   const undo = was ? { ...was } : null;
   if (was) s.chain = null;
   if (!takeChain(ch, vId, cm)) { if (undo && s) s.chain = undo; return; }
   if (!s) { s = { chain: null, charms: [] }; b.slots[at] = s; }
   s.chain = { itemId: ch.id, variantId: vId, lenCm: cm };
+  b.chainPick = `${ch.id}|${vId}`;
   b.at = -1;
   commit();
   swing(at, 10);
@@ -7964,20 +8053,36 @@ function spotHtml() {
     <div class="bd-spots" role="group" aria-label="Spots on the bangle">${b.slots.map((x, i) =>
       `<button type="button" data-spot-pick="${i}" class="${x ? 'filled' : ''}" aria-pressed="${i === b.sel}"
         aria-label="Spot ${i + 1}${x ? `, ${x.charms.length} charm${x.charms.length === 1 ? '' : 's'}` : ', empty'}">${i + 1}</button>`).join('')}</div>`;
-  const chs = chains();
+  // The chain comes first: which of the tray's chains this strand is made of,
+  // and only then how much of it to cut.
+  const chs = trayChainRows();
   const len = lenOf(s);
-  const chosen = s && s.chain ? itemOf(s.chain.itemId) : (chs[0] || null);
-  const lengths = chs.length ? `<div class="bd-label">Strand length</div>
-    <div class="bd-lens" role="group" aria-label="Strand length">
-      <button type="button" data-len="0" aria-pressed="${len === 0}"
-        ${s && s.charms.length > 1 ? 'disabled title="Room for one charm without a chain"' : ''}>
-        No chain<small>one charm, on the bangle</small></button>
-      ${lengthChoices(chosen, len, s && s.chain ? s.chain.variantId : '').map((c) => `<button type="button" data-len="${c}" aria-pressed="${c === len}">
-        ${c} cm<small>up to ${roomFor(c, chosen)} charms</small></button>`).join('')}</div>
-    <p class="bd-hint">Every length from ${LEN_MIN} cm up to what the shop can cut — scroll for more.</p>
-    ${len ? `<div class="bd-label">Chain</div><div class="bd-chips">${chs.map((c) => `<button class="bd-chip"
-        data-chain="${esc(c.id)}" aria-pressed="${c.id === s.chain.itemId}">
-        ${charmArt(c, firstInStock(c)).src ? `<img src="${esc(charmArt(c, firstInStock(c)).src)}" alt="">` : ''}${esc(c.name)}</button>`).join('')}</div>` : ''}` : '';
+  const cur = s && s.chain ? s.chain : null;
+  const key = cur ? `${cur.itemId}|${cur.variantId}` : (b.chainPick || '');
+  const picked = chs.find((r) => `${r.itemId}|${r.variantId}` === key) || null;
+  const chosen = picked ? picked.item : null;
+  const opts = picked ? lengthChoices(chosen, len, picked.variantId) : [];
+  const lengths = chs.length ? `<div class="bd-label">Chain</div>
+    <select class="bd-pick" id="bd-chain" aria-label="Chain for this strand">
+      <option value="">Choose a chain…</option>
+      ${chs.map((r) => {
+        const mine = `${r.itemId}|${r.variantId}` === key;
+        const have = r.spare + (mine && cur ? cur.lenCm : 0);
+        return `<option value="${esc(r.itemId)}|${esc(r.variantId)}"${mine ? ' selected' : ''}>
+          ${esc(label(r.item, r.variantId))} — ${fmtLen(have)} in your tray</option>`;
+      }).join('')}
+    </select>
+    <div class="bd-label">Strand length</div>
+    <select class="bd-pick" id="bd-len" aria-label="Strand length" ${picked ? '' : 'disabled'}>
+      <option value="0"${len ? '' : ' selected'}
+        ${s && s.charms.length > 1 ? 'disabled' : ''}>No chain — one charm, on the bangle</option>
+      ${opts.map((c) => `<option value="${c}"${c === len ? ' selected' : ''}>
+        ${c} cm — up to ${roomFor(c, chosen)} charm${roomFor(c, chosen) === 1 ? '' : 's'}</option>`).join('')}
+    </select>
+    <p class="bd-hint">${!picked ? 'Choose the chain first; its lengths appear once you have.'
+      : len ? `<b>${money(lenPrice(chosen, len))}</b> for ${len} cm of ${esc(chosen.name)}, at ${priceLabel(chosen)}.`
+        : opts.length ? `Up to ${fmtLen(opts[opts.length - 1])} of it left in your tray, at ${priceLabel(chosen)}.`
+          : 'None of that chain is left in your tray — pick more in the Collection.'}</p>` : '';
   if (!s) {
     return `${spots}${lengths}<p>Pick a charm below to hang it here${chs.length ? ', or choose a length first to hang several down a strand' : ''}.</p>`;
   }
@@ -7991,6 +8096,12 @@ function spotHtml() {
         <span class="n">${i + 1}</span>
         <span class="thumb">${artImg(it, c.variantId)}</span>
         <span class="nm">${esc(label(it, c.variantId))}</span>
+        <span class="place">
+          <label>Strand<input type="number" min="1" max="${b.slots.length}" step="1" value="${b.sel + 1}"
+            data-move="strand" data-i="${i}" aria-label="Strand holding ${esc(it.name)}"></label>
+          <label>Pos<input type="number" min="1" max="${s.charms.length}" step="1" value="${i + 1}"
+            data-move="pos" data-i="${i}" aria-label="Position of ${esc(it.name)} from the top"></label>
+        </span>
         <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
           data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
       </div>`;
@@ -8133,6 +8244,7 @@ function paintBuilder() {
 
 /** A selector that finds the same control again after a redraw. */
 function focusKey(el) {
+  if (el.dataset && el.dataset.move) return `[data-move="${el.dataset.move}"][data-i="${CSS.escape(el.dataset.i)}"]`;
   for (const k of ['charm', 'len', 'spotPick', 'at', 'off', 'bd', 'cat', 'colour', 'chain', 'bangle']) {
     if (el.dataset && el.dataset[k] !== undefined) {
       const attr = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -8150,6 +8262,10 @@ function focusKey(el) {
 function paintBuildTray() {
   const box = $('#bd-tray');
   if (!box) return;
+  // Where the row was scrolled to, so adding the same piece twice does not mean
+  // scrolling back out to it each time.
+  const was = box.querySelector('.rows');
+  const wasLeft = was ? was.scrollLeft : 0;
   const rows = trayRows();
   const left = rows.reduce((n, r) => n + Math.max(0, sparePicks(r.itemId, r.variantId)), 0);
   if (!rows.length) {
@@ -8160,7 +8276,8 @@ function paintBuildTray() {
   }
   const kind = (r) => (r.item.role === 'chain' ? 'chain' : r.item.connector === 'charm' ? 'join' : 'charm');
   box.innerHTML = `<header><h3>Your tray</h3>
-      <span class="aside">${left ? `${left} still to go on` : 'all of it is on the piece'}</span></header>
+      <span class="aside">${left ? `${left} still to go on` : 'all of it is on the piece'}</span>
+      <button type="button" class="tiny warnbtn" data-tray-empty>Empty</button></header>
     <div class="rows">${rows.map((r) => {
       const k = kind(r);
       const spare = sparePicks(r.itemId, r.variantId);
@@ -8173,6 +8290,8 @@ function paintBuildTray() {
         <span class="left">${amount}</span>
       </button>`;
     }).join('')}</div>`;
+  const now = box.querySelector('.rows');
+  if (now && wasLeft) now.scrollLeft = wasLeft;
 }
 
 function paintBuildBar() {
@@ -8219,14 +8338,18 @@ function wireBuilder() {
     pickSlot(e);
   });
   $('#bd-tray').addEventListener('click', (e) => {
+    if (e.target.closest('[data-tray-empty]')) return emptyTray();
     const t = e.target.closest('[data-tray-pick]');
-    if (!t) return;
+    if (!t) return undefined;
     const id = t.dataset.trayPick;
     const v = t.dataset.variant;
     if (!S.build.baseId) return toast('Choose a bangle first, then this goes on it.', 'bad');
     if (t.dataset.kind === 'chain') {
       const s = S.build.slots[S.build.sel];
-      return setLength(lenOf(s) || 12, id);
+      S.build.chainPick = `${id}|${v}`;
+      if (lenOf(s)) return setLength(lenOf(s), id, v);
+      paintBuilder();
+      return toast(`${label(itemOf(id), v)} chosen — now pick how long this strand should be.`);
     }
     if (t.dataset.kind === 'join') return joinStrand(S.build.sel, id, v);
     return hang(id, v);
@@ -8268,8 +8391,6 @@ function wireBuilder() {
     if (t.dataset.join) return joinStrand(b.sel, t.dataset.join, t.dataset.variant);
     if (t.dataset.unjoin !== undefined) return unjoin(b.sel, Number(t.dataset.unjoin));
     if (t.dataset.colour) return setColour(t.dataset.colour);
-    if (t.dataset.len !== undefined) return setLength(Number(t.dataset.len));
-    if (t.dataset.chain) return setLength(lenOf(b.slots[b.sel]) || 12, t.dataset.chain);
     if (t.dataset.off !== undefined) return unhang(b.sel, Number(t.dataset.off));
     if (t.dataset.at !== undefined) {
       // Tapping the chosen charm again goes back to adding.
@@ -8302,6 +8423,34 @@ function wireBuilder() {
     const counts = parseShape(new FormData(e.target).get('shape'));
     if (!counts) { toast('Type the charms per strand from the middle out, like 7-6-5-4.', 'bad'); return; }
     applyShape(counts);
+  });
+  panel.addEventListener('change', (e) => {
+    const b = S.build;
+    if (e.target.id === 'bd-chain') {
+      b.chainPick = e.target.value;
+      const [id, v] = b.chainPick.split('|');
+      const len = lenOf(b.slots[b.sel]);
+      // Already a strand here: the same length, on the chain just chosen.
+      if (len && id) return setLength(len, id, v);
+      paintBuilder();
+      if (id) toast('Now choose how long this strand should be.');
+      return undefined;
+    }
+    if (e.target.id === 'bd-len') {
+      const [id, v] = (b.chainPick || '').split('|');
+      return setLength(Number(e.target.value), id, v);
+    }
+    if (e.target.dataset.move) {
+      const i = Number(e.target.dataset.i);
+      const s = b.slots[b.sel];
+      if (!s || !s.charms[i]) return paintBuilder();
+      const typed = Math.round(Number(e.target.value));
+      if (!Number.isFinite(typed)) return paintBuilder();
+      return e.target.dataset.move === 'strand'
+        ? moveCharm(i, typed - 1, i)
+        : moveCharm(i, b.sel, typed - 1);
+    }
+    return undefined;
   });
   panel.addEventListener('input', (e) => {
     if (e.target.id !== 'bd-find') return;

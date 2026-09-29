@@ -538,10 +538,14 @@ same shop — collection, tray, orders, studio — with **Create** in place of t
 free-hand canvas: the customer picks a base piece, and the app builds the piece
 spot by spot, in proportion, from what is in their tray.
 
-- **Strand length** is a scrolling list rather than a handful of fixed options.
-  It starts at 5 cm and runs every centimetre to 30, then in 5 cm steps to what
-  the tray and the repo can actually supply between them. Each entry says how
-  many charms that length will hold.
+- **The chain comes first, then its length.** A strand asks which of the tray's
+  chains it is made of — only those, one entry per colour, with how much of each
+  is left — and the length list stays disabled until one is chosen. The length
+  list is a dropdown, a centimetre at a time, bounded by what the customer
+  picked: 15 cm in the tray offers 5–15 cm, and once 6 cm has gone on one strand
+  the next offers 5–9 cm. Under 5 cm left and the one length left is offered
+  whole (4 cm in the tray offers 4 cm). Each entry says how many charms it holds,
+  and the price of the chosen length sits under the list.
 - **How much a chain carries** is the studio's number, not a guess. A chain
   record has *charms it can hold per 10 cm*; Create multiplies it out by the
   length chosen and refuses the charm that would go past it, saying so. A chain
@@ -549,13 +553,20 @@ spot by spot, in proportion, from what is in their tray.
 - **Charms can be switched.** Tapping a charm on a strand selects it; picking
   another then replaces it in place, and the one it replaced goes back to the
   tray.
+- **Where a charm sits is typed, not dragged.** Each charm on the list carries a
+  *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
+  the charm moves: up or down its own strand, or across to another spot on the
+  bangle, which Create then selects so the list follows it.
 - **Only the tray hangs.** Create hangs what the customer picked and nothing
   else: with an empty tray the picker says so and hangs nothing, and each charm
   shows how many of it are left to place. Taking a charm off a strand returns it
   to the tray rather than to the shop.
 - **The tray sits under the design**, as a row of compact cards, so what is
   still to place is in view while the piece is being built. A card places its
-  component on the selected spot.
+  component on the selected spot, and the row keeps its scroll position, so the
+  same card can be tapped twice without scrolling out to it again. **Empty** in
+  its header clears the tray; the same control is in the collection's toolbar and
+  on the free-design rail. Emptying takes the piece apart too, so it asks first.
 - **Charms hang by their loop, turned to the chain.** The loop marked in the
   studio is put on the chain's line and the charm turned about it, so a charm
   whose loop sits off to one side hangs straight instead of at an angle.
@@ -563,6 +574,9 @@ spot by spot, in proportion, from what is in their tray.
   connector* is offered to the customer alongside the charms; a *loop connector*
   is a workshop part and never appears in the collection, in Create, or in
   search.
+- **The studio's tables stay where they are.** Nudging a price or a quantity in
+  the component repo redraws the row, not the page: the scroll position and the
+  cursor stay in the cell being typed in.
 - **A charm connector joins chain, it does not hang.** Adding one to a strand
   cuts the chain at that point: its upper loop takes the length above and its
   lower loop the length below, so one strand becomes two lengths of the same
