@@ -531,6 +531,44 @@ knowing:
   component's own record, which is why the editor refuses a component grown too
   big to save — drop a picture and try again.
 
+## Create your kaleera
+
+`hosted/create-kaleera.html` is the page that is live on the artifact. It is the
+same shop — collection, tray, orders, studio — with **Create** in place of the
+free-hand canvas: the customer picks a base piece, and the app builds the piece
+spot by spot, in proportion, from what is in their tray.
+
+- **Strand length** is a scrolling list rather than a handful of fixed options.
+  It starts at 5 cm and runs every centimetre to 30, then in 5 cm steps to what
+  the tray and the repo can actually supply between them. Each entry says how
+  many charms that length will hold.
+- **How much a chain carries** is the studio's number, not a guess. A chain
+  record has *charms it can hold per 10 cm*; Create multiplies it out by the
+  length chosen and refuses the charm that would go past it, saying so. A chain
+  saved without the figure falls back to one charm every 1.5 cm.
+- **Charms can be switched.** Tapping a charm on a strand selects it; picking
+  another then replaces it in place, and the one it replaced goes back to the
+  tray.
+- **Only the tray hangs.** Create hangs what the customer picked and nothing
+  else: with an empty tray the picker says so and hangs nothing, and each charm
+  shows how many of it are left to place. Taking a charm off a strand returns it
+  to the tray rather than to the shop.
+- **The tray sits under the design**, as a row of compact cards, so what is
+  still to place is in view while the piece is being built. A card places its
+  component on the selected spot.
+- **Charms hang by their loop, turned to the chain.** The loop marked in the
+  studio is put on the chain's line and the charm turned about it, so a charm
+  whose loop sits off to one side hangs straight instead of at an angle.
+- **Connectors** are their own field in the studio, with two kinds. A *charm
+  connector* is offered to the customer alongside the charms; a *loop connector*
+  is a workshop part and never appears in the collection, in Create, or in
+  search.
+- **A charm connector joins chain, it does not hang.** Adding one to a strand
+  cuts the chain at that point: its upper loop takes the length above and its
+  lower loop the length below, so one strand becomes two lengths of the same
+  chain held together by it. The bill, the saved design and the 3D view all show
+  it that way.
+
 ## Before going live
 
 - Change the admin password, and serve the app over HTTPS with
