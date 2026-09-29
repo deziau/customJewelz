@@ -219,20 +219,6 @@ already there, and never off-screen because the canvas happens to be scrolled
 somewhere else. Dropped by hand it lands where it was dropped, unless that spot
 is taken.
 
-**Charms along a chain.** Tap a chain on the canvas and **Charms on it…** hangs
-a row of them along it: the list offers only what is in your own tray — with no
-charms in the tray nothing can be hung, and it says so — and the number is
-capped by what the chain holds. Choosing a different charm swaps the lot, so it
-is also how they are changed. Every one is turned to the chain's own angle with
-its loop on the links, so nothing hangs across the chain at a right angle;
-fixing a charm to a chain by hand turns it the same way.
-
-**A connector joins two chains.** Select a charm connector and **Join two
-chains** finds the two chain ends nearest it, brings them to its two loops —
-one above, one below — turns all three to the same angle and fixes them
-together, so the join moves as one piece. A connector is never offered as
-something to hang on a chain: it is the thing that continues it.
-
 **Pieces can be fixed to one another.** Lay a chain across a bangle, or a charm
 on a chain, and **Fix to…** ties them together: from then on moving either one
 moves both, however many are fixed in the chain of them. **Unfix** lets the
@@ -268,8 +254,7 @@ of it, so a piece pulled half a metre below the canvas is one button away from
 being found again. The dashed square still marks the canvas proper — the part
 the order's picture is taken of.
 
-**Design** — the tray sits **under the bench**, where a hand reaches for a
-piece, with **a tab per
+**Design** — the tray becomes the rail beside the canvas, with **a tab per
 section** (Charms, Pendants, Chains…) so only one kind of piece is in front of
 you at a time, each tab carrying a count of what is still to place. The pieces
 are compact cards laid out in as many columns as the rail is wide enough to
@@ -401,21 +386,8 @@ the piece. It is a head start, not a rule: the *Sold by* box still decides, and
 a change made there by hand sticks. Opening an existing component never touches
 its own setting.
 
-**A chain says what it can carry.** Alongside the chain shown in the sticker,
-the studio gives a length component **how many charms it holds per 10 cm**. The
-design area never hangs more than that on it: a 20 cm chain at 3 per 10 cm takes
-six, and asks for no more.
-
-**Connectors.** A piece can be marked a **charm connector** — the join between
-two lengths of chain, which customers pick like anything else — or a **loop
-connector**, the jump rings and clasps the workshop uses. Loop connectors are
-stocked and counted like any other component but never appear in the collection;
-a customer cannot see or buy one.
-
 In the design room a length becomes **hangings**. Dropping chain onto a piece
-asks how long that hanging should be — from a scrolling list of every length
-from 5 cm up to what the tray holds, or any number typed in — and each one draws
-to its true length
+asks how long that hanging should be, and each one draws to its true length
 against everything else — so five tassels of 8, 12, 18, 25 and 15 cm come off
 one 2 m reel and look like what they are. The tray tracks the metres left, and
 a hanging longer than what remains is refused with how much is left.
