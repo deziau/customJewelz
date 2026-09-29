@@ -1161,6 +1161,8 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 /* Every length, scrolled through rather than a handful of fixed buttons. */
 .bd-hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
 .bd-strand-sum.sub { margin-top: -4px; font-size: 13.5px; color: var(--muted); }
+#bd-cost .bill li { grid-template-columns: 1fr auto auto; align-items: start; }
+#bd-cost .sum { margin-top: 10px; }
 /* The chain and its length: two lists, the second waiting on the first. */
 .bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
 .bd-pick:disabled { opacity: .5; cursor: not-allowed; }
@@ -8347,7 +8349,8 @@ function paintBuilder() {
           <button data-bd="clear" class="warnbtn" ${n || b.slots.some(Boolean) ? '' : 'disabled'}>Take it all off</button>
         </div>
         <div><button class="bd-link" data-bd="free">Arrange it freely instead</button></div>
-      </section>`;
+      </section>
+      ${costHtml()}`;
   }
   window.scrollTo({ top: keepScroll });
   // Put the keyboard back where it was, since the panel was redrawn under it.
@@ -8410,6 +8413,39 @@ function paintBuildTray() {
     }).join('')}</div>`;
   const now = box.querySelector('.rows');
   if (now && wasLeft) now.scrollLeft = wasLeft;
+}
+
+/**
+ * The bill at the foot of Create: every component the piece is made from, what
+ * the making costs on top, and the total — so the price is read where the piece
+ * is made, not only at checkout.
+ */
+function costHtml() {
+  const lines = billLines();
+  const items = lines.reduce((t, l) => t + l.total, 0);
+  const making = makingOn(items);
+  const bases = Object.values(S.build.hands).filter((h) => h.baseId).length;
+  if (!lines.length) {
+    return `<section><div class="bd-sect-head"><h3>What it costs</h3></div>
+      <p>Nothing on the piece yet. Every component you add is priced here as it goes on.</p></section>`;
+  }
+  return `<section id="bd-cost">
+    <div class="bd-sect-head"><h3>What it costs</h3>
+      <span class="aside">${bases === 2 ? 'both hands' : 'this hand'}</span></div>
+    <ul class="bill">${lines.map((l) => `<li>
+      <span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}
+        <br><span class="muted" style="font-size:12px">${money(l.unit)}${
+          l.soldBy === 'length' ? ' per metre' : ' each'}</span></span>
+      <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
+    <div class="sum">
+      <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
+      <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
+      <div><span>Delivery</span><span class="num">chosen at checkout</span></div>
+      <div class="grand"><span>Total</span><span>${money(items + making)}</span></div>
+    </div>
+    <p class="bd-hint">Making charges cover assembling the piece — ${makingRate()}% of the components.
+      Delivery, or collecting from the studio, is chosen when you order.</p>
+  </section>`;
 }
 
 function paintBuildBar() {

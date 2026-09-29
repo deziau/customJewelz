@@ -607,6 +607,12 @@ spot by spot, in proportion, from what is in their tray.
   chain held together by it. The bill, the saved design and the 3D view all show
   it that way.
 
+**What it costs** closes the Create panel: every component the piece is made
+from, with its unit price and how much of it is used, then the making charges and
+the total. It is the same bill the checkout shows, read where the piece is being
+made rather than only at the end, and it counts both hands when a pair is being
+built. Delivery is the one line it cannot fill in — that is chosen at checkout.
+
 ### Making charges
 
 Every order carries making charges — the work of assembling the piece — as a
