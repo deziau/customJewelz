@@ -153,7 +153,7 @@ h3 { font-size: 15px; }
 
 .bench {
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 18px; padding: 18px 22px 64px; align-items: start;
   max-width: 1500px; margin: 0 auto;
 }
@@ -207,6 +207,9 @@ h3 { font-size: 15px; }
 /* ------------------------------------------------------------------ stage */
 
 .stage-col { display: grid; gap: 12px; justify-items: center; }
+/* The tray lives under the bench, where the hand reaching for a piece is. */
+.tray-under { width: 100%; }
+.tray-under .place-list { max-height: 30vh; }
 
 /* The canvas with a rule down two of its edges, like a drawing board. */
 .stage-wrap {
@@ -601,6 +604,19 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 .size-line { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .card .size { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* Every length from 5 cm up to what is in the tray, to scroll through. */
+.len-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 5px;
+  max-height: 168px; overflow: auto; padding: 4px; margin-bottom: 12px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+}
+.len-list button {
+  padding: 5px 4px; font-size: 12px; font-family: var(--mono); border-radius: 7px;
+}
+.len-list button[aria-selected="true"] {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+
 .ask-qty { display: grid; gap: 4px; font-size: 12.5px; }
 .ask-qty em { font-style: normal; color: var(--muted); }
 .ask-qty input { width: 110px; }
@@ -715,6 +731,15 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
 
 #dlg-start { max-width: 620px; }
 .kinds { display: grid; gap: 9px; }
+/* Picking which charm goes on a chain. */
+.dress-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;
+  max-height: 44vh; overflow: auto; margin-bottom: 12px;
+}
+.dress-list .kind { grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 4px 9px; }
+.dress-list .kind .shot { grid-row: span 2; display: grid; place-items: center; }
+.dress-list .kind .shot img { max-width: 34px; max-height: 34px; object-fit: contain; }
+.dress-list .kind[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .kind {
   display: grid; gap: 3px; text-align: left; padding: 11px 13px; border-radius: 10px;
   border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font: inherit;
@@ -1005,14 +1030,6 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </div>
 
   <div class="bench">
-    <div class="rail">
-      <section class="panel">
-        <header><h2>Your tray</h2><span class="spacer"></span>
-          <span class="eyebrow" id="tray-left">nothing picked yet</span>
-          <button class="tiny warnbtn" id="tray-empty" hidden>Empty</button></header>
-        <div id="place-rail"></div>
-      </section>
-    </div>
 
     <div class="stage-col">
       <div class="stage-wrap">
@@ -1066,6 +1083,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
             <button type="button" data-view="round" aria-pressed="true">Round</button>
             <button type="button" data-view="straight" aria-pressed="false">Straight</button>
           </span>
+          <button type="button" class="tiny" id="dress" data-tool="dress">Charms on it…</button>
+        </span>
+
+        <!-- Only a connector joins two chains. -->
+        <span class="tool-group" id="g-join" hidden>
+          <span class="tool-label">Connector</span>
+          <button type="button" class="tiny" id="join" data-tool="join">Join two chains</button>
         </span>
 
         <!-- Only something with hangings on it can space them. -->
@@ -1092,6 +1116,13 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <button type="button" class="tiny" id="start-again">Start a piece</button>
         </span>
       </div>
+      <section class="panel tray-under">
+        <header><h2>Your tray</h2><span class="spacer"></span>
+          <span class="eyebrow" id="tray-left">nothing picked yet</span>
+          <button class="tiny warnbtn" id="tray-empty" hidden>Empty</button></header>
+        <div id="place-rail"></div>
+      </section>
+
     </div>
 
     <div class="rail">
@@ -1263,6 +1294,14 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
           <input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f" id="tile-field" hidden><span>Chain shown in the sticker (cm) *</span>
           <input name="tileCm" type="number" min="0.5" step="0.5" placeholder="4"></label>
+        <label class="f" id="hold-field" hidden><span>Charms it can hold per 10 cm</span>
+          <input name="perTenCm" type="number" min="0" max="40" step="1" placeholder="4"></label>
+        <label class="f" id="conn-field"><span>Is it a connector?</span>
+          <select name="connector">
+            <option value="">No — an ordinary piece</option>
+            <option value="charm">Charm connector — joins two lengths of chain</option>
+            <option value="loop">Loop connector — workshop part, not shown to customers</option>
+          </select></label>
         <label class="f"><span>Urgent restock fee — 0 to not offer it</span>
           <input name="urgentFee" type="number" min="0" step="0.01" value="0"></label>
         <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
@@ -1388,17 +1427,30 @@ dialog > footer { padding: 13px 19px; border-top: 1px solid var(--line); display
   </form>
 </dialog>
 
+<dialog id="dlg-dress">
+  <header><h2 id="dress-title">Charms on this chain</h2></header>
+  <form id="form-dress">
+    <div class="body">
+      <p class="muted" style="margin-top:0" id="dress-room"></p>
+      <div id="dress-pick"></div>
+      <label class="f" id="dress-count-field"><span>How many along it</span>
+        <input name="count" type="number" min="0" step="1" value="1"></label>
+      <p class="notice" id="dress-error" hidden></p>
+    </div>
+    <footer>
+      <button type="button" id="dress-cancel">Cancel</button>
+      <button type="submit" class="solid" id="dress-go">Hang them</button>
+    </footer>
+  </form>
+</dialog>
+
 <dialog id="dlg-strand">
   <header><h2 id="strand-title">How long should this hang?</h2></header>
   <form id="form-strand">
     <div class="body">
       <p class="muted" style="margin-top:0" id="strand-have"></p>
-      <div class="kind-row" style="grid-auto-flow:column;justify-content:start;gap:7px;margin-bottom:12px">
-        <button type="button" class="tiny" data-len="8">8 cm</button>
-        <button type="button" class="tiny" data-len="12">12 cm</button>
-        <button type="button" class="tiny" data-len="18">18 cm</button>
-        <button type="button" class="tiny" data-len="25">25 cm</button>
-      </div>
+      <div class="len-list" id="strand-lens" role="listbox"
+        aria-label="Length in centimetres"></div>
       <label class="f"><span>Length in centimetres</span>
         <input name="len" type="number" min="1" step="1" value="12" required></label>
       <p class="muted" style="font-size:12.5px;margin:0" id="strand-cost"></p>
@@ -1498,6 +1550,7 @@ const S = {
   also: [],            // more pieces selected with it, to move as one
   multiMode: false,    // taps add to the selection instead of replacing it
   dragging: false,     // a piece is in hand, so the canvas must hold still
+  dress: null,         // { uid, pick, count } while charms are chosen for a chain
   railSection: null,   // which section of the tray the rail is showing
   view: 'round',       // 'round' for necklaces and bracelets, 'straight' for kaleere
   zoom: 1,             // 1 is life size; the canvas never rescales itself
@@ -1587,6 +1640,12 @@ function normalize(id, d) {
     // For a length: how many centimetres of it the sticker actually shows, so
     // the canvas can repeat that tile at its true size.
     tileCm: Number(d.tileCm) || 0,
+    // How many charms this chain carries per 10 cm of it — the design area
+    // will not hang more on it than the real thing holds.
+    perTenCm: Number(d.perTenCm) || 0,
+    // '' for an ordinary piece; 'charm' for a connector customers may use to
+    // join two chains; 'loop' for a workshop part they never see.
+    connector: d.connector === 'charm' || d.connector === 'loop' ? d.connector : '',
     urgentFee: Number(d.urgentFee) || 0,
     // Off unless the studio says otherwise, so nothing already in the repo
     // suddenly offers a flip it was never checked for.
@@ -2008,15 +2067,22 @@ const guard = (fn) => async (...args) => {
 /* ------------------------------------------------------------ browse view */
 
 function paintShopCats() {
-  const live = sections().filter((c) => S.items.some((i) => i.active && i.category === c.slug));
+  const live = sections().filter((c) => S.items.some((i) => forSale(i) && i.category === c.slug));
   $('#shop-cats').innerHTML = [`<button class="cat" data-slug="" aria-pressed="${!S.section}">Everything</button>`]
     .concat(live.map((c) => `<button class="cat" data-slug="${esc(c.slug)}"
       aria-pressed="${c.slug === S.section}">${esc(c.name)}</button>`)).join('');
 }
 
+/**
+ * A loop connector is a workshop part — the jump rings and clasps that hold a
+ * piece together. The studio keeps stock of them, but a customer never picks
+ * one, so they stay out of the collection altogether.
+ */
+const forSale = (item) => Boolean(item && item.active && item.connector !== 'loop');
+
 function visibleItems() {
   const q = S.search.trim().toLowerCase();
-  return S.items.filter((i) => i.active
+  return S.items.filter((i) => forSale(i)
     && (!S.section || i.category === S.section)
     && (!S.hideOut || i.stock > 0)
     && (!q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)
@@ -2694,13 +2760,40 @@ function askStrand(itemId, variantId, x, y) {
   $('#strand-error').hidden = true;
   const f = $('#form-strand');
   f.reset();
-  f.len.value = Math.min(12, left);
+  f.len.value = Math.min(12, Math.max(5, left));
+  paintStrandLens();
   paintStrandCost();
   $('#dlg-strand').showModal();
 }
 
+/**
+ * Every length worth offering, from 5 cm up to whatever is left in the tray: a
+ * centimetre at a time to 30, then every 5 cm — enough to scroll through, not
+ * so many that it is a wall. The box below still takes any number.
+ */
+function paintStrandLens() {
+  const box = $('#strand-lens');
+  if (!box || !S.strandAsk) return;
+  const left = Math.floor(toPlace(S.strandAsk.itemId, S.strandAsk.variantId));
+  const now = Math.round(Number($('#form-strand').len.value) || 0);
+  const lens = [];
+  for (let n = 5; n <= Math.min(left, 30); n += 1) lens.push(n);
+  for (let n = 35; n <= left; n += 5) lens.push(n);
+  if (left >= 5 && !lens.includes(left)) lens.push(left);
+  box.innerHTML = lens.length
+    ? lens.map((n) => `<button type="button" class="tiny" data-len="${n}" role="option"
+        aria-selected="${n === now}">${n} cm</button>`).join('')
+    : `<span class="muted" style="font-size:12px;padding:6px">Less than 5 cm left — type the
+       length below.</span>`;
+  const on = $('[aria-selected="true"]', box);
+  if (on) on.scrollIntoView({ block: 'nearest' });
+}
+
 function paintStrandCost() {
   if (!S.strandAsk) return;
+  const chosen = Math.round(Number($('#form-strand').len.value) || 0);
+  $$('#strand-lens button').forEach((b) =>
+    b.setAttribute('aria-selected', String(Number(b.dataset.len) === chosen)));
   const item = itemOf(S.strandAsk.itemId);
   const len = Number($('#form-strand').len.value) || 0;
   $('#strand-cost').textContent = len > 0
@@ -2753,6 +2846,79 @@ function assembly(seed) {
   return [...seen.values()];
 }
 
+/* ------------------------------------------------- charms along a chain */
+
+/** Is this piece on the canvas a length of chain? */
+const isStrand = (c) => {
+  const item = itemOf(c.itemId);
+  return Boolean(item && isLength(item) && c.lenCm);
+};
+
+/** A connector the customer may use to join two chains. */
+const isConnector = (c) => ((itemOf(c.itemId) || {}).connector === 'charm');
+
+/** How many charms this chain can carry — the studio says, per 10 cm. */
+function chainHolds(c) {
+  const item = itemOf(c.itemId);
+  if (!item || !c.lenCm) return 0;
+  const per = item.perTenCm || 0;
+  if (!per) return 0;
+  return Math.max(0, Math.floor((c.lenCm / 10) * per));
+}
+
+/** Where a point lies along a strand: 0 at its pin, 1 at its far end. */
+function alongStrand(c, t) {
+  const span = stageMm() || 400;
+  const len = ((c.lenCm * 10) / span) * 100;
+  const a = (hangAngle(c) * Math.PI) / 180;
+  return { x: c.x - Math.sin(a) * len * t, y: c.y + Math.cos(a) * len * t };
+}
+
+/** The charms hanging on this chain, in the order they sit along it. */
+const charmsOn = (uid) => S.charms.filter((c) => c.pin === uid && !isStrand(c));
+
+/**
+ * Hang `n` of one charm along a chain, evenly spaced, each turned to the
+ * chain's own angle so its loop lies along the links rather than across them.
+ * Whatever was on the chain before is taken off first, so this is also how a
+ * charm is switched for another.
+ */
+function dressChain(strand, row, n) {
+  for (const old of charmsOn(strand.uid)) {
+    S.charms = S.charms.filter((c) => c.uid !== old.uid);
+  }
+  const made = [];
+  for (let i = 0; i < n; i += 1) {
+    if (!row) break;
+    const free = toPlace(row.itemId, row.variantId) - made.length;
+    if (free <= 0) break;
+    const t = n === 1 ? 0.9 : 0.1 + (0.8 * i) / Math.max(1, n - 1);
+    const pin = alongStrand(strand, t);
+    // The loop sits on the chain and the charm hangs below it, in the chain's
+    // own direction — not straddling the links.
+    const box = charmSizePct(row.item);
+    const a = (hangAngle(strand) * Math.PI) / 180;
+    const at = { x: pin.x - Math.sin(a) * (box.h / 2), y: pin.y + Math.cos(a) * (box.h / 2) };
+    made.push({
+      uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + i,
+      itemId: row.itemId, variantId: row.variantId, x: at.x, y: at.y,
+      w: charmWidthPct(row.item), rot: hangAngle(strand), z: ++S.zTop,
+      pin: strand.uid,
+    });
+  }
+  S.charms.push(...made);
+  return made.length;
+}
+
+/**
+ * The charms in the tray that could hang on a chain. A connector is not one of
+ * them — it joins chains rather than hanging off one — and a charm already on
+ * this chain stays on the list even when none are left loose, since swapping it
+ * for itself is how the number on the chain is changed.
+ */
+const trayCharms = () => trayRows().filter((r) => !isLength(r.item)
+  && r.item.connector !== 'charm');
+
 /** The piece under this one — what it would be fixed to. */
 function pieceUnder(c) {
   const box = charmBox(c);
@@ -2764,6 +2930,138 @@ function pieceUnder(c) {
       return Math.abs(p.x - box.x) < (p.w + box.w) / 2
         && Math.abs(p.y - box.y) < (p.h + box.h) / 2;
     }) || null;
+}
+
+/**
+ * Charms on a chain. Only what is in the tray can go on one — if the tray holds
+ * no charms, nothing is hung — and the chain itself says how many it can carry.
+ * Choosing a different charm here is how they are switched.
+ */
+function openDress() {
+  const strand = selectedCharms().find(isStrand);
+  if (!strand) return toast('Tap the chain first.');
+  const rows = trayCharms();
+  const on = charmsOn(strand.uid);
+  const held = on.length ? { itemId: on[0].itemId, variantId: on[0].variantId } : null;
+  const room = chainHolds(strand);
+  S.dress = {
+    uid: strand.uid,
+    pick: rows.findIndex((r) => held && r.itemId === held.itemId && r.variantId === held.variantId),
+    count: on.length || Math.min(1, room || 1),
+  };
+  if (S.dress.pick < 0) S.dress.pick = rows.length ? 0 : -1;
+  paintDress();
+  $('#dlg-dress').showModal();
+}
+
+function paintDress() {
+  const st = S.dress;
+  if (!st) return;
+  const strand = S.charms.find((c) => c.uid === st.uid);
+  if (!strand) return;
+  const item = itemOf(strand.itemId);
+  const rows = trayCharms();
+  const on = charmsOn(strand.uid);
+  const room = chainHolds(strand);
+  $('#dress-title').textContent = `Charms on the ${item.name.toLowerCase()}`;
+  $('#dress-room').textContent = room
+    ? `${fmtLen(strand.lenCm)} of ${item.name} holds up to ${room} charm${room === 1 ? '' : 's'} — ${
+      item.perTenCm} per 10 cm.`
+    : `The studio has not said how many charms this chain holds per 10 cm, so `
+      + `there is no limit here — add what looks right.`;
+
+  $('#dress-pick').innerHTML = rows.length
+    ? `<div class="dress-list">${rows.map((r, i) => `<button type="button" class="kind"
+        data-pick="${i}" aria-pressed="${i === st.pick}">
+        <span class="shot">${shotHtml(r.item, r.variantId)}</span>
+        <b>${esc(label(r.item, r.variantId))}</b>
+        <span>${(() => {
+          const free = toPlace(r.itemId, r.variantId)
+            + on.filter((c) => c.itemId === r.itemId && c.variantId === r.variantId).length;
+          return free > 0 ? `${amountLabel(r.item, free)} to hang` : 'none left in your tray';
+        })()}</span>
+      </button>`).join('')}</div>`
+    : `<p class="notice">There are no charms in your tray, so there is nothing to hang on it.
+       Pick some in <b>Browse</b> first.</p>`;
+
+  const count = $('#form-dress').count;
+  count.max = room || 40;
+  count.value = st.count;
+  $('#dress-count-field').hidden = !rows.length;
+  $('#dress-go').disabled = !rows.length;
+}
+
+function applyDress() {
+  const st = S.dress;
+  const strand = st && S.charms.find((c) => c.uid === st.uid);
+  if (!strand) return;
+  const rows = trayCharms();
+  const row = rows[st.pick];
+  const room = chainHolds(strand);
+  let n = Math.max(0, Math.round(st.count) || 0);
+  if (room && n > room) n = room;
+  const put = dressChain(strand, row, n);
+  $('#dlg-dress').close();
+  S.dress = null;
+  paint();
+  if (!put) toast('Nothing hung — the tray has none of that charm left.', 'bad');
+  else if (put < n) toast(`Only ${put} of those were left in your tray.`, 'bad');
+  else toast(`${put} on the chain, each turned to lie along it.`, 'good');
+}
+
+/**
+ * A charm connector joins two lengths of chain: one loop to the end of one, the
+ * other to the start of the next. It is not something to hang things from, so
+ * this is what it does instead.
+ */
+function joinChains() {
+  const conn = selectedCharms().find(isConnector) || pickedCharm();
+  if (!conn || !isConnector(conn)) return toast('Tap the connector first.');
+  const box = charmBox(conn);
+  const strands = S.charms.filter(isStrand);
+  if (strands.length < 2) return toast('Put two lengths of chain on the canvas first.');
+
+  // The two chains whose ends lie nearest the connector are the ones it joins.
+  const ends = strands.map((c) => {
+    const tail = alongStrand(c, 1);
+    const head = { x: c.x, y: c.y };
+    const dHead = Math.hypot(head.x - conn.x, head.y - conn.y);
+    const dTail = Math.hypot(tail.x - conn.x, tail.y - conn.y);
+    return dTail <= dHead ? { c, at: 'tail', d: dTail } : { c, at: 'head', d: dHead };
+  }).sort((a, b) => a.d - b.d).slice(0, 2);
+
+  const top = ends[0];
+  const bottom = ends[1];
+  const half = box.h / 2;
+  // The connector keeps the angle of the chain above it, so the three read as
+  // one run rather than a corner.
+  conn.rot = wrapAngle(top.c.rot || 0);
+  const a = (conn.rot * Math.PI) / 180;
+  const up = { x: conn.x + Math.sin(a) * half, y: conn.y - Math.cos(a) * half };
+  const down = { x: conn.x - Math.sin(a) * half, y: conn.y + Math.cos(a) * half };
+
+  // The chain above ends at the connector's upper loop…
+  const moveTo = (end, spot) => {
+    const c = end.c;
+    if (end.at === 'tail') {
+      const tail = alongStrand(c, 1);
+      c.x += spot.x - tail.x;
+      c.y += spot.y - tail.y;
+    } else {
+      c.x = spot.x;
+      c.y = spot.y;
+    }
+    c.rot = conn.rot;
+    c.pin = conn.uid;
+  };
+  moveTo(top, up);
+  // …and the one below starts at its lower loop.
+  bottom.c.rot = conn.rot;
+  if (bottom.at === 'tail') moveTo(bottom, down);
+  else { bottom.c.x = down.x; bottom.c.y = down.y; bottom.c.pin = conn.uid; }
+
+  paint();
+  toast(`${itemName(top.c)} and ${itemName(bottom.c)} joined — they move together now.`, 'good');
 }
 
 /** Fix the selected piece to whatever it is lying on, or let it go again. */
@@ -2785,8 +3083,12 @@ function toggleFix() {
     return toast('Those two are already fixed together.');
   }
   c.pin = host.uid;
+  // A loop belongs along the links, not across them.
+  if (isStrand(host) && !isStrand(c)) c.rot = hangAngle(host);
   paintStage();
-  toast(`Fixed to the ${itemName(host)} — move either one and both go.`, 'good');
+  toast(isStrand(host) && !isStrand(c)
+    ? `Fixed to the ${itemName(host)} and turned to lie along it.`
+    : `Fixed to the ${itemName(host)} — move either one and both go.`, 'good');
 }
 
 const itemName = (c) => ((itemOf(c.itemId) || {}).name || 'piece');
@@ -4104,6 +4406,9 @@ function paintSoldBy() {
   // A strand is drawn by repeating its sticker, so we have to know how much of
   // the chain one sticker shows or the links come out any size at all.
   $('#tile-field').hidden = !byLength;
+  // A chain says how much it can carry; a piece says whether it is a connector.
+  $('#hold-field').hidden = !byLength;
+  $('#conn-field').hidden = byLength;
   $('#variant-hint').textContent = byLength
     ? 'Stock is held in metres per colour — 12.5 is twelve and a half, and it is cut to the centimetre.'
     : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
@@ -4168,6 +4473,8 @@ function openPieceDialog(item) {
     f.widthMm.value = item.widthMm || '';
     f.heightMm.value = item.heightMm || '';
     f.tileCm.value = item.tileCm || '';
+    f.perTenCm.value = item.perTenCm || '';
+    f.connector.value = item.connector || '';
     f.urgentFee.value = item.urgentFee || 0;
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
@@ -4176,6 +4483,8 @@ function openPieceDialog(item) {
     f.soldBy.value = item.soldBy;
   } else {
     f.id.value = '';
+    f.perTenCm.value = '';
+    f.connector.value = '';
     f.canFlip.checked = false;
     S.draft.soldBy = soldByForSection(f.category.value);
     f.soldBy.value = S.draft.soldBy;
@@ -4835,14 +5144,20 @@ function paintTools() {
     }
   }
 
-  // Round or straight is about how a chain hangs — it means nothing to a charm.
+  // Round or straight, and what hangs on it, are about a chain.
   const view = g('g-view');
-  if (view) {
-    view.hidden = !group.some((c) => {
-      const item = itemOf(c.itemId);
-      return item && isLength(item);
-    });
+  const strand = group.find(isStrand);
+  if (view) view.hidden = !strand;
+  const dress = g('dress');
+  if (dress) {
+    const on = strand ? charmsOn(strand.uid).length : 0;
+    dress.hidden = !strand;
+    dress.textContent = on ? `Charms on it (${on})…` : 'Charms on it…';
   }
+
+  // Joining is what a connector is for.
+  const join = g('g-join');
+  if (join) join.hidden = !group.some(isConnector);
 
   // Spacing belongs to whatever the hangings hang from.
   const space = g('spacing');
@@ -4886,10 +5201,12 @@ function layOutPiece() {
     const piece = trayPieces()[st.charm] || trayPieces()[0];
     const xs = st.kind.drops === 2 ? [38, 62] : [50];
     for (const x of xs) {
-      made.push(newCharm(st.base, { x, y: 16, lenCm: st.baseLen }));
+      const chain = newCharm(st.base, { x, y: 16, lenCm: st.baseLen });
+      made.push(chain);
       if (piece) {
         const box = charmSizePct(piece.item);
-        made.push(newCharm(piece, { x, y: 16 + lenPct + box.h / 2 }));
+        made.push(newCharm(piece, { x, y: 16 + lenPct + box.h / 2,
+          rot: hangAngle(chain), pin: chain.uid }));
       }
     }
   } else {
@@ -5295,12 +5612,27 @@ function wireDesign() {
     paintStage();
   }));
 
+  $('#dress-cancel').addEventListener('click', () => { S.dress = null; $('#dlg-dress').close(); });
+  $('#dress-pick').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pick]');
+    if (!b || !S.dress) return;
+    S.dress.pick = Number(b.dataset.pick);
+    paintDress();
+  });
+  $('#form-dress').addEventListener('input', (e) => {
+    if (S.dress && e.target.name === 'count') S.dress.count = Number(e.target.value) || 0;
+  });
+  $('#form-dress').addEventListener('submit', (e) => { e.preventDefault(); applyDress(); });
+
   $('#strand-cancel').addEventListener('click', () => { S.strandAsk = null; $('#dlg-strand').close(); });
   $('#form-strand').len.addEventListener('input', paintStrandCost);
-  $$('#form-strand button[data-len]').forEach((b) => b.addEventListener('click', () => {
+  // The list is rebuilt for every strand, so the click is caught on the box.
+  $('#strand-lens').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-len]');
+    if (!b) return;
     $('#form-strand').len.value = b.dataset.len;
     paintStrandCost();
-  }));
+  });
   $('#form-strand').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!S.strandAsk) return;
@@ -5365,6 +5697,8 @@ function wireDesign() {
   $$('.tools button[data-tool]').forEach((b) => b.addEventListener('click', () => {
     if (b.dataset.tool === 'flip') return flipPicked();
     if (b.dataset.tool === 'fix') return toggleFix();
+    if (b.dataset.tool === 'dress') return openDress();
+    if (b.dataset.tool === 'join') return joinChains();
     const group = selectedCharms();
     if (!group.length) return toast('Tap a piece on the canvas first.');
     if (b.dataset.tool === 'front') { for (const c of group) c.z = ++S.zTop; }
@@ -5574,6 +5908,8 @@ function wirePieceDialog() {
         widthMm: Number(data.get('widthMm')) || 0,
         heightMm: soldByLength ? 0 : Number(data.get('heightMm')) || 0,
         tileCm: soldByLength ? tileCm : 0,
+        perTenCm: soldByLength ? Math.max(0, Math.round(Number(data.get('perTenCm')) || 0)) : 0,
+        connector: soldByLength ? '' : String(data.get('connector') || ''),
         urgentFee: Number(data.get('urgentFee')) || 0,
         canFlip: f.canFlip.checked,
         note: String(data.get('note') || '').trim(),
