@@ -445,6 +445,15 @@ legend { padding: 0 6px; font-size: 14px; font-weight: 600; color: var(--muted);
 .summary .sev-low b { color: var(--ochre); }
 
 .scroll { overflow-x: auto; }
+.find-box { position: relative; display: inline-flex; align-items: center; }
+.find-box input { padding-right: 32px; }
+.find-box input::-webkit-search-cancel-button { display: none; }
+.find-box button {
+  position: absolute; right: 4px; width: 26px; height: 26px; min-height: 26px; padding: 0;
+  border: none; background: none; color: var(--muted); font-size: 18px; line-height: 1;
+  border-radius: 50%; display: grid; place-items: center;
+}
+.find-box button:hover { color: var(--ink); background: var(--surface-2); }
 table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em; color: var(--muted); font-weight: 600; white-space: nowrap; }
@@ -1943,6 +1952,7 @@ const S = {
   search: '',
   hideOut: false,
   adminView: 'overview',
+  repoFind: '',        // studio: what the component repo is being searched for
   sheet: null,         // { itemId, variantId, qty, image }
   draft: null,         // studio: component being edited
   account: null,       // the customer's own details, once given
@@ -2758,11 +2768,7 @@ function paintSheet() {
   $('#qty-cost').textContent = isLength(item) && S.sheet.qty > 0
     ? `= ${money(lenPrice(item, S.sheet.qty))}` : '';
   $('#item-add').disabled = free <= 0;
-  $('#item-add').textContent = free <= 0 ? 'Sold out'
-    : !S.build.active ? 'Add to tray'
-      : item.role === 'bangle' ? 'Build on this bangle'
-        : item.role === 'chain' ? 'Use it for a strand'
-          : S.sheet.qty > 1 ? `Hang ${S.sheet.qty} on my bangle` : 'Hang on my bangle';
+  $('#item-add').textContent = free <= 0 ? 'Sold out' : 'Add to tray';
 
   const inTray = trayQty(item.id, v.id);
   const freeHere = addable(item, v.id);
@@ -2794,7 +2800,6 @@ function paintSheet() {
 function addFromSheet() {
   const item = itemOf(S.sheet.itemId);
   const v = variantOf(item, S.sheet.variantId);
-  if (S.build.active) return hangFromSheet(item, v);
   const free = addable(item, v.id);
   const err = $('#item-error');
   if (free <= 0) {
@@ -2816,34 +2821,6 @@ function addFromSheet() {
   $('#dlg-item').close();
   S.sheet = null;
   paint();
-}
-
-/** In Create, the product page puts the piece straight on the bangle. */
-function hangFromSheet(item, v) {
-  const qty = isLength(item) ? 1 : Math.max(1, S.sheet.qty || 1);
-  $('#dlg-item').close();
-  S.sheet = null;
-  if (item.role === 'bangle') { S.build.choosing = false; setMode('build'); chooseBangle(item.id, v.id); return; }
-  setMode('build');
-  if (item.role === 'chain') { toast('Tap a spot on your bangle, then choose a strand length and this chain.'); return; }
-  if (!S.build.baseId) { toast('Choose your bangle first, then the charm goes on it.'); return; }
-  const b = S.build;
-  b.at = -1;
-  let hung = 0;
-  for (let k = 0; k < qty; k++) {
-    // Onto the selected strand while it has room, then the next empty spot.
-    const s = b.slots[b.sel];
-    if (s && s.charms.length >= roomOn(s)) {
-      const free = nextEmpty(b.sel);
-      if (b.slots[free]) break;
-      b.sel = free;
-    }
-    const before = hungCount();
-    hang(item.id, v.id);
-    if (hungCount() === before) break;
-    hung++;
-  }
-  if (!hung) toast('Every spot is taken. Choose a longer strand, or tap a charm on the bangle to swap it.', 'bad');
 }
 
 /* ------------------------------------------------------------ tray dialog */
@@ -4417,7 +4394,10 @@ function viewRepo() {
   return `
     <section class="panel">
       <header><h2>Component repo</h2><span class="spacer"></span>
-        <input id="repo-find" placeholder="Search name, colour or SKU" style="width:220px">
+        <span class="find-box"><input id="repo-find" type="search" placeholder="Search name, colour or SKU"
+            value="${esc(S.repoFind || '')}" style="width:220px">
+          <button type="button" id="repo-find-x" aria-label="Clear the search"
+            ${S.repoFind ? '' : 'hidden'}>&times;</button></span>
         <button id="repo-renumber">Renumber all SKUs</button>
         <button class="solid" id="repo-add">Add component</button></header>
       ${stockTable(stockRows(), 'Nothing in the repo yet — add your first component.')}
@@ -4925,13 +4905,30 @@ function paintHangFields() {
 
 /* ------------------------------------------------------------ studio wiring */
 
+/** Hides the repo rows that do not match what is in the search box. */
+function filterRepo() {
+  const q = (S.repoFind || '').toLowerCase();
+  $$('#admin-body .repo tbody tr').forEach((tr) => {
+    tr.hidden = Boolean(q) && !tr.textContent.toLowerCase().includes(q);
+  });
+}
+
 function wireAdmin() {
   const body = $('#admin-body');
 
   $('#repo-find')?.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    $$('.repo tbody tr', body).forEach((tr) => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
+    S.repoFind = e.target.value;
+    $('#repo-find-x').hidden = !S.repoFind;
+    filterRepo();
   });
+  $('#repo-find-x')?.addEventListener('click', () => {
+    S.repoFind = '';
+    const box = $('#repo-find');
+    if (box) { box.value = ''; box.focus(); }
+    $('#repo-find-x').hidden = true;
+    filterRepo();
+  });
+  filterRepo();
   $('#repo-renumber')?.addEventListener('click', guard(async () => {
     const rows = renumberedRepo();
     if (!rows.length) return toast('Every component already carries the code it should.', 'good');
@@ -6576,12 +6573,62 @@ function holdsPer10(item) {
   return item && item.perTenCm > 0 ? item.perTenCm : Math.round(10 / CM_PER_CHARM);
 }
 
+/**
+ * How many charms a strand of this chain holds: what its length carries, plus
+ * one at the top, where the strand meets the bangle.
+ */
 function roomFor(cm, chainItem) {
   if (!cm) return 1;                                  // straight off the bangle
-  return Math.max(1, Math.floor((cm / 10) * holdsPer10(chainItem)));
+  return Math.floor((cm * holdsPer10(chainItem)) / 10) + 1;
 }
 
 const roomOn = (s) => roomFor(lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
+
+/** The whole piece: every spot's room added up, a bare spot counting as one. */
+const pieceRoom = (slots = S.build.slots) => slots.reduce((n, s) => n + roomOn(s), 0);
+
+/** The length of chain that carries this many charms, at least the shortest sold. */
+function cmForRoom(n, chainItem) {
+  const per = holdsPer10(chainItem);
+  return Math.max(LEN_MIN, Math.ceil(((Math.max(1, n) - 1) * 10) / per));
+}
+
+/**
+ * How to spread n charms over strands that hold caps[j] each: the middle strand
+ * takes the most and each step outwards one less, never below one while there
+ * are charms enough to go round. Where no such staircase lands exactly on n, the
+ * tallest that fits is taken and the rest pile onto the middle, then outwards.
+ */
+function spreadCharms(caps, n) {
+  const k = caps.length;
+  if (!k || n <= 0) return caps.map(() => 0);
+  const mid = (k - 1) / 2;
+  const d = caps.map((_, j) => Math.abs(j - mid));
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const stair = (top, atLeastOne) => caps.map((cap, j) =>
+    Math.min(cap, Math.max(atLeastOne ? Math.min(1, cap) : 0, Math.round(top - d[j]))));
+  let best = null;
+  for (const atLeastOne of [true, false]) {
+    for (let top = 1; top <= Math.max(...caps) + k; top += 1) {
+      const a = stair(top, atLeastOne);
+      const t = sum(a);
+      if (t === n) return a;                       // an exact staircase wins outright
+      if (t < n && (!best || t > best.t)) best = { a, t };
+      if (t >= n) break;                           // taller only overshoots further
+    }
+  }
+  const out = best ? best.a.slice() : caps.map(() => 0);
+  // The middle takes what is left over, then the strand next to it, and so on.
+  const order = caps.map((_, j) => j).sort((x, y) => d[x] - d[y] || x - y);
+  let rest = n - sum(out);
+  while (rest > 0) {
+    const j = order.find((x) => out[x] < caps[x]);
+    if (j === undefined) break;
+    out[j] += 1;
+    rest -= 1;
+  }
+  return out;
+}
 
 /**
  * Every length worth offering for this strand, a centimetre at a time. The
@@ -7482,17 +7529,20 @@ function claim(item, variantId, n) {
 }
 const release = (itemId, variantId, n) => trayTake(itemId, variantId, n);
 
-function releaseSlot(s) {
+/**
+ * Taking a strand apart. Its charms and its chain were both cut from what the
+ * tray already held, so they simply become free to use again — only a build
+ * being thrown away altogether (toShop) hands the chain back to the shop.
+ */
+function releaseSlot(s, toShop = false) {
   if (!s) return;
-  // Charms came from the tray and go back to it, not to the shop; the chain was
-  // cut from the shop's reel, so that is returned.
-  if (lenOf(s)) release(s.chain.itemId, s.chain.variantId, s.chain.lenCm);
+  if (toShop && lenOf(s)) release(s.chain.itemId, s.chain.variantId, s.chain.lenCm);
 }
 
 /** Everything on both hands goes back to the shop. */
 function releaseHands() {
   for (const h of Object.values(S.build.hands)) {
-    h.slots.forEach(releaseSlot);
+    h.slots.forEach((s) => releaseSlot(s, true));
     if (h.baseId) release(h.baseId, h.baseVariant, 1);
   }
 }
@@ -7526,11 +7576,10 @@ function chooseBangle(itemId, variantId) {
   const vId = variantId || firstInStock(item);
   const b = S.build;
   if (b.baseId === itemId && b.baseVariant === vId) return;
-  if (b.baseId) release(b.baseId, b.baseVariant, 1);
-  if (!claim(item, vId, 1)) {
-    if (b.baseId) trayAdd(b.baseId, b.baseVariant, 1);
-    return;
-  }
+  // The bangle is a tray pick like everything else: one already picked in the
+  // Collection is used, and only otherwise is one taken from the shop. The one
+  // it replaces stays in the tray, free to be picked up again or dropped there.
+  if (sparePicks(itemId, vId) <= 0 && !claim(item, vId, 1)) return;
   b.baseId = itemId;
   b.baseVariant = vId;
   const n = slotCount(item);
@@ -7804,7 +7853,7 @@ async function copyHand(mirrored) {
   if (!from.baseId) return;
   if (hungCount(hand) && !await ask(`Replace the ${HANDS[hand].toLowerCase()}?`,
     'Its charms go back to the shop and this design is made on it instead.', 'Replace it')) return;
-  to.slots.forEach(releaseSlot);
+  to.slots.forEach((x) => releaseSlot(x));
   if (to.baseId) release(to.baseId, to.baseVariant, 1);
   Object.assign(to, emptySide());
   if (claim(itemOf(from.baseId), from.baseVariant, 1)) {
@@ -7861,64 +7910,64 @@ async function applyShape(counts) {
   const b = S.build;
   if (!b.baseId || !counts) return;
   if (hungCount() && !await ask(`Lay out ${counts.join('-')} on the ${HANDS[b.hand].toLowerCase()}?`,
-    'The strands on this hand go back to the shop and the new shape is made in their place.', 'Make it')) return;
-  b.slots.forEach(releaseSlot);
+    'The strands on this hand come apart and go back to your tray, and the new shape is made in their place.', 'Make it')) return;
+  b.slots.forEach((x) => releaseSlot(x));
   b.slots = b.slots.map(() => null);
+  syncCharms();                        // the tray is free again before it is dealt out
 
   const row = shapeRow(counts, b.slots.length);
   const start = Math.floor((b.slots.length - row.length) / 2);
   const mid = (row.length - 1) / 2;
-  const chain = chains()[0];
-  // The mix comes from the tray — only what the customer has picked goes on the
-  // bangle — narrowed to the section being browsed if they are filtering.
-  const picks = trayHangables().filter((r) => !b.filter || r.item.category === b.filter);
-  if (!picks.length) {
-    toast('Your tray has no charms yet — pick some in the Collection and the shape fills with those.', 'bad');
-    return;
+  const order = row.map((_, j) => j).sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid) || x - y);
+
+  // The chain is the customer's: the one they have most of in the tray, cut from
+  // the middle strand outwards until there is none left to cut.
+  const reel = trayChainRows().sort((x, y) => y.spare - x.spare)[0] || null;
+  const chain = reel ? reel.item : null;
+  let budget = reel ? reel.spare : 0;
+  const cms = row.map(() => 0);
+  for (const j of order) {
+    if (!chain) break;
+    const want = cmForRoom(row[j], chain);
+    if (budget < LEN_MIN) break;       // what is left will not make a strand
+    cms[j] = Math.min(want, budget);
+    budget -= cms[j];
   }
-  const pool = picks.map((r) => ({ item: r.item, variantId: r.variantId }));
-  let short = 0;
-  // How many of each pick are still free to hang, counted down as the plan takes
-  // them, so the two sides of the bangle are chosen together and always match.
-  const left = new Map(picks.map((r) => [`${r.itemId}::${r.variantId}`, r.spare]));
-  const plan = new Map();              // distance from the middle -> picks, top to bottom
-  const pick = (want, copies) => {
-    for (let t = 0; t < pool.length; t++) {
-      const o = pool[(want + t) % pool.length];
-      const k = `${o.item.id}::${o.variantId}`;
-      if ((left.get(k) || 0) >= copies) { left.set(k, left.get(k) - copies); return o; }
-    }
-    return null;
-  };
+  const caps = cms.map((cm) => (cm ? roomFor(cm, chain) : 1));
+  const room = caps.reduce((n, c) => n + c, 0);
+
+  // Every charm in the tray, in the order it was picked.
+  const picks = trayHangables().filter((r) => !b.filter || r.item.category === b.filter);
+  const pool = [];
+  for (const r of picks) {
+    for (let q = 0; q < r.spare; q += 1) pool.push({ itemId: r.itemId, variantId: r.variantId });
+  }
+  // Up to the piece's room they go on in the order picked; short of it they are
+  // spread from the middle out. Nothing in the tray, and the chains hang bare.
+  const want = pool.length >= room ? caps : spreadCharms(caps, pool.length);
+
+  let taken = 0;
   row.forEach((n, j) => {
-    const d = Math.round(Math.abs(j - mid));
-    if (plan.has(d)) return;
-    const copies = d === 0 || row.length - 1 - j === j ? 1 : 2;
-    plan.set(d, Array.from({ length: n }, (_, q) => pick(q * 3 + d * 2, copies)));
-  });
-  row.forEach((n, j) => {
-    const d = Math.round(Math.abs(j - mid));
-    const s = { chain: null, charms: [] };
-    const cm = Math.min(25, Math.max(5, Math.ceil(n * CM_PER_SHAPED_CHARM)));
-    const cv = chain && firstInStock(chain);
-    if (cv && addable(chain, cv) >= cm) {
-      trayAdd(chain.id, cv, cm);
-      s.chain = { itemId: chain.id, variantId: cv, lenCm: cm };
+    const slot = { chain: null, charms: [] };
+    if (cms[j]) slot.chain = { itemId: chain.id, variantId: reel.variantId, lenCm: cms[j] };
+    for (let q = 0; q < want[j] && taken < pool.length; q += 1, taken += 1) {
+      slot.charms.push({ ...pool[taken] });
     }
-    const room = s.chain ? roomFor(cm, chain) : 1;
-    for (const o of plan.get(d).slice(0, room)) {
-      if (o) s.charms.push({ itemId: o.item.id, variantId: o.variantId });
-      else short++;
-    }
-    short += Math.max(0, n - room);
-    b.slots[start + j] = s.chain || s.charms.length ? s : null;
+    b.slots[start + j] = slot.chain || slot.charms.length ? slot : null;
   });
-  b.sel = start + Math.floor(row.length / 2);
+  b.sel = start + Math.round(mid);
   b.at = -1;
   commit();
   swayAll(5);
-  toast(short ? `Laid out ${counts.join('-')} from your tray. It is ${short} charm${short === 1 ? '' : 's'} short — pick more in the Collection, or swap what is there.`
-    : `Laid out ${counts.join('-')} from your tray. Tap any charm to swap it.`, short ? 'bad' : 'good');
+  const over = pool.length - taken;
+  const noChain = chain ? cms.filter((cm) => !cm).length : row.length;
+  toast([
+    `Laid out ${counts.join('-')} from your tray.`,
+    !chain ? 'No chain in your tray yet, so the charms sit on the bangle itself.'
+      : noChain ? `Your chain ran out after ${row.length - noChain} strand${row.length - noChain === 1 ? '' : 's'}.` : '',
+    !pool.length ? 'Pick charms in the Collection and they hang from these strands.'
+      : over ? `${over} charm${over === 1 ? ' is' : 's are'} still in your tray — this piece holds ${room}.` : '',
+  ].filter(Boolean).join(' '), pool.length && !over ? 'good' : '');
 }
 
 function shapeHtml() {
@@ -7938,7 +7987,8 @@ function shapeHtml() {
         <input name="shape" inputmode="numeric" placeholder="7-6-5-4" autocomplete="off"></label>
       <button class="solid" type="submit">Make it</button>
     </form>
-    <p>Filled with the charms in your tray${S.build.filter ? ` from ${esc(sec)}` : ''}. Swap any of them afterwards.</p>
+    <p>Strands of the chain in your tray, filled with the charms in it${S.build.filter ? ` from ${esc(sec)}` : ''} —
+      the middle strand takes the most. A starting point: move, swap or add to them afterwards.</p>
   </section>`;
 }
 
@@ -7956,7 +8006,7 @@ function switchHand(hand) {
 async function clearBuild() {
   if (!hungCount()) return;
   if (!await ask('Take every charm off?', 'The bangle stays; the strands and charms go back to the shop.', 'Take them off', true)) return;
-  S.build.slots.forEach(releaseSlot);
+  S.build.slots.forEach((x) => releaseSlot(x));
   S.build.slots = S.build.slots.map(() => null);
   S.build.sel = nextEmpty(-1);
   S.build.at = -1;
@@ -7968,6 +8018,7 @@ function resetBuild() {
   S.build.hands = { left: emptySide(), right: emptySide() };
   S.build.hand = 'left'; S.build.sel = 0; S.build.at = -1;
   S.build.active = true;
+  syncCharms();          // nothing is on the piece now, so the tray is all spare
   saveBuild();
 }
 
@@ -8048,8 +8099,9 @@ function spotHtml() {
   const b = S.build;
   const s = b.slots[b.sel];
   const used = b.slots.filter(Boolean).length;
+  const room = pieceRoom(b.slots);
   const spots = `<div class="bd-sect-head"><h3>Spot ${b.sel + 1}</h3>
-      <span class="aside">${used} of ${b.slots.length} spots used</span></div>
+      <span class="aside">${used} of ${b.slots.length} spots used · room for ${room} charm${room === 1 ? '' : 's'}</span></div>
     <div class="bd-spots" role="group" aria-label="Spots on the bangle">${b.slots.map((x, i) =>
       `<button type="button" data-spot-pick="${i}" class="${x ? 'filled' : ''}" aria-pressed="${i === b.sel}"
         aria-label="Spot ${i + 1}${x ? `, ${x.charms.length} charm${x.charms.length === 1 ? '' : 's'}` : ', empty'}">${i + 1}</button>`).join('')}</div>`;

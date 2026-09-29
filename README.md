@@ -547,9 +547,21 @@ spot by spot, in proportion, from what is in their tray.
   whole (4 cm in the tray offers 4 cm). Each entry says how many charms it holds,
   and the price of the chosen length sits under the list.
 - **How much a chain carries** is the studio's number, not a guess. A chain
-  record has *charms it can hold per 10 cm*; Create multiplies it out by the
-  length chosen and refuses the charm that would go past it, saying so. A chain
-  saved without the figure falls back to one charm every 1.5 cm.
+  record has *charms it can hold per 10 cm*, and a strand of it holds
+  `floor(length × per-10-cm ÷ 10) + 1` — the last one being the charm at the top,
+  where the strand meets the bangle. The piece's own capacity is those strands
+  added up (a bare spot counting as one), shown beside the spots. Create refuses
+  the charm that would go past a strand's room, and says so. A chain saved
+  without the figure falls back to one charm every 1.5 cm.
+- **A shape is a starting point, laid out from the tray.** Waterfall, Short,
+  Grand, Even or a row typed by hand makes the strands from the chain in the
+  tray — cut from the middle outwards, and hanging bare if there are no charms
+  yet. With fewer charms than the piece holds, the middle strand takes the most
+  and each step outwards one less, never below one while there are charms enough
+  to go round; what will not divide evenly piles onto the middle. With as many or
+  more, each strand fills to its room in the order the charms were picked, and
+  the rest stay in the tray. Everything is movable afterwards; the only rule kept
+  is that no strand holds more than its room.
 - **Charms can be switched.** Tapping a charm on a strand selects it; picking
   another then replaces it in place, and the one it replaced goes back to the
   tray.
@@ -557,6 +569,10 @@ spot by spot, in proportion, from what is in their tray.
   *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
   the charm moves: up or down its own strand, or across to another spot on the
   bangle, which Create then selects so the list follows it.
+- **The Collection fills the tray; Create arranges it.** Opening a piece in the
+  Collection adds it to the tray — it is never hung straight onto the bangle,
+  whichever room the customer came from. Choosing a bangle in Create uses one the
+  tray already holds before taking another from the shop.
 - **Only the tray hangs.** Create hangs what the customer picked and nothing
   else: with an empty tray the picker says so and hangs nothing, and each charm
   shows how many of it are left to place. Taking a charm off a strand returns it
@@ -575,8 +591,9 @@ spot by spot, in proportion, from what is in their tray.
   is a workshop part and never appears in the collection, in Create, or in
   search.
 - **The studio's tables stay where they are.** Nudging a price or a quantity in
-  the component repo redraws the row, not the page: the scroll position and the
-  cursor stay in the cell being typed in.
+  the component repo redraws the row, not the page: the scroll position, the
+  cursor and the search box all keep what they held. The search has a cross to
+  clear it.
 - **A charm connector joins chain, it does not hang.** Adding one to a strand
   cuts the chain at that point: its upper loop takes the length above and its
   lower loop the length below, so one strand becomes two lengths of the same
