@@ -1163,6 +1163,12 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-strand-sum.sub { margin-top: -4px; font-size: 13.5px; color: var(--muted); }
 #bd-cost .bill li { grid-template-columns: 1fr auto auto; align-items: start; }
 #bd-cost .sum { margin-top: 10px; }
+.bd-drop {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline;
+  margin-top: 8px; padding: 9px 12px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--ink); font-size: 13.5px;
+}
+.bd-drop .tot { font-size: 15px; }
 /* The chain and its length: two lists, the second waiting on the first. */
 .bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
 .bd-pick:disabled { opacity: .5; cursor: not-allowed; }
@@ -1686,8 +1692,10 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
           <option value="piece">The piece — charms, bangles, frames</option>
           <option value="length">Length — chain, cord, ribbon</option>
         </select></label>
-        <label class="f"><span id="price-label">Price *</span>
+        <label class="f"><span id="price-label">What it cost you *</span>
           <input name="price" type="number" min="0" step="0.01" required></label>
+        <label class="f"><span>Markup % — blank to use the ladder</span>
+          <input name="markup" type="number" min="0" max="2000" step="1" placeholder="auto"></label>
         <label class="f"><span id="width-label">Width (mm)</span>
           <input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f" id="height-field"><span>Height (mm)</span>
@@ -1773,10 +1781,20 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
         <div id="loop-field" class="loop-field">
           <div class="loop-pick" id="loop-pick" title="Click the loop the jump ring goes through"></div>
           <div>
-            <p style="margin:0 0 8px">Click the <b>loop</b> on the sticker — the jump ring goes through it and the
-              charm hangs from that point.</p>
+            <p style="margin:0 0 8px" id="loop-lede">Click the <b>loop</b> on the sticker — the jump ring goes
+              through it and the charm hangs from that point.</p>
             <p class="muted" id="loop-note" style="font-size:12.5px;margin:0 0 8px"></p>
             <button type="button" id="loop-auto" class="tiny">Find it automatically</button>
+          </div>
+        </div>
+        <div id="foot-field" class="loop-field" hidden>
+          <div class="loop-pick" id="foot-pick" title="Click the lower loop, where the chain below is joined on"></div>
+          <div>
+            <p style="margin:0 0 8px">A connector is joined at both ends. Click its <b>lower loop</b> — the chain
+              below the connector picks up from there, and the drop between the two loops is how much the
+              connector lengthens the strand by.</p>
+            <p class="muted" id="foot-note" style="font-size:12.5px;margin:0 0 8px"></p>
+            <button type="button" id="foot-auto" class="tiny">Find it automatically</button>
           </div>
         </div>
       </fieldset>
@@ -2024,7 +2042,12 @@ function normalize(id, d) {
     sku: String(d.sku || ''),
     name: String(d.name || 'Untitled'),
     category: String(d.category || ''),
+    // What the studio paid for it. What a customer pays is this plus the markup
+    // for its band, worked out in reprice() once the bands are known.
+    cost: Number(d.price) || 0,
     price: Number(d.price) || 0,
+    markup: d.markup === '' || d.markup === null || d.markup === undefined
+      || !Number.isFinite(Number(d.markup)) ? null : clamp(Number(d.markup), 0, 2000),
     note: String(d.note || ''),
     images,
     stickers,
@@ -2060,6 +2083,9 @@ function normalize(id, d) {
     // "find it from the picture", which is right for a charm photographed loop-up.
     loop: d.loop && Number.isFinite(Number(d.loop.x)) && Number.isFinite(Number(d.loop.y))
       ? { x: clamp(Number(d.loop.x), 0, 100), y: clamp(Number(d.loop.y), 0, 100) } : null,
+    // A connector is joined at both ends: loop is its upper one, loop2 its lower.
+    loop2: d.loop2 && Number.isFinite(Number(d.loop2.x)) && Number.isFinite(Number(d.loop2.y))
+      ? { x: clamp(Number(d.loop2.x), 0, 100), y: clamp(Number(d.loop2.y), 0, 100) } : null,
     // A bangle's band, as a fraction of its half-width, and how many spots it
     // offers along its lower edge. Zero means work it out / use the default.
     rim: clamp(Number(d.rim) || 0, 0, 1),
@@ -2399,6 +2425,7 @@ async function connect() {
     if (snap.exists) {
       const { pin, ...rest } = snap.data();
       S.settings = { ...S.settings, ...rest };
+      reprice();
       // The old studio PIN lived here, readable by every visitor. It goes.
       if (pin !== undefined && S.isStudio) saveSettings({});
     }
@@ -2414,6 +2441,7 @@ async function connect() {
     S.items = snap.docs.map((d) => normalize(d.id, d.data()))
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
     S.byId = new Map(S.items.map((i) => [i.id, i]));
+    reprice();
     reconcileTray();
     reconcileBuild();
     if (!S.ready && S.items.length) { S.ready = true; setMode(S.mode); }
@@ -4221,6 +4249,63 @@ function windowLeft(order, span) {
 const threshold = () => Number(S.settings.threshold) || 10;
 
 /**
+ * What a component sells for. The studio types what it cost; the shop adds a
+ * markup that falls as the component gets dearer — a two-dollar charm has to
+ * carry a bigger multiple than a sixty-dollar bangle to be worth handling at
+ * all, and a big multiple on the bangle would price the piece out of reach.
+ */
+const MARKUP_BANDS = [
+  { upTo: 2, pct: 200 },
+  { upTo: 5, pct: 150 },
+  { upTo: 10, pct: 120 },
+  { upTo: 25, pct: 100 },
+  { upTo: 50, pct: 80 },
+  { upTo: 100, pct: 65 },
+  { upTo: null, pct: 50 },
+];
+
+/** The ladder in force: the studio's, or the one above until they change it. */
+function markupBands() {
+  const set = S.settings.markups;
+  if (!Array.isArray(set) || !set.length) return MARKUP_BANDS;
+  const rows = set
+    .map((b) => ({ upTo: Number(b.upTo) > 0 ? Number(b.upTo) : null, pct: Math.max(0, Number(b.pct) || 0) }))
+    .sort((a, b) => (a.upTo === null ? Infinity : a.upTo) - (b.upTo === null ? Infinity : b.upTo));
+  if (rows[rows.length - 1].upTo !== null) rows.push({ upTo: null, pct: rows[rows.length - 1].pct });
+  return rows;
+}
+
+/** The markup for something at this cost, as a percentage. */
+function markupAt(cost) {
+  for (const b of markupBands()) if (b.upTo === null || cost <= b.upTo) return b.pct;
+  return 0;
+}
+
+/**
+ * Prices people can read: ten cents while small, fifty cents up to twenty, whole
+ * pounds above — always rounded up, so nothing is ever rounded down to nothing.
+ */
+const tidyPrice = (n) => {
+  if (!(n > 0)) return 0;
+  if (n < 5) return Math.ceil(n * 10) / 10;
+  if (n < 20) return Math.ceil(n * 2) / 2;
+  return Math.ceil(n);
+};
+
+/** What one component sells for: its own markup if it has been given one. */
+function sellFor(item) {
+  if (!item) return 0;
+  const pct = item.markup === null || item.markup === undefined ? markupAt(item.cost) : item.markup;
+  // Rounding never takes a price below what the component cost.
+  return Math.max(item.cost, tidyPrice(item.cost * (1 + pct / 100)));
+}
+
+/** Re-works every price in the catalogue — after a catalogue or a settings read. */
+function reprice() {
+  for (const item of S.items) item.price = sellFor(item);
+}
+
+/**
  * Making charges: the work of assembling the piece, as a percentage of the
  * pieces it is made from. Set in the studio, and charged on every order.
  */
@@ -4309,10 +4394,14 @@ function stockRow({ item, v }) {
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
       sizeLabel(item, true) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
-    <td class="r"><input class="cell-num" type="number" min="0" step="0.01" value="${item.price}"
-        data-f="price" aria-label="Price for ${esc(item.name)}">
+    <td class="r"><input class="cell-num" type="number" min="0" step="0.01" value="${item.cost}"
+        data-f="price" aria-label="What ${esc(item.name)} cost you">
       <div class="unit">${isLength(item) ? 'per metre' : 'each'}${
         item.urgentFee ? ` · rush ${money(item.urgentFee)}` : ''}</div></td>
+    <td class="r"><b>${money(item.price)}</b>
+      <div class="unit">${item.markup === null ? `+${markupAt(item.cost)}%`
+        : `+${item.markup}% set here`}${item.price > item.cost
+        ? ` · ${money(Math.round((item.price - item.cost) * 100) / 100)} profit` : ''}</div></td>
     <td class="r"><input class="cell-num" type="number" min="0" step="${isLength(item) ? 0.1 : 1}"
         value="${isLength(item) ? toMetres(v.quantity) : v.quantity}"
         data-f="qty" aria-label="In hand: ${esc(item.name)}${v.name ? ` in ${esc(v.name)}` : ''}${
@@ -4334,9 +4423,9 @@ function stockRow({ item, v }) {
 function stockTable(rows, blank) {
   return `<div class="scroll"><table class="repo">
     <thead><tr><th></th><th>Component &amp; colour</th><th>Section</th>
-      <th class="r">Price</th><th class="r">In hand</th><th class="r">For orders</th>
+      <th class="r">Cost</th><th class="r">Sells for</th><th class="r">In hand</th><th class="r">For orders</th>
       <th class="r">Free to sell</th><th></th></tr></thead>
-    <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="8" class="blank">${blank}</td></tr>`}</tbody>
+    <tbody>${rows.length ? rows.map(stockRow).join('') : `<tr><td colspan="9" class="blank">${blank}</td></tr>`}</tbody>
   </table></div>`;
 }
 
@@ -4542,6 +4631,38 @@ function viewSetup() {
             <input id="set-making" type="number" min="0" max="200" step="1" value="${makingRate()}"></label>
         </div>
         <button class="solid" id="set-save">Save</button>
+      </div>
+    </section>
+    <section class="panel">
+      <header><h2>Markup ladder</h2><span class="spacer"></span>
+        <button class="tiny" id="mk-add">Add a band</button>
+        <button class="tiny warnbtn" id="mk-reset">Back to the suggested ladder</button>
+        <button class="solid" id="mk-save">Save the ladder</button></header>
+      <div class="scroll"><table id="mk-table">
+        <thead><tr><th>Components costing…</th><th class="r">Markup</th><th class="r">A piece at the top of the band</th><th></th></tr></thead>
+        <tbody>${markupBands().map((b, i) => {
+          const from = i === 0 ? 0 : (markupBands()[i - 1].upTo || 0);
+          const top = b.upTo === null ? from * 2 || 200 : b.upTo;
+          return `<tr data-band="${i}">
+            <td>${money(from)} to ${b.upTo === null ? 'anything above'
+              : `<input class="cell-num" type="number" min="0.5" step="0.5" value="${b.upTo}" data-b="upTo">`}</td>
+            <td class="r"><input class="cell-num" type="number" min="0" max="2000" step="5"
+              value="${b.pct}" data-b="pct">
+              <div class="unit">%</div></td>
+            <td class="r">${money(top)} → <b>${money(tidyPrice(top * (1 + b.pct / 100)))}</b></td>
+            <td class="acts">${b.upTo === null ? ''
+              : `<button class="tiny warnbtn" data-mk-drop="${i}">Remove</button>`}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div class="pad" style="border-top:1px solid var(--line)">
+        <p class="muted" style="font-size:12.5px;margin:0">The price a customer sees is what a component
+          cost you plus the markup for its band, rounded to the nearest fifty cents under ${money(20)} and to
+          the nearest ${S.settings.currency}1 above. The markup falls as a component gets dearer: a
+          two-dollar charm has to carry a big multiple to be worth handling at all, while the same multiple
+          on a sixty-dollar bangle would price the whole piece out of reach. A single component can be given
+          its own markup in its editor, which overrides the ladder. Making charges are added on top of all
+          of this, at ${makingRate()}%.</p>
       </div>
     </section>
     <section class="panel">
@@ -4779,7 +4900,7 @@ function paintSku() {
 /** The editor's wording follows what the component is sold by. */
 function paintSoldBy() {
   const byLength = S.draft.soldBy === 'length';
-  $('#price-label').textContent = byLength ? 'Price per metre *' : 'Price *';
+  $('#price-label').textContent = byLength ? 'What a metre cost you *' : 'What it cost you *';
   // A length has no height to give: the customer chooses how long a piece of it
   // they want, and only how wide it runs is ours to state.
   $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs *' : 'Width (mm)';
@@ -4843,16 +4964,18 @@ function openPieceDialog(item) {
     ? { images: [...item.images], stickers: [...item.stickers],
         glyph: item.images.length ? '' : item.glyph, sku: item.sku, kept: Boolean(item.sku),
         soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })),
-        loop: item.loop ? { ...item.loop } : null, renders: [...item.renders],
+        loop: item.loop ? { ...item.loop } : null, loop2: item.loop2 ? { ...item.loop2 } : null,
+        renders: [...item.renders],
         spotsAt: item.spotsAt.map((p) => ({ ...p })) }
-    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, renders: [], spotsAt: [],
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, loop2: null, renders: [], spotsAt: [],
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
     f.id.value = item.id;
     f.name.value = item.name;
     f.category.value = item.category;
-    f.price.value = item.price;
+    f.price.value = item.cost;
+    f.markup.value = item.markup === null ? '' : item.markup;
     f.widthMm.value = item.widthMm || '';
     f.heightMm.value = item.heightMm || '';
     f.tileCm.value = item.tileCm || '';
@@ -4870,6 +4993,7 @@ function openPieceDialog(item) {
   } else {
     f.id.value = '';
     f.perTenCm.value = '';
+    f.markup.value = '';
     f.connector.value = '';
     f.canFlip.checked = false;
     S.draft.soldBy = soldByForSection(f.category.value);
@@ -4906,25 +5030,42 @@ function paintHangFields() {
   $('#rim-field').hidden = role !== 'bangle' || S.draft.spotsAt.length > 0;
   $('#spots-field').hidden = role !== 'bangle';
   if (role === 'bangle') paintSpotsPick();
+  const joins = f.connector.value === 'charm';
   $('#loop-field').hidden = role !== 'charm';
+  $('#foot-field').hidden = !joins;
+  $('#loop-lede').innerHTML = joins
+    ? 'Click the connector\u2019s <b>upper loop</b> — the chain above it ends there.'
+    : 'Click the <b>loop</b> on the sticker — the jump ring goes through it and the charm hangs from that point.';
   const src = S.draft.stickers[0] || '';
-  const pick = $('#loop-pick');
   if (!src) {
-    pick.innerHTML = '';
+    $('#loop-pick').innerHTML = '';
+    $('#foot-pick').innerHTML = '';
     $('#loop-note').textContent = 'Add a sticker first.';
+    $('#foot-note').textContent = 'Add a sticker first.';
     return;
   }
-  const put = (at, auto) => {
-    pick.innerHTML = `<img src="${esc(src)}" alt="" draggable="false">${at
-      ? `<span class="dot${auto ? ' auto' : ''}" style="left:${at.x}%;top:${at.y}%"></span>` : ''}`;
-    $('#loop-note').textContent = auto ? 'Found automatically (dashed). Click to set it yourself.'
-      : S.draft.loop ? 'Set by hand.' : 'Looking…';
+  // The same picker twice: the loop a charm hangs by, and, for a connector, the
+  // lower loop the chain below is joined on to.
+  const paint = (id, note, set, found) => {
+    const put = (at, auto) => {
+      $(id).innerHTML = `<img src="${esc(src)}" alt="" draggable="false">${at
+        ? `<span class="dot${auto ? ' auto' : ''}" style="left:${at.x}%;top:${at.y}%"></span>` : ''}`;
+      $(note).textContent = auto ? 'Found automatically (dashed). Click to set it yourself.'
+        : set ? 'Set by hand.' : 'Looking…';
+    };
+    if (set) { put(set, false); return; }
+    put(null, true);
+    analyseArt(src).then((info) => {
+      if (S.draft && info) put(found(info), true);
+    });
   };
-  if (S.draft.loop) { put(S.draft.loop, false); return; }
-  put(null, true);
-  analyseArt(src).then((info) => {
-    if (S.draft && !S.draft.loop && info) put({ x: info.loop.x * 100, y: info.loop.y * 100 }, true);
-  });
+  paint('#loop-pick', '#loop-note', S.draft.loop,
+    (info) => (joins ? { x: info.ends.top.x * 100, y: info.ends.top.y * 100 }
+      : { x: info.loop.x * 100, y: info.loop.y * 100 }));
+  if (joins) {
+    paint('#foot-pick', '#foot-note', S.draft.loop2,
+      (info) => ({ x: info.ends.bottom.x * 100, y: info.ends.bottom.y * 100 }));
+  }
 }
 
 /* ------------------------------------------------------------ studio wiring */
@@ -4983,9 +5124,10 @@ function wireAdmin() {
 
     if (field === 'price') {
       const price = Number(e.target.value);
-      if (!Number.isFinite(price) || price < 0) { paintAdmin(); return toast('Price must be zero or more.', 'bad'); }
+      if (!Number.isFinite(price) || price < 0) { paintAdmin(); return toast('Cost must be zero or more.', 'bad'); }
       await S.db.doc(`catalog/${item.id}`).update({ price });
-      toast(`${item.name} is now ${priceLabel({ ...item, price })}.`, 'good');
+      const sells = sellFor({ ...item, cost: price });
+      toast(`${item.name} cost ${money(price)}${isLength(item) ? ' per metre' : ''}, sells for ${money(sells)}.`, 'good');
     }
 
     if (field === 'qty') {
@@ -5112,6 +5254,37 @@ function wireAdmin() {
       making,
     });
     toast('Saved.', 'good');
+  }));
+
+  // The markup ladder: bands read straight off the table when it is saved.
+  const readBands = () => [...$$('#mk-table tbody tr')].map((tr) => {
+    const up = tr.querySelector('[data-b="upTo"]');
+    return { upTo: up ? Number(up.value) : null, pct: Number(tr.querySelector('[data-b="pct"]').value) };
+  });
+  $('#mk-add')?.addEventListener('click', guard(async () => {
+    const rows = readBands();
+    const last = rows[rows.length - 2];
+    rows.splice(rows.length - 1, 0, { upTo: Math.round((last ? last.upTo : 1) * 2), pct: rows[rows.length - 1].pct });
+    await saveSettings({ markups: rows });
+  }));
+  $$('#mk-table [data-mk-drop]').forEach((btn) => btn.addEventListener('click', guard(async () => {
+    const rows = readBands().filter((_, i) => i !== Number(btn.dataset.mkDrop));
+    await saveSettings({ markups: rows });
+    toast('Band removed.', 'good');
+  })));
+  $('#mk-reset')?.addEventListener('click', guard(async () => {
+    if (!await ask('Back to the suggested ladder?',
+      'Your own bands are replaced by the ladder the shop came with. Prices change with it.',
+      'Use the suggested one', true)) return;
+    await saveSettings({ markups: MARKUP_BANDS });
+    toast('The suggested ladder is back.', 'good');
+  }));
+  $('#mk-save')?.addEventListener('click', guard(async () => {
+    const rows = readBands();
+    if (rows.some((b) => !Number.isFinite(b.pct) || b.pct < 0)) return toast('Every markup must be zero or more.', 'bad');
+    if (rows.some((b) => b.upTo !== null && !(b.upTo > 0))) return toast('Every band has to end above zero.', 'bad');
+    await saveSettings({ markups: rows });
+    toast('The ladder is saved — every price follows it.', 'good');
   }));
 }
 
@@ -6248,6 +6421,18 @@ function wirePieceDialog() {
     paintHangFields();
   });
   $('#loop-auto').addEventListener('click', () => { S.draft.loop = null; paintHangFields(); });
+  $('#foot-pick').addEventListener('click', (e) => {
+    const img = e.target.closest('#foot-pick') && $('#foot-pick img');
+    if (!img) return;
+    const r = img.getBoundingClientRect();
+    S.draft.loop2 = {
+      x: Math.round(clamp(((e.clientX - r.left) / r.width) * 100, 0, 100) * 10) / 10,
+      y: Math.round(clamp(((e.clientY - r.top) / r.height) * 100, 0, 100) * 10) / 10,
+    };
+    paintHangFields();
+  });
+  $('#foot-auto').addEventListener('click', () => { S.draft.loop2 = null; paintHangFields(); });
+  f.connector.addEventListener('change', () => paintHangFields());
   $('#spots-pick').addEventListener('click', (e) => {
     const dot = e.target.closest('[data-spot]');
     if (dot) { S.draft.spotsAt.splice(Number(dot.dataset.spot), 1); paintHangFields(); return; }
@@ -6365,7 +6550,7 @@ function wirePieceDialog() {
     try {
       if (!name) throw new Error('Give the component a name.');
       if (!data.get('category')) throw new Error('Choose a section.');
-      if (!Number.isFinite(price) || price < 0) throw new Error('The price must be zero or more.');
+      if (!Number.isFinite(price) || price < 0) throw new Error('What it cost must be zero or more.');
       if (!S.draft.stickers.length) {
         throw new Error('Add at least one sticker — that is what customers put on their design.');
       }
@@ -6400,10 +6585,12 @@ function wirePieceDialog() {
         tileCm: soldByLength ? tileCm : 0,
         perTenCm: soldByLength ? Math.max(0, Math.round(Number(data.get('perTenCm')) || 0)) : 0,
         connector: soldByLength ? '' : String(data.get('connector') || ''),
+        markup: String(data.get('markup') || '').trim() === '' ? null : Number(data.get('markup')),
         urgentFee: Number(data.get('urgentFee')) || 0,
         canFlip: f.canFlip.checked,
         role: String(data.get('role') || ''),
         loop: S.draft.loop || null,
+        loop2: S.draft.loop2 || null,
         slots: Math.round(Number(data.get('slots')) || 0),
         spotsAt: [...(S.draft.spotsAt || [])].sort((a, b) => a.x - b.x),
         rim: Number(data.get('rim')) ? clamp(Number(data.get('rim')) / 100, 0.1, 1) : 0,
@@ -6617,6 +6804,22 @@ function roomFor(cm, chainItem) {
 
 const roomOn = (s) => roomFor(lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
 
+/** How much a connector adds to a strand, in cm: the drop between its two loops. */
+function joinDrop(j) {
+  const it = itemOf(j.itemId);
+  if (!it) return 0;
+  const info = infoNow(charmArt(it, j.variantId).src);
+  const h = (it.heightMm || it.widthMm || 6) / ((info && info.box.h) || 1);
+  const auto = (info && info.ends) || { top: { y: 0.06 }, bottom: { y: 0.94 } };
+  const from = it.loop ? it.loop.y / 100 : auto.top.y;
+  const to = it.loop2 ? it.loop2.y / 100 : auto.bottom.y;
+  return Math.round(Math.max(0.6, (to - from) * h)) / 10;
+}
+
+/** The whole drop of a strand: its chain plus every connector along it. */
+const joinsDrop = (s) => (s && s.joins ? s.joins : []).reduce((t, j) => t + joinDrop(j), 0);
+const strandDrop = (s) => Math.round((lenOf(s) + joinsDrop(s)) * 10) / 10;
+
 /** The whole piece: every spot's room added up, a bare spot counting as one. */
 const pieceRoom = (slots = S.build.slots) => slots.reduce((n, s) => n + roomOn(s), 0);
 
@@ -6707,6 +6910,25 @@ function metalOf(item, variantId) {
  * (the topmost bit of metal), and, for a bangle, where the band runs.
  */
 
+/**
+ * A point so far down a strand, following its lengths of chain and stepping
+ * over the connectors between them — a strand with a connector in it is not a
+ * straight drop, so a charm hung two thirds of the way down has to be walked to.
+ */
+function pointDown(slot, top, down) {
+  let left = down;
+  for (const run of (slot.runs || [])) {
+    if (left <= run.len) return { x: run.x, y: run.y + left };
+    left -= run.len;
+    const next = (slot.joins || []).find((j) => Math.abs(j.at - (run.y + run.len)) < 0.51);
+    if (!next) continue;
+    if (left <= next.span) return { x: next.foot.x, y: next.foot.y };
+    left -= next.span;
+  }
+  const end = slot.end || { x: top.x, y: top.y + down };
+  return { x: end.x, y: end.y };
+}
+
 const artInfo = new Map();     // src -> info | Promise
 
 function analyseArt(src) {
@@ -6735,9 +6957,9 @@ function analyseArt(src) {
     const bh = y1 - y0 + 1;
 
     // The loop: the middle of the metal in the top few rows.
-    const band = Math.max(2, Math.round(bh * 0.06));
+    const topBand = Math.max(2, Math.round(bh * 0.06));
     let sx = 0; let n = 0;
-    for (let y = y0; y < y0 + band && y < h; y++) for (let x = x0; x <= x1; x++) if (on(x, y)) { sx += x; n++; }
+    for (let y = y0; y < y0 + topBand && y < h; y++) for (let x = x0; x <= x1; x++) if (on(x, y)) { sx += x; n++; }
     const lx = n ? sx / n : x0 + bw / 2;
     const ly = y0 + Math.max(0.6, bh * 0.025);
 
@@ -6786,10 +7008,37 @@ function analyseArt(src) {
       .map((o) => ({ x: Math.round((o.x / w) * 1000) / 10, y: Math.round((o.y / h) * 1000) / 10 }))
       .sort((a, b) => a.x - b.x);
 
+    // A connector is threaded at both ends. Its two ends are the holes furthest
+    // apart down the picture — the rings a chain passes through — and failing
+    // that, the middle of the metal at its head and at its foot.
+    const mid = (from, to) => {
+      let sum = 0; let count = 0;
+      for (let y = Math.max(0, from); y <= to && y < h; y++) {
+        for (let x = x0; x <= x1; x++) if (on(x, y)) { sum += x; count++; }
+      }
+      return (count ? sum / count : x0 + bw / 2) / w;
+    };
+    const band = Math.max(2, Math.round(bh * 0.08));
+    // A threading ring is a small hole, near the middle line, close to one end —
+    // not a gap in the artwork, which is what a loose filter would find.
+    const rings = holes
+      .filter((o) => o.area >= 3 && o.area < bw * bh * 0.2
+        && Math.abs(o.x - (x0 + bw / 2)) < bw * 0.28)
+      .sort((p, q) => p.y - q.y);
+    const far = rings.length >= 2
+      && rings[0].y < y0 + bh * 0.35
+      && rings[rings.length - 1].y > y0 + bh * 0.65;
+    const ends = far
+      ? { top: { x: rings[0].x / w, y: rings[0].y / h },
+        bottom: { x: rings[rings.length - 1].x / w, y: rings[rings.length - 1].y / h } }
+      : { top: { x: mid(y0, y0 + band), y: (y0 + band / 2) / h },
+        bottom: { x: mid(y1 - band, y1), y: (y1 - band / 2) / h } };
+
     const info = {
       w: nw, h: nh,
       box: { x: x0 / w, y: y0 / h, w: bw / w, h: bh / h },      // fractions of the picture
       loop: { x: lx / w, y: ly / h },
+      ends,                                                      // fractions: a connector's two ends
       rim: rimFrac,
       loops,                                                     // % of the picture
     };
@@ -6873,33 +7122,47 @@ function layout(hand = S.build.hand) {
           // The strip's metal, without the transparent margin it was cut with.
           box: cinfo ? cinfo.box : { x: 0, y: 0, w: 1, h: 1 },
         };
-        // A connector cuts the chain: each one takes a bite out of the run, and
-        // what is left is drawn as the lengths above and below it.
-        slot.joins = (s.joins || []).map((j, k) => {
+        // A connector is a link in the strand, not something hung from it: the
+        // chain above ends at its upper loop and the chain below starts from its
+        // lower one, so the connector's own height lengthens the strand.
+        slot.joins = [];
+        slot.runs = [];
+        let head = { x: top.x, y: top.y };     // where the next length of chain starts
+        let cut = 0;                           // chain already paid out, in mm
+        for (const [k, j] of (s.joins || []).entries()) {
           const it = itemOf(j.itemId);
           const jsrc = it ? charmArt(it, j.variantId).src : '';
           const jinfo = infoNow(jsrc);
           const jbox = jinfo ? jinfo.box : { x: 0, y: 0, w: 1, h: 1 };
           const jw = (it && it.widthMm) || 6;
           const jh = (it && it.heightMm) || jw;
-          const at = top.y + clamp(j.atCm * 10, 2, len - 2);
-          return {
-            k, src: jsrc, glyph: it ? it.glyph : '◇',
-            // Drawn on the line of the chain, its own size, its loops up and down.
-            x: top.x - (jw / jbox.w) / 2, y: at - (jh / jbox.h) / 2,
-            w: jw / jbox.w, h: jh / jbox.h,
-            box: { x: top.x - jw / 2, y: at - jh / 2, w: jw, h: jh },
-            at, gap: jh,
+          const iw = jw / jbox.w;              // the whole picture, drawn in mm
+          const ih = jh / jbox.h;
+          const auto = (jinfo && jinfo.ends) || { top: { x: 0.5, y: 0.06 }, bottom: { x: 0.5, y: 0.94 } };
+          const e = {
+            top: it && it.loop ? { x: it.loop.x / 100, y: it.loop.y / 100 } : auto.top,
+            bottom: it && it.loop2 ? { x: it.loop2.x / 100, y: it.loop2.y / 100 } : auto.bottom,
           };
-        });
-        // The lengths of chain between the connectors, top to bottom.
-        const cuts = [{ at: top.y, gap: 0 }, ...slot.joins, { at: top.y + len, gap: 0 }];
-        slot.runs = [];
-        for (let k = 1; k < cuts.length; k += 1) {
-          const from = cuts[k - 1].at + cuts[k - 1].gap / 2;
-          const to = cuts[k].at - cuts[k].gap / 2;
-          if (to - from > 0.5) slot.runs.push({ ...slot.chain, y: from, len: to - from });
+          const span = Math.max(0.6, (e.bottom.y - e.top.y) * ih);
+          const run = clamp(j.atCm * 10, 0, len) - cut;
+          if (run > 0.5) slot.runs.push({ ...slot.chain, x: head.x, y: head.y, len: run });
+          const mouth = { x: head.x, y: head.y + Math.max(0, run) };
+          const x = mouth.x - e.top.x * iw;
+          const y = mouth.y - e.top.y * ih;
+          slot.joins.push({
+            k, src: jsrc, glyph: it ? it.glyph : '◇',
+            x, y, w: iw, h: ih,
+            box: { x: x + jbox.x * iw, y: y + jbox.y * ih, w: jw, h: jh },
+            at: mouth.y, span, foot: { x: x + e.bottom.x * iw, y: y + e.bottom.y * ih },
+          });
+          head = { x: x + e.bottom.x * iw, y: y + e.bottom.y * ih };
+          cut = Math.max(cut, clamp(j.atCm * 10, 0, len));
         }
+        const tail = len - cut;
+        if (tail > 0.5) slot.runs.push({ ...slot.chain, x: head.x, y: head.y, len: tail });
+        // The strand as it actually hangs: the chain plus every connector in it.
+        slot.drawn = (head.y - top.y) + Math.max(0, tail);
+        slot.end = { x: head.x, y: head.y + Math.max(0, tail) };
       }
       let bottom = top.y;
       // Down a chain the charms are spread evenly and the last one ends it;
@@ -6908,8 +7171,10 @@ function layout(hand = S.build.hand) {
         let hang = top;
         let own = null;
         if (len) {
-          own = { x: top.x, y: top.y + (len * (k + 1)) / s.charms.length + RING_R * 0.45, r: RING_R * 0.8 };
-          hang = { x: top.x, y: own.y + own.r - RING_W / 2 };
+          const down = (slot.drawn || len) * ((k + 1) / s.charms.length);
+          const on = pointDown(slot, top, down);
+          own = { x: on.x, y: on.y + RING_R * 0.45, r: RING_R * 0.8 };
+          hang = { x: on.x, y: own.y + own.r - RING_W / 2 };
         }
         const item = itemOf(c.itemId);
         const src = charmArt(item, c.variantId).src;
@@ -6937,7 +7202,7 @@ function layout(hand = S.build.hand) {
         return { k, src, glyph: item ? item.glyph : '◇', x, y, w: iw, h: ih, box, ring: own,
           turn, pivot: hang };
       });
-      bottom = Math.max(bottom, top.y + len);
+      bottom = Math.max(bottom, top.y + (slot.drawn || len));
       // What the strand takes up, for picking it and for the view.
       const xs = slot.charms.flatMap((c) => [c.box.x, c.box.x + c.box.w])
         .concat((slot.joins || []).flatMap((j) => [j.box.x, j.box.x + j.box.w]))
@@ -7300,11 +7565,13 @@ function build3D(ctx, L) {
       pivot.add(many(shared.link, metal, links));
       if (pearls.length) pivot.add(many(shared.sphere, shared.pearl, pearls));
       if (clusters.length) pivot.add(many(shared.sphere, metal, clusters));
-      // Each connector shows as the pair of loops that hold the two lengths together.
+      // Each connector shows as the pair of loops that hold the two lengths
+      // together — one where the chain above ends, one where the chain below
+      // picks up again.
       for (const j of (s.joins || [])) {
-        for (const side of [-1, 1]) {
+        for (const at of [{ x: j.box.x + j.box.w / 2, y: j.at }, j.foot]) {
           const ring = new THREE.Mesh(shared.ring, metal);
-          ring.position.copy(local(j.box.x + j.box.w / 2, j.at + (side * j.gap) / 3));
+          ring.position.copy(local(at.x, at.y));
           ring.scale.setScalar(Math.max(1.1, j.box.w / 3));
           ring.rotation.y = Math.PI / 2;
           pivot.add(ring);
@@ -8227,13 +8494,20 @@ function spotHtml() {
     return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
       ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
   }).join('')}</div>` : '';
+  const drop = (s.joins || []).length ? `<div class="bd-drop">
+      <span>Chain <b>${lenOf(s)} cm</b> + connectors <b>${Math.round(joinsDrop(s) * 10) / 10} cm</b></span>
+      <span class="tot">hangs <b>${strandDrop(s)} cm</b></span>
+    </div>
+    <p class="bd-hint">A connector is a link in the strand, so it lengthens it. Shorten the chain
+      to bring the whole strand back to the drop you want.</p>` : '';
   const joined = (s.joins || []).length ? `<div class="bd-label">Joined with</div>
     <div class="bd-list">${s.joins.map((j, i) => {
       const it = itemOf(j.itemId);
       return `<div class="bd-on">
         <span class="n">${j.atCm}</span>
         <span class="thumb">${artImg(it, j.variantId)}</span>
-        <span class="nm">${esc(label(it, j.variantId))} <span class="muted">· joins the chain ${j.atCm} cm down</span></span>
+        <span class="nm">${esc(label(it, j.variantId))} <span class="muted">· joins the chain ${j.atCm} cm down,
+          adding ${joinDrop(j)} cm</span></span>
         <span class="acts"><button type="button" class="x" data-unjoin="${i}"
           aria-label="Take out ${esc(it ? it.name : 'connector')}">Remove</button></span>
       </div>`;
@@ -8252,7 +8526,7 @@ function spotHtml() {
       <button data-bd="remove" class="warnbtn">Remove strand</button></div>
     ${s.charms.length ? `<div class="bd-strand-sum sub"><span>Start the charms again</span>
       <button data-bd="strip" class="warnbtn">Take the charms off</button></div>` : ''}
-    ${lengths}${list}${joined}${colours}${note}`;
+    ${lengths}${drop}${list}${joined}${colours}${note}`;
 }
 
 function pickerHtml() {

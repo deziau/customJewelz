@@ -601,17 +601,48 @@ spot by spot, in proportion, from what is in their tray.
   the component repo redraws the row, not the page: the scroll position, the
   cursor and the search box all keep what they held. The search has a cross to
   clear it.
-- **A charm connector joins chain, it does not hang.** Adding one to a strand
-  cuts the chain at that point: its upper loop takes the length above and its
-  lower loop the length below, so one strand becomes two lengths of the same
-  chain held together by it. The bill, the saved design and the 3D view all show
-  it that way.
+- **A charm connector joins chain, it does not hang.** It is a link in the
+  strand: the chain above ends at its upper loop and the chain below starts from
+  its lower one, so the piece reads the way the real thing is assembled — bangle
+  to chain, chain to connector, connector on to whatever comes next, another
+  connector included. Both loops are read off the sticker (the two threading
+  holes nearest its head and foot, or the middle of the metal at each end when
+  the picture has no holes to find), and either can be clicked in by hand in the
+  component editor. Because a connector is part of the strand rather than
+  something hung from it, it lengthens the strand: the panel shows **chain +
+  connectors = the drop it actually hangs**, so the chain can be shortened to
+  land on the length that was wanted. The bill, the saved design and the 3D view
+  all follow.
 
 **What it costs** closes the Create panel: every component the piece is made
 from, with its unit price and how much of it is used, then the making charges and
 the total. It is the same bill the checkout shows, read where the piece is being
 made rather than only at the end, and it counts both hands when a pair is being
 built. Delivery is the one line it cannot fill in — that is chosen at checkout.
+
+### What a component sells for
+
+The studio types **what a component cost**; the shop works out what it sells for.
+The markup falls as the component gets dearer, because a two-dollar charm has to
+carry a big multiple to be worth handling at all, while the same multiple on a
+sixty-dollar bangle would price the whole piece out of reach:
+
+| Components costing | Markup | At the top of the band |
+| --- | --- | --- |
+| up to A$2 | 200% | A$2 → A$6 |
+| A$2–5 | 150% | A$5 → A$12.50 |
+| A$5–10 | 120% | A$10 → A$22 |
+| A$10–25 | 100% | A$25 → A$50 |
+| A$25–50 | 80% | A$50 → A$90 |
+| A$50–100 | 65% | A$100 → A$165 |
+| above A$100 | 50% | A$200 → A$300 |
+
+Prices are rounded up — to ten cents under A$5, fifty cents under A$20, a whole
+unit above — and never below what the component cost. The bands are editable
+under **Setup → Markup ladder**, and a single component can be given its own
+markup in its editor, which overrides the ladder. The repo lists **Cost** and
+**Sells for** side by side, with the band and the profit under the price. Making
+charges are added on top of all of this.
 
 ### Making charges
 
