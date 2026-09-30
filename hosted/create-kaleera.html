@@ -905,6 +905,21 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .detail { display: grid; grid-template-columns: 7fr 3fr; gap: 20px; align-items: start; }
 .detail .stagepane { min-width: 0; }
 .detail .side { min-width: 0; display: grid; gap: 13px; align-content: start; }
+.profit-card {
+  border: 1px solid var(--jade); border-radius: var(--radius); background: var(--jade-soft);
+  padding: 12px 14px; display: grid; gap: 7px;
+}
+.profit-card .eyebrow { color: var(--jade); }
+.profit-card .rows { display: grid; gap: 3px; font-size: 13px; }
+.profit-card .rows > div { display: flex; justify-content: space-between; gap: 12px; }
+.profit-card .tot {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  border-top: 1px solid var(--jade); padding-top: 7px;
+  font-family: var(--display); font-size: 22px; color: var(--jade);
+}
+.profit-card .tot span:first-child { font-family: var(--body); font-size: 14px; font-weight: 600; color: var(--ink); }
+.profit-card .note { margin: 0; font-size: 12px; color: var(--muted); }
+
 .note-card {
   border-left: 3px solid var(--gold); background: var(--ochre-soft);
   padding: 11px 13px; border-radius: 0 9px 9px 0; font-size: 13.5px;
@@ -3924,6 +3939,31 @@ function billLines() {
 /** "×3" for pieces, "45 cm" for a length. */
 const lineAmount = (l) => (l.soldBy === 'length' ? fmtLen(l.qty) : `×${l.qty}`);
 
+/** What a bill line cost the studio — its components at what they were bought for. */
+function lineCost(l) {
+  const item = itemOf(l.itemId);
+  const cost = item ? item.cost : 0;
+  return Math.round((l.soldBy === 'length' ? (cost * l.qty) / 100 : cost * l.qty) * 100) / 100;
+}
+
+/**
+ * What an order is worth to the studio: the markup on every component it used,
+ * plus the making charges. Delivery is passed through, so it is left out.
+ * An order placed before costs were kept falls back to what its components cost
+ * today, and says so.
+ */
+function orderProfit(o) {
+  const lines = o.items || [];
+  const known = lines.every((l) => Number.isFinite(Number(l.cost)));
+  const cost = Math.round(lines.reduce((t, l) => t
+    + (Number.isFinite(Number(l.cost)) ? Number(l.cost) : lineCost(l)), 0) * 100) / 100;
+  const items = Number(o.itemsTotal) || 0;
+  const making = Number(o.making) || 0;
+  const profit = Math.round((items - cost + making) * 100) / 100;
+  return { cost, items, making, profit, known,
+    margin: items + making > 0 ? Math.round((profit / (items + making)) * 1000) / 10 : 0 };
+}
+
 function shippingNow() {
   if (!$('#dlg-checkout').open) return 0;
   const picked = $('input[name=fulfilment]:checked');
@@ -4142,6 +4182,9 @@ async function submitOrder(form) {
       itemId: l.itemId, variantId: l.variantId, sku: l.sku,
       name: l.name, colour: l.colour, soldBy: l.soldBy,
       unit: l.unit, qty: l.qty, total: l.total,
+      // What it cost the studio, kept with the order so an old order's profit
+      // is not rewritten by what the same component costs today.
+      cost: lineCost(l),
     })),
     design: {
       // A piece made in Create carries both hands' strands too, so it reopens there.
@@ -4151,6 +4194,7 @@ async function submitOrder(form) {
         ({ itemId, variantId, x, y, w, rot, z, lenCm, flipped: Boolean(flipped) })),
     },
     itemsTotal,
+    costTotal: Math.round(lines.reduce((t, l) => t + lineCost(l), 0) * 100) / 100,
     makingRate: makingRate(), making: makingOn(itemsTotal),
     shipping: ship, total: itemsTotal + makingOn(itemsTotal) + ship,
     status: 'new',
@@ -4567,7 +4611,7 @@ function viewOrders() {
       </select></header>
     <div class="scroll"><table id="ord-table">
       <thead><tr><th>Design</th><th>Order</th><th>Customer</th><th>Receiving</th><th>Components needed</th>
-        <th class="r">Total</th><th>Status</th><th></th></tr></thead>
+        <th class="r">Total</th><th class="r">Profit</th><th>Status</th><th></th></tr></thead>
       <tbody>${S.orders.length ? S.orders.map((o) => `<tr data-id="${esc(o.id)}" data-status="${esc(o.status)}">
         <td>${o.snapshot ? `<img class="snap-thumb" src="${esc(o.snapshot)}" alt="Design for ${esc(o.no)}"
           data-snap="${esc(o.id)}">` : '<span class="muted" style="font-size:12px">—</span>'}</td>
@@ -4580,6 +4624,8 @@ function viewOrders() {
         <td style="font-size:12.5px">${(o.items || []).map((i) =>
           `${esc(i.name)}${i.colour ? ` (${esc(i.colour)})` : ''} ${lineAmount(i)}`).join('<br>')}</td>
         <td class="r"><b>${money(o.total)}</b></td>
+        <td class="r"><b class="tag ok">${money(orderProfit(o).profit)}</b>
+          <div class="unit">${orderProfit(o).margin}%${orderProfit(o).known ? '' : ' · estimate'}</div></td>
         <td><span class="tag ${STATUS_TAG[o.status] || 'flat'}">${STATUS[o.status] || o.status}</span></td>
         <td><div class="acts">
           <select data-act="status" style="width:auto">
@@ -4589,8 +4635,16 @@ function viewOrders() {
           </select>
           <button class="tiny" data-act="open">Details</button>
         </div></td></tr>`).join('')
-        : '<tr><td colspan="8" class="blank">No orders yet.</td></tr>'}</tbody>
+        : '<tr><td colspan="9" class="blank">No orders yet.</td></tr>'}</tbody>
     </table></div>
+    ${S.orders.length ? `<div class="pad" style="border-top:1px solid var(--line)">
+      <p class="muted" style="font-size:12.5px;margin:0"><b>Profit</b> is what the components sold for less
+        what they cost you, plus the making charges. Delivery is passed through and left out. Across the
+        ${S.orders.length} order${S.orders.length === 1 ? '' : 's'} here that is
+        <b>${money(Math.round(S.orders.reduce((t, o) => t + orderProfit(o).profit, 0) * 100) / 100)}</b>,
+        on ${money(Math.round(S.orders.reduce((t, o) => t + (Number(o.total) || 0) - (Number(o.shipping) || 0), 0) * 100) / 100)}
+        of pieces sold. Cancelled orders are counted here too — read it beside the statuses.</p>
+    </div>` : ''}
   </section>`;
 }
 
@@ -5293,6 +5347,25 @@ function wireAdmin() {
 const makingLine = (o) => (o.making ? `<div><span>Making charges${
   o.makingRate ? ` · ${o.makingRate}%` : ''}</span><span class="num">${money(o.making)}</span></div>` : '');
 
+/** What this order made, for the studio's eyes: the markup on every component
+ *  it used, plus the making charges. Never shown to a customer. */
+function profitCard(o) {
+  const g = orderProfit(o);
+  return `<div class="profit-card">
+    <div class="eyebrow">What you made on this order</div>
+    <div class="rows">
+      <div><span>Components sold for</span><span class="num">${money(g.items)}</span></div>
+      <div><span>They cost you</span><span class="num">− ${money(g.cost)}</span></div>
+      <div><span>Markup on the components</span><span class="num">${money(Math.round((g.items - g.cost) * 100) / 100)}</span></div>
+      <div><span>Making charges${o.makingRate ? ` · ${o.makingRate}%` : ''}</span><span class="num">${money(g.making)}</span></div>
+    </div>
+    <div class="tot"><span>Profit</span><span>${money(g.profit)}</span></div>
+    <p class="note">${g.margin}% of what was charged for the piece.${o.shipping
+      ? ` Delivery of ${money(o.shipping)} is passed through and left out.` : ''}${g.known ? ''
+      : ' Costs were not kept with this order, so today’s costs were used — treat it as an estimate.'}</p>
+  </div>`;
+}
+
 /** One detail view, shared by the studio and the customer: the piece large on
  *  the left, everything else — the customer's note first — down the right. */
 function orderDetailHtml(o, asStudio) {
@@ -5325,9 +5398,14 @@ function orderDetailHtml(o, asStudio) {
 
       <div>
         <div class="k facts" style="margin-bottom:5px">Pieces</div>
-        <ul class="bill">${(o.items || []).map((i) => `<li>
-          <span>${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''}</span>
-          <span class="q">${lineAmount(i)}</span><span class="amt">${money(i.total)}</span></li>`).join('')}</ul>
+        <ul class="bill">${(o.items || []).map((i) => {
+          const c = Number.isFinite(Number(i.cost)) ? Number(i.cost) : lineCost(i);
+          return `<li>
+          <span>${esc(i.name)}${i.colour ? ` <span class="muted">· ${esc(i.colour)}</span>` : ''}${
+            asStudio ? `<br><span class="muted" style="font-size:12px">cost ${money(c)} · made ${
+              money(Math.round((i.total - c) * 100) / 100)}</span>` : ''}</span>
+          <span class="q">${lineAmount(i)}</span><span class="amt">${money(i.total)}</span></li>`;
+        }).join('')}</ul>
       </div>
 
       <div class="sum" style="margin-top:0">
@@ -5336,6 +5414,8 @@ function orderDetailHtml(o, asStudio) {
         <div><span>Delivery</span><span class="num">${o.shipping ? money(o.shipping) : 'free'}</span></div>
         <div class="grand"><span>Total</span><span>${money(o.total)}</span></div>
       </div>
+
+      ${asStudio ? profitCard(o) : ''}
 
       ${hist.length ? `<div>
         <div class="k facts" style="margin-bottom:7px">History</div>

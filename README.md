@@ -644,6 +644,21 @@ markup in its editor, which overrides the ladder. The repo lists **Cost** and
 **Sells for** side by side, with the band and the profit under the price. Making
 charges are added on top of all of this.
 
+### What an order made
+
+Every order records what each component cost the studio at the moment it was
+placed, so an old order's profit is never rewritten by what the same component
+costs today. The studio's copy of an order then shows **what you made on it**:
+what the components sold for, what they cost, the markup that leaves, and the
+making charges — added up as the profit, with the margin as a percentage of what
+was charged for the piece. Delivery is passed through and left out of it. Each
+line in the order also carries its own `cost … made …` under the name. The order
+book adds a **Profit** column and a running total across the orders listed.
+
+None of this is ever shown to a customer: the panel is drawn only on the
+studio's view of an order. Orders placed before costs were recorded fall back to
+today's costs and are marked as an estimate.
+
 ### Making charges
 
 Every order carries making charges — the work of assembling the piece — as a
