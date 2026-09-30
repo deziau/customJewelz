@@ -6887,7 +6887,29 @@ function roomFor(cm, chainItem) {
   return Math.ceil((cm * holdsPer10(chainItem)) / 10) + 1;
 }
 
-const roomOn = (s) => roomFor(lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
+/**
+ * A connector cuts the chain, and each length between cuts is its own chain as
+ * far as charms are concerned: the lengths this strand would be in, top to
+ * bottom, at the chain length given.
+ */
+function chainRuns(s, cm = lenOf(s)) {
+  if (!(cm > 0)) return [];
+  const cuts = ((s && s.joins) || [])
+    .map((j) => clamp(Number(j.atCm) || 0, 0, cm)).sort((a, b) => a - b);
+  const out = [];
+  let from = 0;
+  for (const c of [...cuts, cm]) { out.push(Math.round((c - from) * 10) / 10); from = c; }
+  return out;
+}
+
+/** What a strand of this chain would hold: every length in it, added up. */
+function roomForStrand(s, cm, chainItem) {
+  const runs = chainRuns(s, cm);
+  if (!runs.length) return 1;                       // no chain: one charm, on the bangle
+  return runs.reduce((n, seg) => n + (seg > 0 ? roomFor(seg, chainItem) : 0), 0) || 1;
+}
+
+const roomOn = (s) => roomForStrand(s, lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
 
 /** How much a connector adds to a strand, in cm: the drop between its two loops. */
 function joinDrop(j) {
@@ -7288,6 +7310,22 @@ function layout(hand = S.build.hand) {
         }
         return d;
       };
+      // Each length of chain between connectors is its own chain: it takes the
+      // charms it can hold and no more, spaced evenly down that length alone.
+      const chainItem = len ? itemOf(s.chain.itemId) : null;
+      const spots = [];
+      if (len) {
+        let from = 0;
+        let left = s.charms.length;
+        for (const c of [...cuts, len]) {
+          const seg = Math.round((c - from) * 10) / 10;
+          const take = seg > 0 ? Math.min(roomFor(seg / 10, chainItem), left) : 0;
+          for (let q = 0; q < take; q += 1) spots.push(from + (seg * (q + 1)) / take);
+          left -= take;
+          from = c;
+        }
+        while (spots.length < s.charms.length) spots.push(len);   // any past every length's room
+      }
       // Down a chain the charms are spread over the chain itself — the
       // connectors in it are stepped over, not shared out among the charms —
       // and the last one ends it; each hangs from a small ring of its own.
@@ -7295,7 +7333,7 @@ function layout(hand = S.build.hand) {
         let hang = top;
         let own = null;
         if (len) {
-          const on = pointOnChain(slot, top, clearOfCuts(len * ((k + 1) / s.charms.length)));
+          const on = pointOnChain(slot, top, clearOfCuts(spots[k] === undefined ? len : spots[k]));
           own = { x: on.x, y: on.y + RING_R * 0.45, r: RING_R * 0.8 };
           hang = { x: on.x, y: own.y + own.r - RING_W / 2 };
         }
@@ -8090,7 +8128,8 @@ function hang(itemId, variantId, at = S.build.sel) {
     return;
   }
   if (s && s.charms.length >= roomOn(s)) {
-    toast(lenOf(s) ? `This strand is full at ${roomOn(s)} charms — choose a longer one, or another spot.`
+    toast(lenOf(s) ? `This strand is full at ${roomOn(s)} charm${roomOn(s) === 1 ? '' : 's'}${
+      (s.joins || []).length ? ' across its lengths of chain' : ''} — choose a longer one, or another spot.`
       : 'Choose a length to hang more than one charm here.', 'bad');
     return;
   }
@@ -8625,8 +8664,11 @@ function spotHtml() {
     <select class="bd-pick" id="bd-len" aria-label="Strand length" ${picked ? '' : 'disabled'}>
       <option value="0"${len ? '' : ' selected'}
         ${s && s.charms.length > 1 ? 'disabled' : ''}>No chain — one charm, on the bangle</option>
-      ${opts.map((c) => `<option value="${c}"${c === len ? ' selected' : ''}>
-        ${c} cm — up to ${roomFor(c, chosen)} charm${roomFor(c, chosen) === 1 ? '' : 's'}</option>`).join('')}
+      ${opts.map((c) => {
+        const n = roomForStrand(s, c, chosen);
+        return `<option value="${c}"${c === len ? ' selected' : ''}>
+        ${c} cm — up to ${n} charm${n === 1 ? '' : 's'}</option>`;
+      }).join('')}
     </select>
     <p class="bd-hint">${!picked ? 'Choose the chain first; its lengths appear once you have.'
       : len ? `<b>${money(lenPrice(chosen, len))}</b> for ${len} cm of ${esc(chosen.name)}, at ${priceLabel(chosen)}.`
@@ -8647,7 +8689,11 @@ function spotHtml() {
   const k = focusAt();
   const swapping = b.at >= 0 && k >= 0;
   const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
-  const list = s.charms.length ? `<div class="bd-label">On this strand${len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}` : ''}</div>
+  const segs = len ? chainRuns(s) : [];
+  const segRoom = segs.map((cm) => (cm > 0 ? roomFor(cm, itemOf(s.chain.itemId)) : 0));
+  const split = segs.length > 1 ? ` (${segRoom.join(' + ')} down its ${segs.length} lengths)` : '';
+  const list = s.charms.length ? `<div class="bd-label">On this strand${
+    len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}${split}` : ''}</div>
     <div class="bd-list">${s.charms.map((c, i) => {
       const it = itemOf(c.itemId);
       return `<div class="bd-on${swapping && i === k ? ' swapping' : ''}">
@@ -8704,8 +8750,10 @@ function spotHtml() {
     ? `<div class="bd-swapnote"><span>Replacing <b>${esc(focus.name)}</b>. Pick a charm below.</span>
         <button type="button" data-bd="cancel-swap">Cancel</button></div>`
     : `<p>${k >= 0 ? 'Pick another charm below to swap it.'
-      : s.charms.length < roomOn(s) ? 'Add charms from top to bottom.'
-        : 'This strand is full. Choose a longer chain to add more.'}</p>`;
+      : s.charms.length < roomOn(s) ? `Add charms from top to bottom.${segs.length > 1
+        ? ' Each length of chain between the connectors fills up, evenly spaced, before the next one starts.' : ''}`
+        : `This strand is full${segs.length > 1 ? ' — every length between its connectors is' : ''}.
+          Choose a longer chain to add more.`}</p>`;
   return `${spots}
     <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
       <button data-bd="remove" class="warnbtn">Remove strand</button></div>
