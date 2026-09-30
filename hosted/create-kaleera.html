@@ -1184,6 +1184,9 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
   background: var(--accent-soft); color: var(--ink); font-size: 13.5px;
 }
 .bd-drop .tot { font-size: 15px; }
+.bd-drop button { min-height: 30px; padding: 3px 11px; font-size: 12.5px; background: var(--surface); }
+.bd-on .place input[data-join-at] { width: 60px; }
+.bd-on .cmlab { font-size: 11px; color: var(--muted); align-self: center; }
 /* The chain and its length: two lists, the second waiting on the first. */
 .bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
 .bd-pick:disabled { opacity: .5; cursor: not-allowed; }
@@ -6804,7 +6807,9 @@ function asStrand(s) {
     .filter((j) => j && j.itemId && Number.isFinite(Number(j.atCm)))
     .map((j) => ({ itemId: j.itemId, variantId: j.variantId, atCm: Number(j.atCm) }))
     .sort((a, b) => a.atCm - b.atCm);
-  return chain || charms.length ? { chain, charms, joins } : null;
+  // The drop the strand was asked to hang, before its connectors lengthened it.
+  const wantCm = Number(s.wantCm) > 0 ? Number(s.wantCm) : undefined;
+  return chain || charms.length ? { chain, charms, joins, ...(wantCm ? { wantCm } : {}) } : null;
 }
 
 /** Both hands, from a saved build — which, before pairs, was one bangle. */
@@ -8122,6 +8127,7 @@ function joinStrand(at, itemId, variantId) {
     if (gap > widest) { widest = gap; bestAt = (marks[i] + marks[i - 1]) / 2; }
   }
   if (widest < 2) { toast('There is no room left on this chain for another connector.', 'bad'); return; }
+  if (!s.joins.length) s.wantCm = lenOf(s);   // the drop asked for, before this lengthened it
   s.joins.push({ itemId, variantId: vId, atCm: Math.round(bestAt * 10) / 10 });
   s.joins.sort((x, y) => x.atCm - y.atCm);
   b.at = -1;
@@ -8135,7 +8141,42 @@ function unjoin(at, i) {
   const s = S.build.slots[at];
   if (!s || !s.joins || !s.joins[i]) return;
   s.joins.splice(i, 1);
+  if (!s.joins.length) delete s.wantCm;
   commit();
+}
+
+/** Slides a connector up or down the chain, to the centimetre it is asked for. */
+function moveJoin(i, cm) {
+  const s = S.build.slots[S.build.sel];
+  if (!s || !s.joins || !s.joins[i] || !lenOf(s)) return;
+  const at = clamp(Math.round((Number(cm) || 0) * 10) / 10, 0, lenOf(s));
+  if (at === s.joins[i].atCm) { paintBuilder(); return; }
+  s.joins[i].atCm = at;
+  s.joins.sort((x, y) => x.atCm - y.atCm);
+  commit();
+  swing(S.build.sel, 6);
+}
+
+/**
+ * Cuts the chain back so the strand hangs the length it was meant to, connectors
+ * and all — a connector lengthens a strand, and this takes that back out of it.
+ */
+function fitDrop() {
+  const b = S.build;
+  const s = b.slots[b.sel];
+  if (!s || !lenOf(s)) return;
+  const want = s.wantCm || lenOf(s);
+  const cm = Math.round((want - joinsDrop(s)) * 10) / 10;
+  if (cm < 0.5) {
+    toast(`The connectors on this strand hang ${Math.round(joinsDrop(s) * 10) / 10} cm on their own — there is no chain left to fit them into ${want} cm.`, 'bad');
+    return;
+  }
+  setLength(cm, s.chain.itemId, s.chain.variantId);
+  const now = b.slots[b.sel];
+  if (!now || !lenOf(now)) return;
+  now.wantCm = want;                    // setLength read the new length as the wish
+  commit();
+  toast(`Chain cut to ${cm} cm — the strand hangs ${strandDrop(now)} cm.`, 'good');
 }
 
 /** Takes one charm off a strand, or (k < 0) the whole strand off its spot. */
@@ -8231,6 +8272,7 @@ function setLength(cm, chainId, chainVariant) {
   if (!takeChain(ch, vId, cm)) { if (undo && s) s.chain = undo; return; }
   if (!s) { s = { chain: null, charms: [] }; b.slots[at] = s; }
   s.chain = { itemId: ch.id, variantId: vId, lenCm: cm };
+  s.wantCm = cm;                        // what was asked for; connectors hang below it
   b.chainPick = `${ch.id}|${vId}`;
   b.at = -1;
   commit();
@@ -8617,20 +8659,30 @@ function spotHtml() {
     return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
       ${v.swatch ? `<span class="sw" style="background:${esc(v.swatch)}"></span>` : ''}${esc(v.name || 'Standard')}</button>`;
   }).join('')}</div>` : '';
+  const want = s.wantCm || lenOf(s);
+  const fits = Math.round((want - joinsDrop(s)) * 10) / 10;
   const drop = (s.joins || []).length ? `<div class="bd-drop">
       <span>Chain <b>${lenOf(s)} cm</b> + connectors <b>${Math.round(joinsDrop(s) * 10) / 10} cm</b></span>
       <span class="tot">hangs <b>${strandDrop(s)} cm</b></span>
+      ${Math.abs(strandDrop(s) - want) > 0.05 && fits >= 0.5
+        ? `<button type="button" class="tiny" data-bd="fit">Adjust to ${want} cm</button>` : ''}
     </div>
-    <p class="bd-hint">A connector is a link in the strand, so it lengthens it. Shorten the chain
-      to bring the whole strand back to the drop you want.</p>` : '';
+    <p class="bd-hint">A connector is a link in the strand, so it lengthens it.${
+      Math.abs(strandDrop(s) - want) > 0.05 && fits >= 0.5
+        ? ` Adjusting cuts the chain to ${fits} cm so the whole strand hangs ${want} cm.`
+        : ' Shorten the chain to bring the whole strand back to the drop you want.'}</p>` : '';
   const joined = (s.joins || []).length ? `<div class="bd-label">Joined with</div>
     <div class="bd-list">${s.joins.map((j, i) => {
       const it = itemOf(j.itemId);
       return `<div class="bd-on">
-        <span class="n">${j.atCm}</span>
+        <span class="n">${i + 1}</span>
         <span class="thumb">${artImg(it, j.variantId)}</span>
-        <span class="nm">${esc(label(it, j.variantId))} <span class="muted">· joins the chain ${j.atCm} cm down,
-          adding ${joinDrop(j)} cm</span></span>
+        <span class="nm">${esc(label(it, j.variantId))} <span class="muted">· adds ${joinDrop(j)} cm</span></span>
+        <span class="place">
+          <label>Down<input type="number" min="0" max="${lenOf(s)}" step="0.1" value="${j.atCm}"
+            data-join-at="${i}" aria-label="How far down the chain ${esc(it ? it.name : 'the connector')} sits, in cm"></label>
+          <span class="cmlab">cm</span>
+        </span>
         <span class="acts"><button type="button" class="x" data-unjoin="${i}"
           aria-label="Take out ${esc(it ? it.name : 'connector')}">Remove</button></span>
       </div>`;
@@ -8763,6 +8815,7 @@ function paintBuilder() {
 /** A selector that finds the same control again after a redraw. */
 function focusKey(el) {
   if (el.dataset && el.dataset.move) return `[data-move="${el.dataset.move}"][data-i="${CSS.escape(el.dataset.i)}"]`;
+  if (el.dataset && el.dataset.joinAt !== undefined) return `[data-join-at="${CSS.escape(el.dataset.joinAt)}"]`;
   for (const k of ['charm', 'len', 'spotPick', 'at', 'off', 'bd', 'cat', 'colour', 'chain', 'bangle']) {
     if (el.dataset && el.dataset[k] !== undefined) {
       const attr = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -8952,6 +9005,7 @@ function wireBuilder() {
     }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
     switch (t.dataset.bd) {
+      case 'fit': return fitDrop();
       case 'cancel-swap': b.at = -1; return paintBuilder();
       case 'clear-find': b.find = ''; return paintBuilder();
       case 'remove': return unhang();
@@ -8994,6 +9048,9 @@ function wireBuilder() {
     if (e.target.id === 'bd-len') {
       const [id, v] = (b.chainPick || '').split('|');
       return setLength(Number(e.target.value), id, v);
+    }
+    if (e.target.dataset.joinAt !== undefined) {
+      return moveJoin(Number(e.target.dataset.joinAt), e.target.value);
     }
     if (e.target.dataset.move) {
       const i = Number(e.target.dataset.i);

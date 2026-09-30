@@ -610,8 +610,11 @@ spot by spot, in proportion, from what is in their tray.
   the picture has no holes to find), and either can be clicked in by hand in the
   component editor. Because a connector is part of the strand rather than
   something hung from it, it lengthens the strand: the panel shows **chain +
-  connectors = the drop it actually hangs**, so the chain can be shortened to
-  land on the length that was wanted. The bill, the saved design and the 3D view
+  connectors = the drop it actually hangs**, with an **Adjust to N cm** button
+  that cuts the chain back so the whole strand hangs the length that was asked
+  for — an 8 cm chain that became 10 cm with a connector goes to 6 cm of chain
+  hanging 8 cm. Each connector's place on the chain is a centimetre box on its
+  own row, so it can be slid up or down by hand. The bill, the saved design and the 3D view
   all follow.
 - **However it was photographed, it hangs the right way up.** The two loops are
   found whichever way the line between them runs, and Create turns the piece
