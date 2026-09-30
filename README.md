@@ -613,6 +613,12 @@ spot by spot, in proportion, from what is in their tray.
   connectors = the drop it actually hangs**, so the chain can be shortened to
   land on the length that was wanted. The bill, the saved design and the 3D view
   all follow.
+- **However it was photographed, it hangs the right way up.** The two loops are
+  found whichever way the line between them runs, and Create turns the piece
+  about its upper loop until that line follows the chain — a connector drawn
+  lying on its side, loops left and right, hangs along the strand rather than
+  across it. What it adds to the strand is the distance between its loops, so
+  that figure is right at any angle.
 
 **What it costs** closes the Create panel: every component the piece is made
 from, with its unit price and how much of it is used, then the making charges and

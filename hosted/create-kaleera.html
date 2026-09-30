@@ -6890,10 +6890,13 @@ function joinDrop(j) {
   if (!it) return 0;
   const info = infoNow(charmArt(it, j.variantId).src);
   const h = (it.heightMm || it.widthMm || 6) / ((info && info.box.h) || 1);
-  const auto = (info && info.ends) || { top: { y: 0.06 }, bottom: { y: 0.94 } };
-  const from = it.loop ? it.loop.y / 100 : auto.top.y;
-  const to = it.loop2 ? it.loop2.y / 100 : auto.bottom.y;
-  return Math.round(Math.max(0.6, (to - from) * h)) / 10;
+  const wide = (it.widthMm || it.heightMm || 6) / ((info && info.box.w) || 1);
+  const auto = (info && info.ends) || { top: { x: 0.5, y: 0.06 }, bottom: { x: 0.5, y: 0.94 } };
+  const a = it.loop ? { x: it.loop.x / 100, y: it.loop.y / 100 } : auto.top;
+  const c = it.loop2 ? { x: it.loop2.x / 100, y: it.loop2.y / 100 } : auto.bottom;
+  // However the piece was photographed, what it adds is the distance between
+  // its loops — the line Create turns to run down the chain.
+  return Math.round(Math.max(0.6, Math.hypot((c.x - a.x) * wide, (c.y - a.y) * h))) / 10;
 }
 
 /** The whole drop of a strand: its chain plus every connector along it. */
@@ -7088,31 +7091,48 @@ function analyseArt(src) {
       .map((o) => ({ x: Math.round((o.x / w) * 1000) / 10, y: Math.round((o.y / h) * 1000) / 10 }))
       .sort((a, b) => a.x - b.x);
 
-    // A connector is threaded at both ends. Its two ends are the holes furthest
-    // apart down the picture — the rings a chain passes through — and failing
-    // that, the middle of the metal at its head and at its foot.
-    const mid = (from, to) => {
+    // A connector is threaded at both ends, and it may have been photographed
+    // any way up: lying on its side as readily as standing. Its ends are the two
+    // threading holes furthest apart, whichever way that line runs — Create
+    // turns the piece so that line follows the chain.
+    const acrossRows = (from, to) => {
       let sum = 0; let count = 0;
       for (let y = Math.max(0, from); y <= to && y < h; y++) {
         for (let x = x0; x <= x1; x++) if (on(x, y)) { sum += x; count++; }
       }
       return (count ? sum / count : x0 + bw / 2) / w;
     };
-    const band = Math.max(2, Math.round(bh * 0.08));
-    // A threading ring is a small hole, near the middle line, close to one end —
-    // not a gap in the artwork, which is what a loose filter would find.
-    const rings = holes
-      .filter((o) => o.area >= 3 && o.area < bw * bh * 0.2
-        && Math.abs(o.x - (x0 + bw / 2)) < bw * 0.28)
-      .sort((p, q) => p.y - q.y);
-    const far = rings.length >= 2
-      && rings[0].y < y0 + bh * 0.35
-      && rings[rings.length - 1].y > y0 + bh * 0.65;
-    const ends = far
-      ? { top: { x: rings[0].x / w, y: rings[0].y / h },
-        bottom: { x: rings[rings.length - 1].x / w, y: rings[rings.length - 1].y / h } }
-      : { top: { x: mid(y0, y0 + band), y: (y0 + band / 2) / h },
-        bottom: { x: mid(y1 - band, y1), y: (y1 - band / 2) / h } };
+    const downCols = (from, to) => {
+      let sum = 0; let count = 0;
+      for (let x = Math.max(0, from); x <= to && x < w; x++) {
+        for (let y = y0; y <= y1; y++) if (on(x, y)) { sum += y; count++; }
+      }
+      return (count ? sum / count : y0 + bh / 2) / h;
+    };
+    const rings = holes.filter((o) => o.area >= 3 && o.area < bw * bh * 0.2);
+    let pair = null;
+    for (let i = 0; i < rings.length; i++) {
+      for (let j = i + 1; j < rings.length; j++) {
+        const d = Math.hypot(rings[i].x - rings[j].x, rings[i].y - rings[j].y);
+        if (!pair || d > pair.d) pair = { d, a: rings[i], b: rings[j] };
+      }
+    }
+    const longest = Math.max(bw, bh);
+    let ends;
+    if (pair && pair.d > longest * 0.45) {
+      // The one that comes first reading down and across is the head of it.
+      const [a, c] = [pair.a, pair.b].sort((q, r) => (q.y - r.y) || (q.x - r.x));
+      ends = { top: { x: a.x / w, y: a.y / h }, bottom: { x: c.x / w, y: c.y / h } };
+    } else if (bw > bh * 1.2) {
+      // No holes to find, and it lies on its side: its ends are left and right.
+      const band = Math.max(2, Math.round(bw * 0.08));
+      ends = { top: { x: (x0 + band / 2) / w, y: downCols(x0, x0 + band) },
+        bottom: { x: (x1 - band / 2) / w, y: downCols(x1 - band, x1) } };
+    } else {
+      const band = Math.max(2, Math.round(bh * 0.08));
+      ends = { top: { x: acrossRows(y0, y0 + band), y: (y0 + band / 2) / h },
+        bottom: { x: acrossRows(y1 - band, y1), y: (y1 - band / 2) / h } };
+    }
 
     const info = {
       w: nw, h: nh,
@@ -7223,7 +7243,13 @@ function layout(hand = S.build.hand) {
             top: it && it.loop ? { x: it.loop.x / 100, y: it.loop.y / 100 } : auto.top,
             bottom: it && it.loop2 ? { x: it.loop2.x / 100, y: it.loop2.y / 100 } : auto.bottom,
           };
-          const span = Math.max(0.6, (e.bottom.y - e.top.y) * ih);
+          // The line between its loops is what joins the chain, so the piece is
+          // turned until that line runs straight down — a connector whose loops
+          // sit left and right hangs along the chain, not across it.
+          const vx = (e.bottom.x - e.top.x) * iw;
+          const vy = (e.bottom.y - e.top.y) * ih;
+          const span = Math.max(0.6, Math.hypot(vx, vy));
+          const turn = Math.round(((Math.atan2(vx, vy) * 180) / Math.PI) * 10) / 10;
           const run = clamp(j.atCm * 10, 0, len) - cut;
           if (run > 0.5) slot.runs.push({ ...slot.chain, x: head.x, y: head.y, len: run });
           const mouth = { x: head.x, y: head.y + Math.max(0, run) };
@@ -7233,9 +7259,11 @@ function layout(hand = S.build.hand) {
             k, src: jsrc, glyph: it ? it.glyph : '◇',
             x, y, w: iw, h: ih,
             box: { x: x + jbox.x * iw, y: y + jbox.y * ih, w: jw, h: jh },
-            at: mouth.y, span, foot: { x: x + e.bottom.x * iw, y: y + e.bottom.y * ih },
+            // Turned about its upper loop, so that loop stays on the chain.
+            at: mouth.y, span, turn, pivot: mouth,
+            foot: { x: mouth.x, y: mouth.y + span },
           });
-          head = { x: x + e.bottom.x * iw, y: y + e.bottom.y * ih };
+          head = { x: mouth.x, y: mouth.y + span };
           cut = Math.max(cut, clamp(j.atCm * 10, 0, len));
         }
         const tail = len - cut;
@@ -7285,7 +7313,12 @@ function layout(hand = S.build.hand) {
       bottom = Math.max(bottom, top.y + (slot.drawn || len));
       // What the strand takes up, for picking it and for the view.
       const xs = slot.charms.flatMap((c) => [c.box.x, c.box.x + c.box.w])
-        .concat((slot.joins || []).flatMap((j) => [j.box.x, j.box.x + j.box.w]))
+        // A turned connector reaches as far either side of the chain as it is
+        // long, so it is measured from its pivot rather than from its picture.
+        .concat((slot.joins || []).flatMap((j) => {
+          const reach = Math.max(j.box.w, j.box.h) / 2;
+          return [j.pivot.x - reach, j.pivot.x + reach, j.box.x, j.box.x + j.box.w];
+        }))
         .concat([ring.x - ring.r, ring.x + ring.r]);
       slot.box = { x: Math.min(...xs), y: ring.y - ring.r, w: Math.max(...xs) - Math.min(...xs), h: bottom - (ring.y - ring.r) };
       low = Math.max(low, bottom);
@@ -7384,7 +7417,8 @@ function paintStageSvg() {
       <g class="swing" data-px="${s.P.x}" data-py="${s.P.y}">
         <rect class="halo" x="${bx.x - 1.2}" y="${bx.y - 1}" width="${bx.w + 2.4}" height="${bx.h + 2.2}" rx="2" fill="transparent"/>
         ${(s.runs || (s.chain ? [s.chain] : [])).map((run, k) => chainSvg(run, L.metal, `${s.i}-${k}`)).join('')}
-        ${(s.joins || []).map((j) => `<g data-join="${j.k}"><g filter="url(#bd-shadow)">${pieceSvg(j)}</g></g>`).join('')}
+        ${(s.joins || []).map((j) => `<g data-join="${j.k}"><g transform="rotate(${j.turn || 0} ${j.pivot.x} ${j.pivot.y})"
+          filter="url(#bd-shadow)">${pieceSvg(j)}</g></g>`).join('')}
         ${s.charms.map((c) => `<g data-at="${c.k}">${c.turn
           ? `<g transform="rotate(${c.turn} ${c.pivot.x} ${c.pivot.y})">`
           : '<g>'}<g filter="url(#bd-shadow)">${pieceSvg(c)}</g></g>
@@ -7649,7 +7683,7 @@ function build3D(ctx, L) {
       // together — one where the chain above ends, one where the chain below
       // picks up again.
       for (const j of (s.joins || [])) {
-        for (const at of [{ x: j.box.x + j.box.w / 2, y: j.at }, j.foot]) {
+        for (const at of [j.pivot, j.foot]) {
           const ring = new THREE.Mesh(shared.ring, metal);
           ring.position.copy(local(at.x, at.y));
           ring.scale.setScalar(Math.max(1.1, j.box.w / 3));
@@ -7780,7 +7814,16 @@ async function buildSnapshot(size = 560) {
           }
         }
       }
-      for (const j of (s.joins || [])) await piece(j);
+      for (const j of (s.joins || [])) {
+        if (j.turn) {
+          g.save();
+          g.translate(X(j.pivot.x), Y(j.pivot.y));
+          g.rotate((j.turn * Math.PI) / 180);
+          g.translate(-X(j.pivot.x), -Y(j.pivot.y));
+        }
+        await piece(j);
+        if (j.turn) g.restore();
+      }
       for (const c of s.charms) {
         if (c.turn) {
           g.save();
