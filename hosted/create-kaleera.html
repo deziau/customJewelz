@@ -6999,19 +6999,19 @@ function metalOf(item, variantId) {
  */
 
 /**
- * A point so far down a strand, following its lengths of chain and stepping
- * over the connectors between them — a strand with a connector in it is not a
- * straight drop, so a charm hung two thirds of the way down has to be walked to.
+ * A point so many millimetres of CHAIN down a strand. Only the chain is
+ * counted: a charm hangs from a link, never from a connector or the loops at
+ * either end of it, so the connectors are stepped over rather than measured
+ * through, and what is shared out among the charms is the chain alone.
  */
-function pointDown(slot, top, down) {
+function pointOnChain(slot, top, down) {
+  const runs = slot.runs || [];
   let left = down;
-  for (const run of (slot.runs || [])) {
-    if (left <= run.len) return { x: run.x, y: run.y + left };
-    left -= run.len;
-    const next = (slot.joins || []).find((j) => Math.abs(j.at - (run.y + run.len)) < 0.51);
-    if (!next) continue;
-    if (left <= next.span) return { x: next.foot.x, y: next.foot.y };
-    left -= next.span;
+  for (let i = 0; i < runs.length; i += 1) {
+    if (left <= runs[i].len || i === runs.length - 1) {
+      return { x: runs[i].x, y: runs[i].y + Math.min(Math.max(0, left), runs[i].len) };
+    }
+    left -= runs[i].len;
   }
   const end = slot.end || { x: top.x, y: top.y + down };
   return { x: end.x, y: end.y };
@@ -7278,14 +7278,24 @@ function layout(hand = S.build.hand) {
         slot.end = { x: head.x, y: head.y + Math.max(0, tail) };
       }
       let bottom = top.y;
-      // Down a chain the charms are spread evenly and the last one ends it;
-      // each hangs from a small ring of its own.
+      // Where the chain is cut for a connector. A charm that fell on one is
+      // moved a little clear, so nothing ever hangs off a connector's loop.
+      const cuts = (s.joins || []).map((j) => clamp(j.atCm * 10, 0, len)).sort((x, y) => x - y);
+      const CLEAR = RING_R * 1.6;      // the charm's own jump ring, and a little air
+      const clearOfCuts = (d) => {
+        for (const c of cuts) {
+          if (Math.abs(d - c) < CLEAR) return c > CLEAR ? c - CLEAR : Math.min(len, c + CLEAR);
+        }
+        return d;
+      };
+      // Down a chain the charms are spread over the chain itself — the
+      // connectors in it are stepped over, not shared out among the charms —
+      // and the last one ends it; each hangs from a small ring of its own.
       slot.charms = s.charms.map((c, k) => {
         let hang = top;
         let own = null;
         if (len) {
-          const down = (slot.drawn || len) * ((k + 1) / s.charms.length);
-          const on = pointDown(slot, top, down);
+          const on = pointOnChain(slot, top, clearOfCuts(len * ((k + 1) / s.charms.length)));
           own = { x: on.x, y: on.y + RING_R * 0.45, r: RING_R * 0.8 };
           hang = { x: on.x, y: own.y + own.r - RING_W / 2 };
         }
