@@ -3997,7 +3997,7 @@ function paintBill() {
 
   $('#sum').innerHTML = `
     <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
-    <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
+    <div><span>Making charges · ${makingRate()}% of ${partCount()} piece${partCount() === 1 ? '' : 's'}</span><span class="num">${money(making)}</span></div>
     <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'chosen at checkout'}</span></div>
     <div class="grand"><span>Total</span><span>${money(items + making + ship)}</span></div>`;
 
@@ -4108,7 +4108,7 @@ function paintCheckoutSum(items = billLines().reduce((s, l) => s + l.total, 0)) 
   if (node) {
     node.innerHTML = `
       <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
-      <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
+      <div><span>Making charges · ${makingRate()}% of ${partCount()} piece${partCount() === 1 ? '' : 's'}</span><span class="num">${money(making)}</span></div>
       <div><span>Delivery</span><span class="num">${ship ? money(ship) : 'Free, collect from the studio'}</span></div>
       <div class="grand"><span>Total</span><span>${money(items + making + ship)}</span></div>`;
   }
@@ -4198,7 +4198,7 @@ async function submitOrder(form) {
     },
     itemsTotal,
     costTotal: Math.round(lines.reduce((t, l) => t + lineCost(l), 0) * 100) / 100,
-    makingRate: makingRate(), making: makingOn(itemsTotal),
+    parts: partCount(), makingRate: makingRate(), making: makingOn(itemsTotal),
     shipping: ship, total: itemsTotal + makingOn(itemsTotal) + ship,
     status: 'new',
     createdAt: amend ? amend.createdAt : new Date().toISOString(),
@@ -4356,10 +4356,60 @@ function reprice() {
  * Making charges: the work of assembling the piece, as a percentage of the
  * pieces it is made from. Set in the studio, and charged on every order.
  */
-const makingRate = () => {
-  const n = Number(S.settings.making);
-  return Number.isFinite(n) && n >= 0 ? n : 20;
-};
+/**
+ * Making charges answer to how much assembling a piece takes, and that is the
+ * number of components joined together, not what they cost. One component is
+ * nothing to assemble, so it is free; a kaleera of fifteen parts is an
+ * afternoon's work. A chain cut by a connector counts as the parts it is made
+ * of — two lengths of chain and the connector between them are three.
+ */
+const MAKING_BANDS = [
+  { upTo: 1, pct: 0 },
+  { upTo: 3, pct: 8 },
+  { upTo: 6, pct: 14 },
+  { upTo: 10, pct: 20 },
+  { upTo: 15, pct: 26 },
+  { upTo: null, pct: 32 },
+];
+
+function makingBands() {
+  const set = S.settings.makings;
+  if (!Array.isArray(set) || !set.length) return MAKING_BANDS;
+  const rows = set
+    .map((b) => ({ upTo: Number(b.upTo) > 0 ? Math.round(Number(b.upTo)) : null, pct: Math.max(0, Number(b.pct) || 0) }))
+    .sort((a, b) => (a.upTo === null ? Infinity : a.upTo) - (b.upTo === null ? Infinity : b.upTo));
+  if (rows[rows.length - 1].upTo !== null) rows.push({ upTo: null, pct: rows[rows.length - 1].pct });
+  return rows;
+}
+
+/** The making charge for a piece of this many components, as a percentage. */
+function makingAt(parts) {
+  if (parts <= 0) return 0;
+  for (const b of makingBands()) if (b.upTo === null || parts <= b.upTo) return b.pct;
+  return 0;
+}
+
+/**
+ * How many components the piece in hand is made of: the bangle, every charm,
+ * every connector, and each length of chain a connector leaves behind.
+ */
+function partCount() {
+  if (S.build && S.build.active) {
+    let n = 0;
+    for (const h of Object.values(S.build.hands)) {
+      if (h.baseId) n += 1;
+      for (const sl of h.slots || []) {
+        if (!sl) continue;
+        n += sl.charms.length + ((sl.joins || []).length * 2) + (lenOf(sl) ? 1 : 0);
+      }
+    }
+    return n;
+  }
+  // Laid out by hand: every piece on the canvas is one component.
+  return S.charms.length;
+}
+
+const makingRate = () => makingAt(partCount());
 const makingOn = (items) => Math.round(items * makingRate()) / 100;
 
 /** Stock lives per colour, so the studio counts colours, not components. */
@@ -4684,10 +4734,37 @@ function viewSetup() {
           <label class="f"><span>Currency symbol</span><input id="set-cur" value="${esc(S.settings.currency)}"></label>
           <label class="f"><span>Low-stock threshold</span>
             <input id="set-thr" type="number" min="1" step="1" value="${threshold()}"></label>
-          <label class="f"><span>Making charges, % of the pieces</span>
-            <input id="set-making" type="number" min="0" max="200" step="1" value="${makingRate()}"></label>
+
         </div>
         <button class="solid" id="set-save">Save</button>
+      </div>
+    </section>
+    <section class="panel">
+      <header><h2>Making charges</h2><span class="spacer"></span>
+        <button class="tiny" id="mg-add">Add a band</button>
+        <button class="tiny warnbtn" id="mg-reset">Back to the suggested ladder</button>
+        <button class="solid" id="mg-save">Save</button></header>
+      <div class="scroll"><table id="mg-table">
+        <thead><tr><th>Pieces joined together</th><th class="r">Making charge</th><th></th></tr></thead>
+        <tbody>${makingBands().map((b, i) => {
+          const from = i === 0 ? 1 : (makingBands()[i - 1].upTo || 0) + 1;
+          return `<tr data-band="${i}">
+            <td>${b.upTo === null ? `${from} or more`
+              : from === b.upTo ? `${from} component${from === 1 ? '' : 's'}`
+                : `${from} to <input class="cell-num" type="number" min="1" step="1" value="${b.upTo}" data-g="upTo">`}</td>
+            <td class="r"><input class="cell-num" type="number" min="0" max="200" step="1"
+              value="${b.pct}" data-g="pct"><div class="unit">% of the components</div></td>
+            <td class="acts">${b.upTo === null ? ''
+              : `<button class="tiny warnbtn" data-mg-drop="${i}">Remove</button>`}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div class="pad" style="border-top:1px solid var(--line)">
+        <p class="muted" style="font-size:12.5px;margin:0">What a piece costs to make follows how many parts
+          go into it, not what they cost: the bangle, every charm, every connector, and each length of chain a
+          connector leaves behind — a chain with one connector in it is three parts, two lengths and the
+          connector. One component on its own is nothing to assemble, so it carries no charge. The percentage
+          for the band is then taken on the components, and added after the markup.</p>
       </div>
     </section>
     <section class="panel">
@@ -4719,7 +4796,7 @@ function viewSetup() {
           two-dollar charm has to carry a big multiple to be worth handling at all, while the same multiple
           on a sixty-dollar bangle would price the whole piece out of reach. A single component can be given
           its own markup in its editor, which overrides the ladder. Making charges are added on top of all
-          of this, at ${makingRate()}%.</p>
+          of this, on the ladder above.</p>
       </div>
     </section>
     <section class="panel">
@@ -5302,15 +5379,44 @@ function wireAdmin() {
   $('#set-save')?.addEventListener('click', guard(async () => {
     const thr = parseInt($('#set-thr').value, 10);
     if (!Number.isInteger(thr) || thr < 1) return toast('The threshold must be a whole number above zero.', 'bad');
-    const making = Number($('#set-making').value);
-    if (!Number.isFinite(making) || making < 0) return toast('Making charges must be zero or more.', 'bad');
     await saveSettings({
       businessName: $('#set-name').value.trim() || 'CustomJewelz',
       currency: $('#set-cur').value.trim() || 'A$',
       threshold: thr,
-      making,
     });
     toast('Saved.', 'good');
+  }));
+
+  // The making ladder: what a piece costs to assemble, by how many parts it has.
+  const readMaking = () => [...$$('#mg-table tbody tr')].map((tr) => {
+    const up = tr.querySelector('[data-g="upTo"]');
+    const row = tr.querySelector('[data-g="pct"]');
+    const fixed = tr.textContent.match(/^\s*(\d+)\s+component/);
+    return { upTo: up ? Math.round(Number(up.value)) : (fixed ? Number(fixed[1]) : null),
+      pct: Number(row.value) };
+  });
+  $('#mg-add')?.addEventListener('click', guard(async () => {
+    const rows = readMaking();
+    const last = rows[rows.length - 2];
+    rows.splice(rows.length - 1, 0, { upTo: (last ? last.upTo : 1) * 2, pct: rows[rows.length - 1].pct });
+    await saveSettings({ makings: rows });
+  }));
+  $$('#mg-table [data-mg-drop]').forEach((btn) => btn.addEventListener('click', guard(async () => {
+    await saveSettings({ makings: readMaking().filter((_, i) => i !== Number(btn.dataset.mgDrop)) });
+    toast('Band removed.', 'good');
+  })));
+  $('#mg-reset')?.addEventListener('click', guard(async () => {
+    if (!await ask('Back to the suggested making charges?',
+      'Your own bands are replaced by the ones the shop came with.', 'Use the suggested ones', true)) return;
+    await saveSettings({ makings: MAKING_BANDS });
+    toast('The suggested making charges are back.', 'good');
+  }));
+  $('#mg-save')?.addEventListener('click', guard(async () => {
+    const rows = readMaking();
+    if (rows.some((b) => !Number.isFinite(b.pct) || b.pct < 0)) return toast('Every charge must be zero or more.', 'bad');
+    if (rows.some((b) => b.upTo !== null && !(b.upTo >= 1))) return toast('Every band has to end at one component or more.', 'bad');
+    await saveSettings({ makings: rows });
+    toast('Making charges saved.', 'good');
   }));
 
   // The markup ladder: bands read straight off the table when it is saved.
@@ -5348,7 +5454,7 @@ function wireAdmin() {
 /** What an order was charged for making, as its own line — blank for the orders
  *  placed before making charges existed. */
 const makingLine = (o) => (o.making ? `<div><span>Making charges${
-  o.makingRate ? ` · ${o.makingRate}%` : ''}</span><span class="num">${money(o.making)}</span></div>` : '');
+  o.makingRate ? ` · ${o.makingRate}%` : ''}${o.parts ? ` of ${o.parts} pieces` : ''}</span><span class="num">${money(o.making)}</span></div>` : '');
 
 /** What this order made, for the studio's eyes: the markup on every component
  *  it used, plus the making charges. Never shown to a customer. */
@@ -8528,15 +8634,18 @@ function switchHand(hand) {
  */
 async function stripCharms() {
   const b = S.build;
-  if (!hungCount()) return;
-  if (!await ask('Take every charm off?',
-    'The bangle and its strands stay as they are, and the charms go back to your tray.',
+  const at = b.sel;
+  const s = b.slots[at];
+  if (!s || !s.charms.length) return;
+  const n = s.charms.length;
+  if (!await ask(`Take the ${n} charm${n === 1 ? '' : 's'} off spot ${at + 1}?`,
+    'The strand and its connectors stay as they are, and the charms go back to your tray.',
     'Take them off', true)) return;
-  for (const s of b.slots) { if (s) s.charms = []; }
-  b.slots = b.slots.map((s) => (s && lenOf(s) ? s : null));
+  s.charms = [];
+  if (!lenOf(s)) b.slots[at] = null;
   b.at = -1;
   commit();
-  toast('The charms are back in your tray — hang them where you like.', 'good');
+  toast(`${n} charm${n === 1 ? ' is' : 's are'} back in your tray — hang them where you like.`, 'good');
 }
 
 async function clearBuild() {
@@ -8947,11 +9056,13 @@ function costHtml() {
       <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
     <div class="sum">
       <div><span>Pieces used</span><span class="num">${money(items)}</span></div>
-      <div><span>Making charges · ${makingRate()}%</span><span class="num">${money(making)}</span></div>
+      <div><span>Making charges · ${makingRate()}% of ${partCount()} piece${partCount() === 1 ? '' : 's'}</span><span class="num">${money(making)}</span></div>
       <div><span>Delivery</span><span class="num">chosen at checkout</span></div>
       <div class="grand"><span>Total</span><span>${money(items + making)}</span></div>
     </div>
-    <p class="bd-hint">Making charges cover assembling the piece — ${makingRate()}% of the components.
+    <p class="bd-hint">Making charges cover putting the piece together — ${partCount()} part${
+      partCount() === 1 ? '' : 's'} joined, so ${makingRate()}% of what the components cost${
+      makingRate() ? '' : ', which is nothing for a single piece'}.
       Delivery, or collecting from the studio, is chosen when you order.</p>
   </section>`;
 }

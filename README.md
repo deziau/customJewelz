@@ -569,9 +569,9 @@ spot by spot, in proportion, from what is in their tray.
   spot reading "Spot 3 is empty" with an **Add strand** button where *Remove
   strand* was; the chain and length lists stay out of the way until it is
   pressed. **Take the charms off** sits under *Remove strand* whenever the strand
-  in hand holds a charm: it clears every charm from the piece while the bangle
-  and its strands stay standing, and the charms go back to the tray, free to hang
-  again. **Take it all off**, under *Finish the pair*, clears the strands too.
+  in hand holds a charm, and clears that strand alone: its chain and connectors
+  stay as they are, and its charms go back to the tray, free to hang again.
+  **Take it all off**, under *Finish the pair*, clears every strand on the hand.
 - **Where a charm sits is typed, not dragged.** Each charm on the list carries a
   *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
   the charm moves: up or down its own strand, or across to another spot on the
@@ -679,13 +679,28 @@ today's costs and are marked as an estimate.
 
 ### Making charges
 
-Every order carries making charges — the work of assembling the piece — as a
-percentage of the components it is made from. It is **20%** to begin with, and
-the studio changes it under **Setup → Making charges**. It shows as its own line
-in the running bill, at checkout, on the order record and on the customer's copy,
-and an order keeps the rate it was placed at, so changing the rate never rewrites
-what someone has already been quoted. Orders placed before making charges existed
-simply have no such line.
+Making charges are the work of putting a piece together, so they follow **how
+many parts go into it** rather than what they cost: the bangle, every charm,
+every connector, and each length of chain a connector leaves behind — a chain
+with one connector in it is three parts, two lengths and the connector. One
+component on its own is nothing to assemble, so it carries no charge:
+
+| Pieces joined | Making charge |
+| --- | --- |
+| 1 | 0% |
+| 2–3 | 8% |
+| 4–6 | 14% |
+| 7–10 | 20% |
+| 11–15 | 26% |
+| 16 or more | 32% |
+
+The percentage is then taken on what the components sell for, after the markup.
+The bands are editable under **Setup → Making charges**. The charge shows as its
+own line in the running bill, at checkout, on the order record and on the
+customer's copy, saying the rate and the count it came from — *Making charges ·
+20% of 9 pieces*. An order keeps the rate and the count it was placed at, so
+changing the bands never rewrites what someone has already been quoted. Orders
+placed before making charges existed simply have no such line.
 
 ## Before going live
 
