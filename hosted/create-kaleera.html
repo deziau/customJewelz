@@ -2253,6 +2253,16 @@ function label(item, variantId) {
 /** The sizes a component is made in, in the order the studio listed them. */
 const sizesOf = (item) => [...new Set((item ? item.variants : []).map((v) => v.size).filter(Boolean))];
 
+/**
+ * The sizes one colour of it is made in. A colour that comes one way only is
+ * not a choice, so nothing is offered for it.
+ */
+const sizesFor = (item, colour) => [...new Set((item ? item.variants : [])
+  .filter((v) => v.name === colour).map((v) => v.size).filter(Boolean))];
+
+/** True when some colour of this component is made in more than one size. */
+const sizeChoice = (item) => (item ? coloursOf(item) : []).some((nm) => sizesFor(item, nm).length > 1);
+
 /** The colours it comes in, likewise. */
 const coloursOf = (item) => [...new Set((item ? item.variants : []).map((v) => v.name))];
 
@@ -2790,9 +2800,8 @@ function paintCatalogue() {
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
-        ${!i.hasSizes && sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
-        ${i.hasSizes ? `<span class="size">${sizesOf(i).length} size${
-          sizesOf(i).length === 1 ? '' : 's'}: ${esc(sizesOf(i).join(', '))}</span>` : ''}
+        ${!sizeChoice(i) && sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
+        ${sizeChoice(i) ? `<span class="size">${sizesOf(i).length} sizes: ${esc(sizesOf(i).join(', '))}</span>` : ''}
         <span class="price">${priceLabel(i)}</span>
         <span class="foot">${dots}</span>
       </span>
@@ -2866,7 +2875,7 @@ function paintSheet() {
   // Colour and size are two ways into the same row of stock: each chip stands
   // for the row that pairs it with whatever is chosen on the other line, so a
   // piece made in one size shows no size line at all.
-  const sizes = sizesOf(item);
+  const sizes = sizesFor(item, v.name);
   const colourBlock = item.hasColours ? `
     <div class="eyebrow" style="margin-bottom:6px">Colour${
       v.name ? ` — <span style="text-transform:none;letter-spacing:0">${esc(v.name)}</span>` : ''}</div>
@@ -2878,12 +2887,14 @@ function paintSheet() {
         title="${free <= 0 ? 'Sold out' : `${free} to sell`}"><i style="background:${
           esc(x.swatch || '#c9bfc4')}"></i>${esc(nm || 'Standard')}</button>`;
     }).join('')}</div>` : '';
-  const sizeBlock = sizes.length ? `
+  // Only the sizes this colour is made in, and only when there is a choice to
+  // make: a colour that comes one way is simply that size.
+  const sizeBlock = sizes.length > 1 ? `
     <div class="eyebrow" style="margin:${item.hasColours ? '12px' : '0'} 0 6px">Size${
       v.size ? ` — <span style="text-transform:none;letter-spacing:0">${esc(v.size)}</span>` : ''}</div>
     <div class="swatches">${sizes.map((sz) => {
       const x = variantWith(item, v.name, sz);
-      const free = freeAcross(item, (y) => (y.size || '') === sz);
+      const free = freeToSell(item, x.id);
       return `<button class="swatch sz" data-variant="${esc(x.id)}"
         aria-pressed="${(v.size || '') === sz}" ${free <= 0 ? 'disabled' : ''}
         title="${free <= 0 ? 'Sold out' : `${free} to sell`}">${esc(sz)}</button>`;

@@ -653,13 +653,17 @@ naming a size, still has an answer. A component saved before sizes existed bring
 its measurements down onto its rows the first time it is opened. Leave the size
 blank on a piece that comes one way, and nothing about it changes.
 
-Customers see a **Size** row of chips on the product page, under the colours and
-only for components that have sizes. Colour and size are two ways into the same
-row of stock: picking a size keeps the colour and picking a colour keeps the
-size, and a size nothing is left in is struck through. The measurements under the
+Customers see a **Size** row of chips on the product page, under the colours —
+but only the sizes *that colour* is made in, and only where there is a choice to
+make. A component whose Golden comes in 2.4, 2.6 and 2.8 inches and whose Silver
+comes in 2.6 alone offers three chips on Golden and none on Silver; picking
+Silver simply lands on its one size, which still reads in the name and the
+measurements. Colour and size are two ways into the same row of stock: picking a
+size keeps the colour and picking a colour keeps the size where that colour has
+it, and a size nothing is left in is struck through. The measurements under the
 picture follow the size in hand — *7.1 × 7.1 cm · 2.8 × 2.8 in*. The collection
-card says *3 sizes: 2.4 in, 2.6 in, 2.8 in* for those components, in place of the
-one set of measurements it shows for the rest,
+card says *3 sizes: 2.4 in, 2.6 in, 2.8 in* where some colour offers a choice, in
+place of the one set of measurements it shows for the rest,
 search matches a size, and the size rides along in the name everywhere it is
 read — the tray, the bill, the order, the studio's repo.
 
