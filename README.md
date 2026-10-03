@@ -638,6 +638,22 @@ the total. It is the same bill the checkout shows, read where the piece is being
 made rather than only at the end, and it counts both hands when a pair is being
 built. Delivery is the one line it cannot fill in — that is chosen at checkout.
 
+### Sizes
+
+A component that comes in more than one size carries one row per colour **and**
+size under **Colours, sizes & stock** in its editor, each with its own count, its
+own SKU (the size code is added to the end — `BNGLS-BNGL-001-GOLDEN-24IN`) and
+its own restock date. Leave the size blank on a piece that comes one way, and
+nothing about it changes.
+
+Customers see a **Size** row of chips on the product page, under the colours and
+only for components that have sizes. Colour and size are two ways into the same
+row of stock: picking a size keeps the colour and picking a colour keeps the
+size, and a size nothing is left in is struck through. The collection card says
+*3 sizes: 2.4 in, 2.6 in, 2.8 in* for those components and nothing for the rest,
+search matches a size, and the size rides along in the name everywhere it is
+read — the tray, the bill, the order, the studio's repo.
+
 ### What a component sells for
 
 The studio types **what a component cost**; the shop works out what it sells for.

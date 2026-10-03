@@ -657,6 +657,7 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .swatch i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line-strong); }
 .swatch[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .swatch:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
+.swatch.sz { padding: 5px 13px; font-variant-numeric: tabular-nums; }
 
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 8px; }
 .stepper button { border: none; background: none; width: 34px; padding: 6px 0; font-size: 16px; line-height: 1; }
@@ -810,7 +811,7 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 }
 .short-warn b { color: var(--ink); }
 .variant-row {
-  display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1.2fr) 82px 34px;
+  display: grid; grid-template-columns: 40px minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, 1.1fr) 82px 34px;
   gap: 7px; align-items: center;
 }
 .variant-row input[type="color"] { padding: 2px; height: 36px; }
@@ -1818,11 +1819,11 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
       </fieldset>
 
       <fieldset>
-        <legend>Colours &amp; stock</legend>
+        <legend>Colours, sizes &amp; stock</legend>
         <div class="variant-rows" id="piece-variants"></div>
         <p class="short-warn" id="variant-warn" hidden></p>
         <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-          <button type="button" id="variant-add">Add a colour</button>
+          <button type="button" id="variant-add">Add a row</button>
           <span class="muted" style="font-size:12.5px" id="variant-hint">Stock is counted per colour.
             One unnamed row means this item has no colour choice.</span>
         </div>
@@ -2044,6 +2045,9 @@ function normalize(id, d) {
   const variants = raw.map((v, i) => ({
     id: v.id || `v${i}`,
     name: String(v.name || ''),
+    // Components that come in sizes carry one here — "2.4 in", "12 mm", "Small".
+    // Stock is per row, so each colour-and-size has its own count of its own.
+    size: String(v.size || '').trim(),
     swatch: String(v.swatch || ''),
     sku: String(v.sku || d.sku || ''),
     quantity: Math.max(0, Number(v.quantity) || 0),
@@ -2119,6 +2123,7 @@ function normalize(id, d) {
     variants,
     stock: variants.reduce((s, v) => s + v.quantity, 0),
     hasColours: variants.length > 1 || Boolean(variants[0] && variants[0].name),
+    hasSizes: variants.some((v) => v.size),
   };
 }
 
@@ -2229,8 +2234,29 @@ function charmArt(item, variantId) {
 
 function label(item, variantId) {
   const v = variantOf(item, variantId);
-  return v && v.name ? `${item.name} · ${v.name}` : item.name;
+  if (!v) return item.name;
+  return [item.name, v.name, v.size].filter(Boolean).join(' · ');
 }
+
+/** The sizes a component is made in, in the order the studio listed them. */
+const sizesOf = (item) => [...new Set((item ? item.variants : []).map((v) => v.size).filter(Boolean))];
+
+/** The colours it comes in, likewise. */
+const coloursOf = (item) => [...new Set((item ? item.variants : []).map((v) => v.name))];
+
+/** The row for one colour in one size, falling back as far as it has to. */
+function variantWith(item, name, size) {
+  const vs = item.variants;
+  const want = (v) => (v.size || '') === (size || '');
+  return vs.find((v) => v.name === name && want(v))
+    || vs.find((v) => v.name === name)
+    || vs.find(want)
+    || vs[0];
+}
+
+/** How many of a colour there are across every size of it, or a size across colours. */
+const freeAcross = (item, pick) => item.variants
+  .filter(pick).reduce((n, v) => n + freeToSell(item, v.id), 0);
 
 function sections() {
   return Array.isArray(S.settings.sections) ? S.settings.sections : [];
@@ -2675,7 +2701,8 @@ function visibleItems() {
     && (!S.hideOut || i.stock > 0)
     && (!q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)
         || i.note.toLowerCase().includes(q)
-        || i.variants.some((v) => v.name.toLowerCase().includes(q))));
+        || i.variants.some((v) => v.name.toLowerCase().includes(q)
+          || (v.size || '').toLowerCase().includes(q))));
 }
 
 /**
@@ -2731,6 +2758,8 @@ function paintCatalogue() {
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
         ${sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
+        ${i.hasSizes ? `<span class="size">${sizesOf(i).length} size${
+          sizesOf(i).length === 1 ? '' : 's'}: ${esc(sizesOf(i).join(', '))}</span>` : ''}
         <span class="price">${priceLabel(i)}</span>
         <span class="foot">${dots}</span>
       </span>
@@ -2801,13 +2830,32 @@ function paintSheet() {
     }).join('')
     : '';
 
-  $('#item-colours').innerHTML = item.hasColours ? `
+  // Colour and size are two ways into the same row of stock: each chip stands
+  // for the row that pairs it with whatever is chosen on the other line, so a
+  // piece made in one size shows no size line at all.
+  const sizes = sizesOf(item);
+  const colourBlock = item.hasColours ? `
     <div class="eyebrow" style="margin-bottom:6px">Colour${
       v.name ? ` — <span style="text-transform:none;letter-spacing:0">${esc(v.name)}</span>` : ''}</div>
-    <div class="swatches">${item.variants.map((x) => `<button class="swatch" data-variant="${esc(x.id)}"
-      aria-pressed="${x.id === v.id}" ${freeToSell(item, x.id) <= 0 ? 'disabled' : ''}
-      title="${freeToSell(item, x.id) <= 0 ? 'Sold out' : `${freeToSell(item, x.id)} to sell`}"><i style="background:${
-        esc(x.swatch || '#c9bfc4')}"></i>${esc(x.name || 'Standard')}</button>`).join('')}</div>` : '';
+    <div class="swatches">${coloursOf(item).map((nm) => {
+      const x = variantWith(item, nm, v.size);
+      const free = freeAcross(item, (y) => y.name === nm);
+      return `<button class="swatch" data-variant="${esc(x.id)}"
+        aria-pressed="${x.name === v.name}" ${free <= 0 ? 'disabled' : ''}
+        title="${free <= 0 ? 'Sold out' : `${free} to sell`}"><i style="background:${
+          esc(x.swatch || '#c9bfc4')}"></i>${esc(nm || 'Standard')}</button>`;
+    }).join('')}</div>` : '';
+  const sizeBlock = sizes.length ? `
+    <div class="eyebrow" style="margin:${item.hasColours ? '12px' : '0'} 0 6px">Size${
+      v.size ? ` — <span style="text-transform:none;letter-spacing:0">${esc(v.size)}</span>` : ''}</div>
+    <div class="swatches">${sizes.map((sz) => {
+      const x = variantWith(item, v.name, sz);
+      const free = freeAcross(item, (y) => (y.size || '') === sz);
+      return `<button class="swatch sz" data-variant="${esc(x.id)}"
+        aria-pressed="${(v.size || '') === sz}" ${free <= 0 ? 'disabled' : ''}
+        title="${free <= 0 ? 'Sold out' : `${free} to sell`}">${esc(sz)}</button>`;
+    }).join('')}</div>` : '';
+  $('#item-colours').innerHTML = colourBlock + sizeBlock;
 
   const step = isLength(item) ? 10 : 1;               // chain moves in 10 cm nudges
   S.sheet.qty = clamp(S.sheet.qty, step, Math.max(step, free));
@@ -4486,7 +4534,8 @@ function stockRow({ item, v }) {
   return `<tr class="stripe ${free <= 0 ? 'out' : free < low ? 'low' : ''}"
       data-id="${esc(item.id)}" data-variant="${esc(v.id)}">
     <td><div class="mini">${shotHtml(item, v.id)}</div></td>
-    <td><b>${esc(item.name)}</b>${v.name ? ` <span class="tag flat">${esc(v.name)}</span>` : ''}
+    <td><b>${esc(item.name)}</b>${v.name ? ` <span class="tag flat">${esc(v.name)}</span>` : ''}${
+      v.size ? ` <span class="tag on">${esc(v.size)}</span>` : ''}
       <br><span class="mono muted">${esc(v.sku || item.sku)}</span>${
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
@@ -4884,7 +4933,8 @@ const buildSku = (catSlug, name, serial) =>
   `${sectionCode(catSlug)}-${nameCode(name)}-${String(serial).padStart(3, '0')}`;
 
 /** A colour hangs its own code off the end: CHRMS-BBYCLT-005-BLUE. */
-const variantSku = (base, colour) => (colour ? `${base}-${colourCode(colour)}` : base);
+const variantSku = (base, colour, size) => [base, colour ? colourCode(colour) : '', size ? code(size, 4) : '']
+  .filter(Boolean).join('-');
 
 /**
  * The next number free for this piece in this section. It counts the kinds of
@@ -4920,7 +4970,7 @@ function renumberedRepo() {
       const serial = (runs.get(stem) || 0) + 1;
       runs.set(stem, serial);
       const sku = `${stem}-${String(serial).padStart(3, '0')}`;
-      const variants = item.variants.map((v) => ({ ...v, sku: variantSku(sku, v.name.trim()) }));
+      const variants = item.variants.map((v) => ({ ...v, sku: variantSku(sku, v.name.trim(), v.size) }));
       const same = sku === item.sku && variants.every((v, i) => v.sku === item.variants[i].sku);
       return same ? null : { item, sku, variants };
     })
@@ -5047,7 +5097,8 @@ function paintSoldBy() {
   $('#conn-field').hidden = byLength;
   $('#variant-hint').textContent = byLength
     ? 'Stock is held in metres per colour — 12.5 is twelve and a half, and it is cut to the centimetre.'
-    : 'Stock is counted per colour. One unnamed row means this item has no colour choice.';
+    : 'One row per colour and size you stock, each with its own count. Leave the size blank unless the '
+      + 'piece comes in more than one; leave the colour blank if it has no colour choice.';
   paintDraftVariants();
 }
 
@@ -5056,7 +5107,9 @@ function paintDraftVariants() {
     <div class="variant-row" data-i="${i}">
       <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
       <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
-      <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name))}</span>
+      <input value="${esc(v.size || '')}" placeholder="Size — blank if one size" data-f="size"
+        aria-label="Size, such as 2.4 in or 12 mm">
+      <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name, v.size))}</span>
       <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '0.1' : '1'}"
         value="${S.draft.soldBy === 'length' ? toMetres(v.quantity) : v.quantity}" data-f="quantity"
         aria-label="${S.draft.soldBy === 'length' ? 'Stock in metres' : 'Quantity'}"
@@ -6702,7 +6755,10 @@ function wirePieceDialog() {
   });
 
   $('#variant-add').addEventListener('click', () => {
-    S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: '', swatch: '#c9a227', sku: '', quantity: 0 });
+    // A new row copies the last one's colour, since adding a size is the common case.
+    const prev = S.draft.variants[S.draft.variants.length - 1] || {};
+    S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: prev.name || '',
+      size: '', swatch: prev.swatch || '#c9a227', sku: '', quantity: 0 });
     paintDraftVariants();
   });
   $('#piece-variants').addEventListener('click', (e) => {
@@ -6723,9 +6779,9 @@ function wirePieceDialog() {
       paintShortLengths();
     } else row[field] = e.target.value;
     // Only the one cell is rewritten, so the colour name keeps its caret.
-    if (field === 'name') {
+    if (field === 'name' || field === 'size') {
       const cell = rowNode.querySelector('[data-sku-cell]');
-      if (cell) cell.textContent = row.sku || variantSku(S.draft.sku, row.name);
+      if (cell) cell.textContent = row.sku || variantSku(S.draft.sku, row.name, row.size);
     }
   });
 
@@ -6792,8 +6848,9 @@ function wirePieceDialog() {
         variants: S.draft.variants.map((v, i) => ({
           id: v.id || `v${i}`,
           name: v.name.trim(),
+          size: String(v.size || '').trim(),
           swatch: v.swatch || '',
-          sku: (v.sku || '').trim() || variantSku(baseSku, v.name.trim()),
+          sku: (v.sku || '').trim() || variantSku(baseSku, v.name.trim(), v.size),
           quantity: v.quantity,
           restockEta: v.restockEta || '',
         })),
