@@ -1199,6 +1199,11 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-drop .tot { font-size: 15px; }
 .bd-drop button { min-height: 30px; padding: 3px 11px; font-size: 12.5px; background: var(--surface); }
 .bd-on .place input[data-join-at] { width: 60px; }
+.bd-on .place input[data-move="strand"] { width: 54px; }
+.bd-leglabel {
+  margin: 10px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--accent);
+}
 .bd-on .cmlab { font-size: 11px; color: var(--muted); align-self: center; }
 /* The chain and its length: two lists, the second waiting on the first. */
 .bd-pick { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
@@ -7015,7 +7020,7 @@ const METALS = {
  */
 const emptySide = () => ({ baseId: '', baseVariant: '', slots: [] });
 S.build = { active: true, hand: 'left', hands: { left: emptySide(), right: emptySide() },
-  sel: 0, at: -1, adding: -1, filter: '', find: '', chainPick: '' };
+  sel: 0, at: -1, leg: 0, adding: -1, filter: '', find: '', chainPick: '' };
 // Create works on one hand at a time; these read and write the hand in front of the customer.
 for (const k of ['baseId', 'baseVariant', 'slots']) {
   Object.defineProperty(S.build, k, {
@@ -7031,7 +7036,9 @@ function asStrand(s) {
   const chain = s.chain && s.chain.itemId && s.chain.lenCm > 0 ? { ...s.chain } : null;
   // Before strands, a spot held a single charm.
   const charms = (Array.isArray(s.charms) ? s.charms : s.itemId ? [s] : [])
-    .filter((c) => c && c.itemId).map((c) => ({ itemId: c.itemId, variantId: c.variantId }));
+    .filter((c) => c && c.itemId)
+    // seg is which length of chain it hangs from, counting from the bangle.
+    .map((c) => ({ itemId: c.itemId, variantId: c.variantId, seg: Math.max(0, Math.round(Number(c.seg) || 0)) }));
   // Connectors sitting in the chain, each a distance down from the spot.
   const joins = (Array.isArray(s.joins) ? s.joins : [])
     .filter((j) => j && j.itemId && Number.isFinite(Number(j.atCm)))
@@ -7140,6 +7147,46 @@ function roomForStrand(s, cm, chainItem) {
 }
 
 const roomOn = (s) => roomForStrand(s, lenOf(s), s && s.chain ? itemOf(s.chain.itemId) : null);
+
+/** What each length of a strand holds, in order from the bangle down. */
+function segRooms(s) {
+  if (!s || !lenOf(s)) return [1];
+  const item = itemOf(s.chain.itemId);
+  return chainRuns(s).map((cm) => (cm > 0 ? roomFor(cm, item) : 0));
+}
+
+/** How a length of a strand is named: 4 on its own, 4.2 once it is cut in two. */
+const legName = (at, seg, many) => (many ? `${at + 1}.${seg + 1}` : `${at + 1}`);
+
+/** The charms on one length of a strand, in the order they hang. */
+const charmsOn = (s, seg) => (s ? s.charms : []).filter((c) => (c.seg || 0) === seg);
+
+/**
+ * Charms are kept in the order they hang: length by length from the bangle, and
+ * in their own order within each. Anything beyond the last length comes back to
+ * it, so cutting or re-joining a chain never strands a charm nowhere.
+ */
+function seatCharms(s) {
+  if (!s) return s;
+  const last = Math.max(0, segRooms(s).length - 1);
+  s.charms.forEach((c) => { c.seg = clamp(Math.round(Number(c.seg) || 0), 0, last); });
+  s.charms.sort((a, b) => (a.seg || 0) - (b.seg || 0));
+  return s;
+}
+
+/** Fills the lengths in turn, as the shapes do — used when a chain is cut anew. */
+function reseatCharms(s) {
+  if (!s) return s;
+  const rooms = segRooms(s);
+  let seg = 0;
+  let left = rooms[0] || 0;
+  for (const c of s.charms) {
+    while (left <= 0 && seg < rooms.length - 1) { seg += 1; left = rooms[seg]; }
+    c.seg = seg;
+    left -= 1;
+  }
+  return seatCharms(s);
+}
 
 /** How much a connector adds to a strand, in cm: the drop between its two loops. */
 function joinDrop(j) {
@@ -7543,21 +7590,24 @@ function layout(hand = S.build.hand) {
         }
         return d;
       };
-      // Each length of chain between connectors is its own chain: it takes the
-      // charms it can hold and no more, spaced evenly down that length alone.
+      // Each length of chain between connectors is its own chain: the charms put
+      // on it are spaced evenly down that length alone.
       const chainItem = len ? itemOf(s.chain.itemId) : null;
       const spots = [];
       if (len) {
         let from = 0;
-        let left = s.charms.length;
+        let g = 0;
         for (const c of [...cuts, len]) {
-          const seg = Math.round((c - from) * 10) / 10;
-          const take = seg > 0 ? Math.min(roomFor(seg / 10, chainItem), left) : 0;
-          for (let q = 0; q < take; q += 1) spots.push(from + (seg * (q + 1)) / take);
-          left -= take;
+          const run = Math.round((c - from) * 10) / 10;
+          const mine = s.charms.filter((x) => (x.seg || 0) === g);
+          const take = Math.min(mine.length, run > 0 ? roomFor(run / 10, chainItem) : 0);
+          mine.forEach((x, q) => {
+            spots[s.charms.indexOf(x)] = q < take ? from + (run * (q + 1)) / take : c;
+          });
           from = c;
+          g += 1;
         }
-        while (spots.length < s.charms.length) spots.push(len);   // any past every length's room
+        for (let q = 0; q < s.charms.length; q += 1) if (spots[q] === undefined) spots[q] = len;
       }
       // Down a chain the charms are spread over the chain itself — the
       // connectors in it are stepped over, not shared out among the charms —
@@ -8361,15 +8411,23 @@ function hang(itemId, variantId, at = S.build.sel) {
     swing(at);
     return;
   }
-  if (s && s.charms.length >= roomOn(s)) {
-    toast(lenOf(s) ? `This strand is full at ${roomOn(s)} charm${roomOn(s) === 1 ? '' : 's'}${
-      (s.joins || []).length ? ' across its lengths of chain' : ''} — choose a longer one, or another spot.`
-      : 'Choose a length to hang more than one charm here.', 'bad');
-    return;
+  // Which length of the strand it goes on: the one in hand while it has room,
+  // else the first that has.
+  let seg = 0;
+  if (s) {
+    const rooms = segRooms(s);
+    const free = (i) => i >= 0 && i < rooms.length && charmsOn(s, i).length < rooms[i];
+    seg = free(at === b.sel ? b.leg : -1) ? b.leg : rooms.findIndex((_, i) => free(i));
+    if (seg < 0) {
+      toast(lenOf(s) ? `Every length of strand ${at + 1} is full — ${rooms.join(' + ')} charm${
+        roomOn(s) === 1 ? '' : 's'} in all. Choose a longer chain, or another spot.`
+        : 'Choose a length to hang more than one charm here.', 'bad');
+      return;
+    }
   }
   if (!haveOne(itemId, vId)) return;
-  if (s) s.charms.push({ itemId, variantId: vId });
-  else b.slots[at] = { chain: null, charms: [{ itemId, variantId: vId }] };
+  if (s) { s.charms.push({ itemId, variantId: vId, seg }); seatCharms(s); }
+  else b.slots[at] = { chain: null, charms: [{ itemId, variantId: vId, seg: 0 }] };
   commit();
   swing(at);
   // Filling an empty spot moves on to the next one; a strand stays put to take more.
@@ -8413,7 +8471,9 @@ function joinStrand(at, itemId, variantId) {
   if (!s.joins.length) s.wantCm = lenOf(s);   // the drop asked for, before this lengthened it
   s.joins.push({ itemId, variantId: vId, atCm: Math.round(bestAt * 10) / 10 });
   s.joins.sort((x, y) => x.atCm - y.atCm);
+  reseatCharms(s);
   b.at = -1;
+  b.leg = 0;
   commit();
   swing(at, 8);
   toast(`${item.name} joins the two lengths of chain on spot ${at + 1}.`, 'good');
@@ -8425,6 +8485,8 @@ function unjoin(at, i) {
   if (!s || !s.joins || !s.joins[i]) return;
   s.joins.splice(i, 1);
   if (!s.joins.length) delete s.wantCm;
+  reseatCharms(s);
+  S.build.leg = 0;
   commit();
 }
 
@@ -8436,6 +8498,7 @@ function moveJoin(i, cm) {
   if (at === s.joins[i].atCm) { paintBuilder(); return; }
   s.joins[i].atCm = at;
   s.joins.sort((x, y) => x.atCm - y.atCm);
+  seatCharms(s);
   commit();
   swing(S.build.sel, 6);
 }
@@ -8481,38 +8544,44 @@ function unhang(at = S.build.sel, k = -1) {
  * far down that strand it hangs. Moving it to another strand takes the charm
  * with it and follows it there, so the list stays under the eye.
  */
-function moveCharm(i, toSlot, toPos) {
+function moveCharm(i, toSlot, toPos, toSeg = null) {
   const b = S.build;
   const from = b.slots[b.sel];
   if (!from || !from.charms[i]) return;
   const at = clamp(Number(toSlot), 0, b.slots.length - 1);
   const c = from.charms[i];
-  if (at === b.sel) {
-    const pos = clamp(Number(toPos), 0, from.charms.length - 1);
-    if (pos === i) return;
-    from.charms.splice(i, 1);
-    from.charms.splice(pos, 0, c);
-    b.at = -1;
-    commit();
-    swing(b.sel);
-    return;
-  }
-  const to = b.slots[at] || { chain: null, charms: [] };
-  if (to.charms.length >= roomOn(to)) {
-    toast(lenOf(to) ? `Strand ${at + 1} is full at ${roomOn(to)} charms — give it a longer chain first.`
+  const same = at === b.sel;
+  const to = same ? from : (b.slots[at] || { chain: null, charms: [] });
+  const rooms = segRooms(to);
+  const seg = clamp(Math.round(Number(toSeg === null ? (same ? c.seg : 0) : toSeg)) || 0, 0, rooms.length - 1);
+  const held = charmsOn(to, seg).filter((x) => x !== c).length;
+  if (held >= rooms[seg]) {
+    const many = rooms.length > 1;
+    toast(lenOf(to)
+      ? `${many ? `Length ${legName(at, seg, many)}` : `Strand ${at + 1}`} is full at ${rooms[seg]} charm${
+        rooms[seg] === 1 ? '' : 's'} — ${many ? 'try another length, or ' : ''}give it a longer chain.`
       : `Spot ${at + 1} holds one charm without a chain — give it a chain first.`, 'bad');
     paintBuilder();
     return;
   }
-  from.charms.splice(i, 1);
-  to.charms.splice(clamp(Number(toPos), 0, to.charms.length), 0, c);
-  b.slots[at] = to;
-  if (!from.charms.length && !lenOf(from)) b.slots[b.sel] = null;
-  b.sel = at;
+  // Where it lands among the charms already on that length.
+  const mates = charmsOn(to, seg).filter((x) => x !== c);
+  const pos = clamp(Math.round(Number(toPos)) || 0, 0, mates.length);
+  from.charms.splice(from.charms.indexOf(c), 1);
+  c.seg = seg;
+  const before = to.charms.filter((x) => (x.seg || 0) < seg).length;
+  to.charms.splice(before + pos, 0, c);
+  seatCharms(to);
+  if (!same) {
+    b.slots[at] = to;
+    if (!from.charms.length && !lenOf(from)) b.slots[b.sel] = null;
+    b.sel = at;
+  }
+  b.leg = seg;
   b.at = -1;
   commit();
   swing(at);
-  toast(`${(itemOf(c.itemId) || {}).name || 'That charm'} moved to strand ${at + 1}.`, 'good');
+  if (!same) toast(`${(itemOf(c.itemId) || {}).name || 'That charm'} moved to strand ${legName(at, seg, rooms.length > 1)}.`, 'good');
 }
 
 function setColour(variantId) {
@@ -8555,6 +8624,7 @@ function setLength(cm, chainId, chainVariant) {
   if (!takeChain(ch, vId, cm)) { if (undo && s) s.chain = undo; return; }
   if (!s) { s = { chain: null, charms: [] }; b.slots[at] = s; }
   s.chain = { itemId: ch.id, variantId: vId, lenCm: cm };
+  seatCharms(s);
   s.wantCm = cm;                        // what was asked for; connectors hang below it
   b.chainPick = `${ch.id}|${vId}`;
   b.at = -1;
@@ -8927,26 +8997,41 @@ function spotHtml() {
   const swapping = b.at >= 0 && k >= 0;
   const focus = k >= 0 ? itemOf(s.charms[k].itemId) : null;
   const segs = len ? chainRuns(s) : [];
-  const segRoom = segs.map((cm) => (cm > 0 ? roomFor(cm, itemOf(s.chain.itemId)) : 0));
-  const split = segs.length > 1 ? ` (${segRoom.join(' + ')} down its ${segs.length} lengths)` : '';
+  const segRoom = segRooms(s);
+  const many = segs.length > 1;
+  if (b.leg >= segs.length) b.leg = 0;
+  const split = many ? ` (${segRoom.join(' + ')} down its ${segs.length} lengths)` : '';
+  // Cut by a connector, a strand is a run of lengths — 4.1, 4.2 — and charms go
+  // on the one in hand.
+  const legs = many ? `<div class="bd-label">Lengths of strand ${b.sel + 1}</div>
+    <div class="bd-chips">${segs.map((cm, g) => `<button class="bd-chip" data-leg="${g}"
+      aria-pressed="${g === b.leg}">${legName(b.sel, g, true)} · ${cm} cm
+      <span class="muted">${charmsOn(s, g).length} of ${segRoom[g]}</span></button>`).join('')}</div>
+    <p class="bd-hint">Charms go on the length picked here. Each one holds its own.</p>` : '';
+  const rows = (g) => charmsOn(s, g).map((c) => {
+    const i = s.charms.indexOf(c);
+    const it = itemOf(c.itemId);
+    const pos = charmsOn(s, g).indexOf(c);
+    return `<div class="bd-on${swapping && i === k ? ' swapping' : ''}">
+      <span class="n">${pos + 1}</span>
+      <span class="thumb">${artImg(it, c.variantId)}</span>
+      <span class="nm">${esc(label(it, c.variantId))}</span>
+      <span class="place">
+        <label>Strand<input type="text" inputmode="decimal" value="${legName(b.sel, c.seg || 0, many)}"
+          data-move="strand" data-i="${i}" aria-label="Which strand ${esc(it.name)} hangs from"></label>
+        <label>Pos<input type="number" min="1" max="${charmsOn(s, g).length}" step="1" value="${pos + 1}"
+          data-move="pos" data-i="${i}" aria-label="Position of ${esc(it.name)} down that length"></label>
+      </span>
+      <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
+        data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
+    </div>`;
+  }).join('');
   const list = s.charms.length ? `<div class="bd-label">On this strand${
     len ? `, top to bottom · ${s.charms.length} of ${roomOn(s)}${split}` : ''}</div>
-    <div class="bd-list">${s.charms.map((c, i) => {
-      const it = itemOf(c.itemId);
-      return `<div class="bd-on${swapping && i === k ? ' swapping' : ''}">
-        <span class="n">${i + 1}</span>
-        <span class="thumb">${artImg(it, c.variantId)}</span>
-        <span class="nm">${esc(label(it, c.variantId))}</span>
-        <span class="place">
-          <label>Strand<input type="number" min="1" max="${b.slots.length}" step="1" value="${b.sel + 1}"
-            data-move="strand" data-i="${i}" aria-label="Strand holding ${esc(it.name)}"></label>
-          <label>Pos<input type="number" min="1" max="${s.charms.length}" step="1" value="${i + 1}"
-            data-move="pos" data-i="${i}" aria-label="Position of ${esc(it.name)} from the top"></label>
-        </span>
-        <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
-          data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
-      </div>`;
-    }).join('')}</div>` : '';
+    ${many ? segs.map((cm, g) => (charmsOn(s, g).length ? `<div class="bd-leglabel">${
+      legName(b.sel, g, true)} — ${cm} cm, ${charmsOn(s, g).length} of ${segRoom[g]}</div>
+      <div class="bd-list">${rows(g)}</div>` : '')).join('')
+      : `<div class="bd-list">${rows(0)}</div>`}` : '';
   const colours = focus && focus.variants.length > 1 ? `<div class="bd-label">Colour of ${esc(focus.name)}</div><div class="bd-chips">${focus.variants.map((v) => {
     const ok = v.id === s.charms[k].variantId || addable(focus, v.id) > 0;
     return `<button class="bd-chip" data-colour="${esc(v.id)}" aria-pressed="${v.id === s.charms[k].variantId}" ${ok ? '' : 'disabled'}>
@@ -8987,16 +9072,16 @@ function spotHtml() {
     ? `<div class="bd-swapnote"><span>Replacing <b>${esc(focus.name)}</b>. Pick a charm below.</span>
         <button type="button" data-bd="cancel-swap">Cancel</button></div>`
     : `<p>${k >= 0 ? 'Pick another charm below to swap it.'
-      : s.charms.length < roomOn(s) ? `Add charms from top to bottom.${segs.length > 1
-        ? ' Each length of chain between the connectors fills up, evenly spaced, before the next one starts.' : ''}`
-        : `This strand is full${segs.length > 1 ? ' — every length between its connectors is' : ''}.
+      : s.charms.length < roomOn(s) ? `Add charms from top to bottom.${many
+        ? ` They go on length ${legName(b.sel, b.leg, true)} while it has room — pick another above to fill that one instead.` : ''}`
+        : `This strand is full${many ? ` — ${segRoom.join(' + ')} across its lengths` : ''}.
           Choose a longer chain to add more.`}</p>`;
   return `${spots}
     <div class="bd-strand-sum"><span><b>${money(price)}</b> for this strand</span>
       <button data-bd="remove" class="warnbtn">Remove strand</button></div>
     ${s.charms.length ? `<div class="bd-strand-sum sub"><span>Start the charms again</span>
       <button data-bd="strip" class="warnbtn">Take the charms off</button></div>` : ''}
-    ${lengths}${drop}${list}${joined}${colours}${note}`;
+    ${lengths}${drop}${legs}${list}${joined}${colours}${note}`;
 }
 
 function pickerHtml() {
@@ -9287,7 +9372,7 @@ function wireBuilder() {
     if (!t) return;
     const b = S.build;
     if (t.dataset.shape) return applyShape(parseShape(t.dataset.shape));
-    if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; b.adding = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
+    if (t.dataset.spotPick !== undefined) { b.sel = Number(t.dataset.spotPick); b.at = -1; b.leg = 0; b.adding = -1; paintBuilder(); if (b.slots[b.sel]) swing(b.sel, 5); return undefined; }
     if (t.dataset.bangle) { b.choosing = false; return chooseBangle(t.dataset.bangle); }
     if (t.dataset.charm) return hang(t.dataset.charm, t.dataset.variant);
     if (t.dataset.join) return joinStrand(b.sel, t.dataset.join, t.dataset.variant);
@@ -9300,6 +9385,7 @@ function wireBuilder() {
       b.at = focusAt() === i && lenOf(b.slots[b.sel]) ? -1 : i;
       return paintBuilder();
     }
+    if (t.dataset.leg !== undefined) { b.leg = Number(t.dataset.leg); return paintBuilder(); }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
     switch (t.dataset.bd) {
       case 'fit': return fitDrop();
@@ -9353,11 +9439,18 @@ function wireBuilder() {
       const i = Number(e.target.dataset.i);
       const s = b.slots[b.sel];
       if (!s || !s.charms[i]) return paintBuilder();
-      const typed = Math.round(Number(e.target.value));
-      if (!Number.isFinite(typed)) return paintBuilder();
-      return e.target.dataset.move === 'strand'
-        ? moveCharm(i, typed - 1, i)
-        : moveCharm(i, b.sel, typed - 1);
+      const c = s.charms[i];
+      if (e.target.dataset.move === 'pos') {
+        const typed = Math.round(Number(e.target.value));
+        if (!Number.isFinite(typed)) return paintBuilder();
+        return moveCharm(i, b.sel, typed - 1, c.seg || 0);
+      }
+      // "4" is the whole strand, "4.2" its second length of chain.
+      const m = String(e.target.value).match(/^\s*(\d+)(?:\s*[.\-/ ]\s*(\d+))?\s*$/);
+      if (!m) return paintBuilder();
+      const slot = Number(m[1]) - 1;
+      const seg = m[2] ? Number(m[2]) - 1 : (slot === b.sel ? (c.seg || 0) : 0);
+      return moveCharm(i, slot, charmsOn(b.slots[slot] || { charms: [] }, seg).length, seg);
     }
     return undefined;
   });

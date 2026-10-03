@@ -616,12 +616,17 @@ spot by spot, in proportion, from what is in their tray.
   hanging 8 cm. Each connector's place on the chain is a centimetre box on its
   own row, so it can be slid up or down by hand. The bill, the saved design and
   the 3D view all follow.
-- **Each length between connectors is its own chain.** A strand's room is those
-  lengths added up — a 20 cm chain cut at 10 cm by one connector holds 3 + 3 at
-  2 charms per 10 cm, not the 5 an uncut 20 cm would — and the length list quotes
-  that figure. Charms fill each length in turn, up to what that length holds and
-  no further, spaced evenly down it. The strand line says how it splits:
-  *8 of 8 (2 + 3 + 3 down its 3 lengths)*.
+- **Each length between connectors is its own chain, and is named for it.** Cut
+  spot 4 with a connector and it becomes **4.1** and **4.2**; cut it again and
+  4.3 follows. A strand's room is those lengths added up — a 20 cm chain cut at
+  10 cm holds 3 + 3 at 2 charms per 10 cm, not the 5 an uncut 20 cm would — and
+  the length list quotes that figure. A row of chips under the drop line says
+  what each length is and how full it is (*4.1 · 8 cm 3 of 3*), and charms go on
+  the one picked there, overflowing to the next only when it is full. Each charm
+  is listed under its own length, with a **Strand** box that reads `4.2` — type
+  another and the charm moves there, refused with a word if that length is full
+  — and a **Pos** box for where it sits down that length. The charms on a length
+  are spaced evenly down that length alone.
 - **Charms hang from chain, never from a connector.** One that would land on a
   cut is moved clear by its own jump ring's width, so nothing is ever hung on a
   connector or on either of its loops.
