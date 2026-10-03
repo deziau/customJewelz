@@ -626,7 +626,10 @@ spot by spot, in proportion, from what is in their tray.
   is listed under its own length, with a **Strand** box that reads `4.2` — type
   another and the charm moves there, refused with a word if that length is full
   — and a **Pos** box for where it sits down that length. The charms on a length
-  are spaced evenly down that length alone.
+  are spaced evenly down that length alone, and **centred on it**: the gap above
+  the first is the gap between each pair is the gap below the last, so three
+  charms on a 10 cm length sit at 2.5, 5 and 7.5 cm. An uncut strand is unchanged
+  — its last charm still ends it at the tip, the way a kaleera hangs.
 - **Charms hang from chain, never from a connector.** One that would land on a
   cut is moved clear by its own jump ring's width, so nothing is ever hung on a
   connector or on either of its loops.

@@ -7591,8 +7591,12 @@ function layout(hand = S.build.hand) {
         return d;
       };
       // Each length of chain between connectors is its own chain: the charms put
-      // on it are spaced evenly down that length alone.
+      // on it are spaced evenly down that length alone. A length between two
+      // connectors centres them — the same gap above the first as below the
+      // last — while an uncut strand still ends with a charm at its tip, the way
+      // a kaleera hangs.
       const chainItem = len ? itemOf(s.chain.itemId) : null;
+      const middled = cuts.length > 0;
       const spots = [];
       if (len) {
         let from = 0;
@@ -7601,8 +7605,9 @@ function layout(hand = S.build.hand) {
           const run = Math.round((c - from) * 10) / 10;
           const mine = s.charms.filter((x) => (x.seg || 0) === g);
           const take = Math.min(mine.length, run > 0 ? roomFor(run / 10, chainItem) : 0);
+          const share = middled ? run / (take + 1) : run / take;
           mine.forEach((x, q) => {
-            spots[s.charms.indexOf(x)] = q < take ? from + (run * (q + 1)) / take : c;
+            spots[s.charms.indexOf(x)] = q < take ? from + share * (q + 1) : c;
           });
           from = c;
           g += 1;
