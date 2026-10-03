@@ -642,15 +642,21 @@ built. Delivery is the one line it cannot fill in — that is chosen at checkout
 
 A component that comes in more than one size carries one row per colour **and**
 size under **Colours, sizes & stock** in its editor, each with its own count, its
-own SKU (the size code is added to the end — `BNGLS-BNGL-001-GOLDEN-24IN`) and
-its own restock date. Leave the size blank on a piece that comes one way, and
-nothing about it changes.
+own SKU (the size code is added to the end — `BNGLS-BNGL-001-GOLDEN-24IN`), its
+own restock date, and **its own width and height in millimetres**. A 2.6 inch
+bangle is not a 2.4 inch one, so the design area draws each size at the size it
+really is, and the measurements quoted on the product page, the repo and a
+restock request are the chosen row's. Leave a row's millimetres blank and it
+falls back to the component's own; leave the size blank on a piece that comes one
+way, and nothing about it changes.
 
 Customers see a **Size** row of chips on the product page, under the colours and
 only for components that have sizes. Colour and size are two ways into the same
 row of stock: picking a size keeps the colour and picking a colour keeps the
-size, and a size nothing is left in is struck through. The collection card says
-*3 sizes: 2.4 in, 2.6 in, 2.8 in* for those components and nothing for the rest,
+size, and a size nothing is left in is struck through. The measurements under the
+picture follow the size in hand — *7.1 × 7.1 cm · 2.8 × 2.8 in*. The collection
+card says *3 sizes: 2.4 in, 2.6 in, 2.8 in* for those components, in place of the
+one set of measurements it shows for the rest,
 search matches a size, and the size rides along in the name everywhere it is
 read — the tray, the bill, the order, the studio's repo.
 

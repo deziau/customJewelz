@@ -607,6 +607,9 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 /* ---------------------------------------------------------- product sheet */
 
 #dlg-item { max-width: 720px; }
+/* The component editor carries a row per colour and size, each with its own
+   measurements, so it needs the width. */
+#dlg-piece { max-width: 860px; }
 #dlg-checkout { max-width: 1040px; }
 .ck-body:has(> .ck-look:not([hidden])) { display: grid; grid-template-columns: 56fr 44fr; column-gap: 28px; align-items: start; }
 .ck-body:has(> .ck-look:not([hidden])) > * { grid-column: 2; }
@@ -800,8 +803,8 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 }
 .sku-line output { flex: 1; overflow-wrap: anywhere; }
 .sku-cell {
-  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
-  overflow-wrap: anywhere; line-height: 1.25;
+  font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+  overflow-wrap: anywhere; line-height: 1.2;
 }
 
 .variant-rows { display: grid; gap: 7px; }
@@ -811,9 +814,18 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 }
 .short-warn b { color: var(--ink); }
 .variant-row {
-  display: grid; grid-template-columns: 40px minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, 1.1fr) 82px 34px;
-  gap: 7px; align-items: center;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 76px 56px 56px minmax(0, 1.6fr) 72px 30px;
+  gap: 6px; align-items: center;
 }
+.variant-row input[data-f="widthMm"], .variant-row input[data-f="heightMm"] {
+  padding: 8px 6px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.variant-row.heads > span {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); padding-left: 2px;
+}
+@media (max-width: 620px) { .variant-row.heads { display: none; } }
 .variant-row input[type="color"] { padding: 2px; height: 36px; }
 .image-strip { display: flex; gap: 8px; flex-wrap: wrap; }
 .image-strip figure {
@@ -984,7 +996,7 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 @media (max-width: 620px) {
   .order-card { grid-template-columns: 1fr; }
   .sheet { grid-template-columns: 1fr; }
-  .variant-row { grid-template-columns: 40px 1fr 1fr; }
+  .variant-row { grid-template-columns: 36px 1fr 1fr; }
   .variant-row .kill { grid-column: 3; justify-self: end; }
 }
 
@@ -2048,6 +2060,10 @@ function normalize(id, d) {
     // Components that come in sizes carry one here — "2.4 in", "12 mm", "Small".
     // Stock is per row, so each colour-and-size has its own count of its own.
     size: String(v.size || '').trim(),
+    // A 2.6 inch bangle is not a 2.4 inch one: a row may carry its own
+    // millimetres, and falls back to the component's when it does not.
+    widthMm: Number(v.widthMm) || 0,
+    heightMm: Number(v.heightMm) || 0,
     swatch: String(v.swatch || ''),
     sku: String(v.sku || d.sku || ''),
     quantity: Math.max(0, Number(v.quantity) || 0),
@@ -2289,8 +2305,28 @@ function sectionOf(slugValue) {
    size" leans on. It is an approximation of the real screen, so the canvas also
    carries a centimetre grid the eye can check against. */
 const PX_PER_MM = 96 / 25.4;
-const hasSize = (item) => Boolean(item && item.widthMm && item.heightMm);
-const longestMm = (item) => Math.max(item.widthMm || 0, item.heightMm || 0);
+/**
+ * How big one row of a component really is. A component gives its millimetres
+ * once; a row that is a different size — another bangle diameter, a larger
+ * charm — gives its own, and that is what is drawn and quoted.
+ */
+function dimOf(item, variantId) {
+  if (!item) return { widthMm: 0, heightMm: 0 };
+  const v = variantId === undefined ? null : variantOf(item, variantId);
+  return {
+    widthMm: (v && v.widthMm) || item.widthMm || 0,
+    heightMm: (v && v.heightMm) || item.heightMm || 0,
+  };
+}
+
+const hasSize = (item, variantId) => {
+  const d = dimOf(item, variantId);
+  return Boolean(d.widthMm && d.heightMm);
+};
+const longestMm = (item, variantId) => {
+  const d = dimOf(item, variantId);
+  return Math.max(d.widthMm || 0, d.heightMm || 0);
+};
 
 const cm = (mm) => (mm / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
@@ -2320,15 +2356,16 @@ const amountLabel = (item, n) => (isLength(item) ? fmtLen(n) : `${n}`);
 const inches = (mm) => (mm / 25.4).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 /** "3.2 × 1.8 cm · 1.26 × 0.71 in" — both units, always. */
-function sizeLabel(item, short = false) {
+function sizeLabel(item, short = false, variantId = undefined) {
+  const d = dimOf(item, variantId);
   if (isLength(item)) {
-    if (!item.widthMm) return '';
-    const wide = `${item.widthMm.toLocaleString(undefined, { maximumFractionDigits: 1 })} mm wide`;
+    if (!d.widthMm) return '';
+    const wide = `${d.widthMm.toLocaleString(undefined, { maximumFractionDigits: 1 })} mm wide`;
     return short ? wide : `${wide} · cut to the length you choose`;
   }
-  if (!hasSize(item)) return '';
-  const metric = `${cm(item.widthMm)} × ${cm(item.heightMm)} cm`;
-  return short ? metric : `${metric} · ${inches(item.widthMm)} × ${inches(item.heightMm)} in`;
+  if (!d.widthMm || !d.heightMm) return '';
+  const metric = `${cm(d.widthMm)} × ${cm(d.heightMm)} cm`;
+  return short ? metric : `${metric} · ${inches(d.widthMm)} × ${inches(d.heightMm)} in`;
 }
 
 /* -------------------------------------------------------------------- tray */
@@ -2757,7 +2794,7 @@ function paintCatalogue() {
       <span class="shot">${shotHtml(i)}${flag}${inTray ? `<span class="count-pip">${inTray}</span>` : ''}</span>
       <span class="meta">
         <span class="title">${esc(i.name)}</span>
-        ${sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
+        ${!i.hasSizes && sizeLabel(i, true) ? `<span class="size">${sizeLabel(i, true)}</span>` : ''}
         ${i.hasSizes ? `<span class="size">${sizesOf(i).length} size${
           sizesOf(i).length === 1 ? '' : 's'}: ${esc(sizesOf(i).join(', '))}</span>` : ''}
         <span class="price">${priceLabel(i)}</span>
@@ -2817,7 +2854,7 @@ function paintSheet() {
   $('#item-title').textContent = item.name;
   $('#item-section').textContent = sectionOf(item.category).name;
   $('#item-price').textContent = priceLabel(item);
-  $('#item-size').textContent = sizeLabel(item) || 'Measurements coming soon.';
+  $('#item-size').textContent = sizeLabel(item, false, v.id) || 'Measurements coming soon.';
   $('#item-desc').textContent = item.note || 'Handmade in the studio.';
   paintGallery(item);
 
@@ -3227,12 +3264,13 @@ function paintScaleNote() {
  * stage is square, so a percentage means the same number of pixels either way.
  * A component with no measurements falls back to the old fixed width.
  */
-function charmSizePct(item) {
+function charmSizePct(item, variantId) {
   const span = stageMm();
-  if (span && hasSize(item)) {
+  if (span && hasSize(item, variantId)) {
+    const d = dimOf(item, variantId);
     return {
-      w: clamp((item.widthMm / span) * 100, 0.4, 96),
-      h: clamp((item.heightMm / span) * 100, 0.4, 96),
+      w: clamp((d.widthMm / span) * 100, 0.4, 96),
+      h: clamp((d.heightMm / span) * 100, 0.4, 96),
     };
   }
   const guess = clamp((item.width / ($('#stage').clientWidth || 600)) * 100, 3, 60);
@@ -3240,8 +3278,8 @@ function charmSizePct(item) {
 }
 
 /** The width alone, for the few places that only need to scale the stage. */
-function charmWidthPct(item) {
-  return charmSizePct(item).w;
+function charmWidthPct(item, variantId) {
+  return charmSizePct(item, variantId).w;
 }
 
 /** Where a point on the screen falls on the canvas, as a percentage of it. */
@@ -3275,9 +3313,9 @@ function charmBox(c) {
     const span = stageMm() || 400;
     const h = clamp(((c.lenCm * 10) / span) * 100, 2, 96);
     // A strand hangs from its pin, so its middle is half its length below it.
-    return { w: ((item.widthMm || 2) / span) * 100, h, x: c.x, y: c.y + h / 2 };
+    return { w: ((dimOf(item, c.variantId).widthMm || 2) / span) * 100, h, x: c.x, y: c.y + h / 2 };
   }
-  const b = charmSizePct(item);
+  const b = charmSizePct(item, c.variantId);
   return { w: b.w || c.w, h: b.h || c.w, x: c.x, y: c.y };
 }
 
@@ -3286,9 +3324,9 @@ function charmBox(c) {
  * should appear where the customer is looking and not on top of what is
  * already there; failing that, wherever there is most room.
  */
-function freeSpot(item, prefer) {
+function freeSpot(item, prefer, variantId) {
   const v = viewBox();
-  const box = hasSize(item) ? charmSizePct(item) : { w: 8, h: 8 };
+  const box = hasSize(item, variantId) ? charmSizePct(item, variantId) : { w: 8, h: 8 };
   const mx = box.w / 2 + 1;
   const my = box.h / 2 + 1;
   const x0 = v.x0 + mx; const x1 = v.x1 - mx;
@@ -3338,16 +3376,16 @@ function place(itemId, variantId, x, y) {
 
   const want = x == null ? null : { x, y };
   if (isLength(item)) {
-    const at = freeSpot(item, want);
+    const at = freeSpot(item, want, variantId);
     askStrand(itemId, variantId, at.x, at.y);
     return;
   }
 
-  const spot = freeSpot(item, want);
+  const spot = freeSpot(item, want, variantId);
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId, variantId, x: spot.x, y: spot.y,
-    w: charmWidthPct(item),
+    w: charmWidthPct(item, variantId),
     rot: 0, z: ++S.zTop,
   });
   selectOnly(S.charms[S.charms.length - 1].uid);
@@ -3415,11 +3453,11 @@ function addStrand(lenCm) {
   const { itemId, variantId, x, y } = S.strandAsk;
   // The spot was chosen when the strand was dropped; it only moves if the
   // length now placed would sit on top of something else.
-  const spot = freeSpot(itemOf(itemId), { x, y });
+  const spot = freeSpot(itemOf(itemId), { x, y }, variantId);
   S.charms.push({
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId, variantId, x: spot.x, y: spot.y,
-    w: charmWidthPct(itemOf(itemId)),
+    w: charmWidthPct(itemOf(itemId), variantId),
     lenCm, rot: 0, z: ++S.zTop,
   });
   selectOnly(S.charms[S.charms.length - 1].uid);
@@ -3663,7 +3701,7 @@ function paintStage() {
       const lenPct = clamp((c.lenCm * 10 / span) * 100, 2, 96);
       // As wide as the seller said the chain is, to the same scale as every
       // charm beside it. Nothing is padded for visibility: 2 mm is 2 mm.
-      const wide = ((item.widthMm || 2) / span) * 100;
+      const wide = ((dimOf(item, c.variantId).widthMm || 2) / span) * 100;
       const art = charmArt(item, c.variantId);
       const src = art.src;
       // Repeating the sticker at the length it shows is what makes a chain read
@@ -3677,7 +3715,7 @@ function paintStage() {
         <span class="len">${fmtLen(c.lenCm)}</span>
         <button class="lift" aria-label="Take off ${esc(item.name)}">×</button>`;
     } else {
-      const box = charmSizePct(item);
+      const box = charmSizePct(item, c.variantId);
       const wPct = box.w || c.w;
       node.style.cssText = `left:${c.x}%;top:${c.y}%;width:${wPct}%;height:${box.h || wPct}%;` +
         `z-index:${c.z};transform:${charmTransform(c)}`;
@@ -4539,7 +4577,7 @@ function stockRow({ item, v }) {
       <br><span class="mono muted">${esc(v.sku || item.sku)}</span>${
       item.active ? '' : ' <span class="tag flat">hidden</span>'}</td>
     <td>${esc(sectionOf(item.category).name)}${
-      sizeLabel(item, true) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true)}</span>` : ''}</td>
+      sizeLabel(item, true, v.id) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(item, true, v.id)}</span>` : ''}</td>
     <td class="r"><input class="cell-num" type="number" min="0" step="0.01" value="${item.cost}"
         data-f="price" aria-label="What ${esc(item.name)} cost you">
       <div class="unit">${isLength(item) ? 'per metre' : 'each'}${
@@ -5098,17 +5136,28 @@ function paintSoldBy() {
   $('#variant-hint').textContent = byLength
     ? 'Stock is held in metres per colour — 12.5 is twelve and a half, and it is cut to the centimetre.'
     : 'One row per colour and size you stock, each with its own count. Leave the size blank unless the '
-      + 'piece comes in more than one; leave the colour blank if it has no colour choice.';
+      + 'piece comes in more than one, and give a size its own width and height when it differs from the '
+      + 'measurements above — that is what the design area draws it at.';
   paintDraftVariants();
 }
 
 function paintDraftVariants() {
-  $('#piece-variants').innerHTML = S.draft.variants.map((v, i) => `
+  $('#piece-variants').innerHTML = `<div class="variant-row heads" aria-hidden="true">
+      <span></span><span>Colour</span><span>Size</span><span>W mm</span><span>H mm</span>
+      <span>Code</span><span>Stock</span><span></span>
+    </div>` + S.draft.variants.map((v, i) => `
     <div class="variant-row" data-i="${i}">
       <input type="color" value="${esc(v.swatch || '#c9a227')}" data-f="swatch" aria-label="Colour swatch">
       <input value="${esc(v.name)}" placeholder="Colour name (leave blank if none)" data-f="name">
       <input value="${esc(v.size || '')}" placeholder="Size — blank if one size" data-f="size"
         aria-label="Size, such as 2.4 in or 12 mm">
+      <input type="number" min="0" step="0.5" value="${v.widthMm || ''}" data-f="widthMm"
+        placeholder="${esc(($('#form-piece').widthMm.value || '').trim() || 'W mm')}" aria-label="Width of this size in mm"
+        title="Width in mm for this size — blank to use the component's">
+      <input type="number" min="0" step="0.5" value="${v.heightMm || ''}" data-f="heightMm"
+        placeholder="${esc(($('#form-piece').heightMm.value || '').trim() || 'H mm')}" data-h
+        aria-label="Height of this size in mm"
+        title="Height in mm for this size — blank to use the component's">
       <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name, v.size))}</span>
       <input type="number" min="0" step="${S.draft.soldBy === 'length' ? '0.1' : '1'}"
         value="${S.draft.soldBy === 'length' ? toMetres(v.quantity) : v.quantity}" data-f="quantity"
@@ -5904,7 +5953,7 @@ function newCharm(row, extra) {
   return {
     uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     itemId: row.itemId, variantId: row.variantId,
-    w: charmWidthPct(row.item), rot: 0, z: ++S.zTop, ...extra,
+    w: charmWidthPct(row.item, row.variantId), rot: 0, z: ++S.zTop, ...extra,
   };
 }
 
@@ -5936,7 +5985,7 @@ function spacingBase() {
 /** One hanging's spot on its base, for a formation of the given width. */
 function hangPoint(base, u) {
   const item = itemOf(base.itemId);
-  const box = item ? charmSizePct(item) : { w: 10, h: 10 };
+  const box = item ? charmSizePct(item, base.variantId) : { w: 10, h: 10 };
   const spread = base.spread == null ? 1 : base.spread;
   if (base.baseKind === 'chain') {
     const span = stageMm() || 400;
@@ -6047,7 +6096,7 @@ function layOutPiece() {
 
   if (st.kind.base === 'piece') {
     // The base sits above centre so its hangings have the canvas below them.
-    const box = charmSizePct(st.base.item);
+    const box = charmSizePct(st.base.item, st.base.variantId);
     const baseY = st.kind.long ? 26 : 40;
     made.push(newCharm(st.base, { x: 50, y: baseY }));
     // Hangings follow the lower edge: on a round bangle that is an arc, on a
@@ -6073,7 +6122,7 @@ function layOutPiece() {
     for (const x of xs) {
       made.push(newCharm(st.base, { x, y: 16, lenCm: st.baseLen }));
       if (piece) {
-        const box = charmSizePct(piece.item);
+        const box = charmSizePct(piece.item, piece.variantId);
         made.push(newCharm(piece, { x, y: 16 + lenPct + box.h / 2 }));
       }
     }
@@ -6758,7 +6807,7 @@ function wirePieceDialog() {
     // A new row copies the last one's colour, since adding a size is the common case.
     const prev = S.draft.variants[S.draft.variants.length - 1] || {};
     S.draft.variants.push({ id: 'v' + Date.now().toString(36), name: prev.name || '',
-      size: '', swatch: prev.swatch || '#c9a227', sku: '', quantity: 0 });
+      size: '', widthMm: 0, heightMm: 0, swatch: prev.swatch || '#c9a227', sku: '', quantity: 0 });
     paintDraftVariants();
   });
   $('#piece-variants').addEventListener('click', (e) => {
@@ -6772,6 +6821,10 @@ function wirePieceDialog() {
     if (!field) return;
     const rowNode = e.target.closest('.variant-row');
     const row = S.draft.variants[Number(rowNode.dataset.i)];
+    if (field === 'widthMm' || field === 'heightMm') {
+      row[field] = Math.max(0, Number(e.target.value) || 0);
+      return;
+    }
     if (field === 'quantity') {
       row.quantity = S.draft.soldBy === 'length'
         ? fromMetres(e.target.value)
@@ -6849,6 +6902,8 @@ function wirePieceDialog() {
           id: v.id || `v${i}`,
           name: v.name.trim(),
           size: String(v.size || '').trim(),
+          widthMm: Number(v.widthMm) || 0,
+          heightMm: Number(v.heightMm) || 0,
           swatch: v.swatch || '',
           sku: (v.sku || '').trim() || variantSku(baseSku, v.name.trim(), v.size),
           quantity: v.quantity,
@@ -7079,8 +7134,9 @@ function joinDrop(j) {
   const it = itemOf(j.itemId);
   if (!it) return 0;
   const info = infoNow(charmArt(it, j.variantId).src);
-  const h = (it.heightMm || it.widthMm || 6) / ((info && info.box.h) || 1);
-  const wide = (it.widthMm || it.heightMm || 6) / ((info && info.box.w) || 1);
+  const jd = dimOf(it, j.variantId);
+  const h = (jd.heightMm || jd.widthMm || 6) / ((info && info.box.h) || 1);
+  const wide = (jd.widthMm || jd.heightMm || 6) / ((info && info.box.w) || 1);
   const auto = (info && info.ends) || { top: { x: 0.5, y: 0.06 }, bottom: { x: 0.5, y: 0.94 } };
   const a = it.loop ? { x: it.loop.x / 100, y: it.loop.y / 100 } : auto.top;
   const c = it.loop2 ? { x: it.loop2.x / 100, y: it.loop2.y / 100 } : auto.bottom;
@@ -7364,8 +7420,9 @@ function layout(hand = S.build.hand) {
   const b = S.build.hands[hand];
   const base = itemOf(b.baseId);
   if (!base) return null;
-  const W = base.widthMm || 70;
-  const H = base.heightMm || W;
+  const baseDim = dimOf(base, b.baseVariant);
+  const W = baseDim.widthMm || 70;
+  const H = baseDim.heightMm || W;
   const bsrc = charmArt(base, b.baseVariant).src;
   const binfo = infoNow(bsrc);
   const box = binfo ? binfo.box : { x: 0, y: 0, w: 1, h: 1 };
@@ -7407,7 +7464,7 @@ function layout(hand = S.build.hand) {
         const csrc = ch ? charmArt(ch, s.chain.variantId).src : '';
         const cinfo = infoNow(csrc);
         slot.chain = {
-          x: top.x, y: top.y, len, w: Math.max(1.2, (ch && ch.widthMm) || 2),
+          x: top.x, y: top.y, len, w: Math.max(1.2, dimOf(ch, s.chain.variantId).widthMm || 2),
           src: csrc, tileMm: ch && ch.tileCm ? ch.tileCm * 10 : 0,
           // The strip's metal, without the transparent margin it was cut with.
           box: cinfo ? cinfo.box : { x: 0, y: 0, w: 1, h: 1 },
@@ -7424,8 +7481,9 @@ function layout(hand = S.build.hand) {
           const jsrc = it ? charmArt(it, j.variantId).src : '';
           const jinfo = infoNow(jsrc);
           const jbox = jinfo ? jinfo.box : { x: 0, y: 0, w: 1, h: 1 };
-          const jw = (it && it.widthMm) || 6;
-          const jh = (it && it.heightMm) || jw;
+          const jdim = dimOf(it, j.variantId);
+          const jw = jdim.widthMm || 6;
+          const jh = jdim.heightMm || jw;
           const iw = jw / jbox.w;              // the whole picture, drawn in mm
           const ih = jh / jbox.h;
           const auto = (jinfo && jinfo.ends) || { top: { x: 0.5, y: 0.06 }, bottom: { x: 0.5, y: 0.94 } };
@@ -7503,8 +7561,9 @@ function layout(hand = S.build.hand) {
         const item = itemOf(c.itemId);
         const src = charmArt(item, c.variantId).src;
         const info = infoNow(src);
-        const cw = (item && item.widthMm) || 12;
-        const chh = (item && item.heightMm) || cw;
+        const cdim = dimOf(item, c.variantId);
+        const cw = cdim.widthMm || 12;
+        const chh = cdim.heightMm || cw;
         const cbox = info ? info.box : { x: 0, y: 0, w: 1, h: 1 };
         const iw = cw / cbox.w;
         const ih = chh / cbox.h;
@@ -8083,7 +8142,7 @@ function syncCharms() {
     const px = (mm) => pct(mm + dx);
     const id = `b-${hand[0]}`;
     out.push({ uid: `${id}-base`, itemId: L.base.id, variantId: h.baseVariant, x: px(0), y: 50,
-      w: ((L.base.widthMm || 70) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+      w: ((dimOf(L.base, h.baseVariant).widthMm || 70) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
     for (const s of L.slots) {
       const pick = h.slots[s.i];
       if (!pick) continue;
@@ -8096,7 +8155,7 @@ function syncCharms() {
         const item = itemOf(pc.itemId);
         out.push({ uid: `${id}-c${s.i}-${c.k}`, itemId: pc.itemId, variantId: pc.variantId,
           x: px(c.box.x + c.box.w / 2), y: pct(c.box.y + c.box.h / 2),
-          w: (((item && item.widthMm) || 12) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+          w: ((dimOf(item, c.variantId).widthMm || 12) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
       }
       // A connector is bought and made in like anything else on the piece.
       for (const j of (s.joins || [])) {
@@ -8105,7 +8164,7 @@ function syncCharms() {
         const item = itemOf(pj.itemId);
         out.push({ uid: `${id}-j${s.i}-${j.k}`, itemId: pj.itemId, variantId: pj.variantId,
           x: px(j.box.x + j.box.w / 2), y: pct(j.box.y + j.box.h / 2),
-          w: (((item && item.widthMm) || 6) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
+          w: ((dimOf(item, j.variantId).widthMm || 6) / VIRTUAL_MM) * 100, rot: 0, z: z++ });
       }
     }
   }
@@ -8791,7 +8850,7 @@ function banglePicker() {
           ${free > 0 ? '' : 'disabled'}>
         <span class="art">${artImg(it, firstInStock(it))}</span>
         <span class="nm">${esc(it.name)}</span>
-        <span class="sub">${hasSize(it) ? `${cm(it.widthMm)} cm across · ` : ''}${money(it.price)}${free > 0 ? '' : ' · sold out'}</span>
+        <span class="sub">${hasSize(it, firstInStock(it)) ? `${cm(dimOf(it, firstInStock(it)).widthMm)} cm across · ` : ''}${money(it.price)}${free > 0 ? '' : ' · sold out'}</span>
       </button>`;
     }).join('')}</div>
     ${S.build.baseId ? '<div><button data-bd="close-bangles">Keep my bangle</button></div>' : ''}</section>`;
@@ -9002,7 +9061,7 @@ function paintBuilder() {
     panel.innerHTML = `<section>
         <div class="bd-base"><span class="art">${artImg(base, b.baseVariant)}</span>
           <div><div class="nm">${esc(label(base, b.baseVariant))}</div>
-          <div class="sub">${money(base.price)}${hasSize(base) ? ` · ${cm(base.widthMm)} cm across` : ''}</div></div>
+          <div class="sub">${money(base.price)}${hasSize(base, b.baseVariant) ? ` · ${cm(dimOf(base, b.baseVariant).widthMm)} cm across` : ''}</div></div>
           ${bangles().length > 1 ? '<button data-bd="bangles">Change</button>' : '<span></span>'}</div>
       </section>
       ${shapeHtml()}
@@ -9363,7 +9422,7 @@ async function renderSnapshot(size = 560) {
     const strand = async (item, c) => {
       const span = stageMm() || 400;
       const len = size * clamp((c.lenCm * 10 / span), 0.02, 0.96);
-      const wide = size * ((item.widthMm || 2) / span);
+      const wide = size * ((dimOf(item, c.variantId).widthMm || 2) / span);
       const src = charmArt(item, c.variantId).src;
       ctx.save();
       ctx.translate(size * c.x / 100, size * c.y / 100);
@@ -9389,7 +9448,7 @@ async function renderSnapshot(size = 560) {
       if (!item) continue;
       if (isLength(item) && c.lenCm) await strand(item, c);
       else {
-        const box = charmSizePct(item);
+        const box = charmSizePct(item, c.variantId);
         await draw(item, c.variantId, size * c.x / 100, size * c.y / 100,
           size * (box.w || c.w) / 100, size * (box.h || c.w) / 100, c.rot, c.flipped);
       }
@@ -9807,7 +9866,7 @@ function restockPanel(groups, title, urgent) {
           <div>
             <b>${esc(g.itemName)}</b>${g.colour ? ` <span class="tag flat">${esc(g.colour)}</span>` : ''}
             <br><span class="mono muted">${esc(g.sku || '')}</span>
-            ${g.item && sizeLabel(g.item) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item)}</span>` : ''}
+            ${g.item && sizeLabel(g.item, false, g.variantId) ? `<br><span class="muted" style="font-size:12px">${sizeLabel(g.item, false, g.variantId)}</span>` : ''}
           </div>
           <span class="tag ${urgent ? 'out' : (g.requests.length > 2 ? 'out' : 'low')}">${
             g.requests.length} ${g.requests.length === 1 ? 'customer' : 'customers'} waiting</span>
