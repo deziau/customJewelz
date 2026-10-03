@@ -1727,10 +1727,6 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
           <input name="price" type="number" min="0" step="0.01" required></label>
         <label class="f"><span>Markup % — blank to use the ladder</span>
           <input name="markup" type="number" min="0" max="2000" step="1" placeholder="auto"></label>
-        <label class="f"><span id="width-label">Width (mm)</span>
-          <input name="widthMm" type="number" min="0" step="0.5" placeholder="12"></label>
-        <label class="f" id="height-field"><span>Height (mm)</span>
-          <input name="heightMm" type="number" min="0" step="0.5" placeholder="12"></label>
         <label class="f" id="tile-field" hidden><span>Chain shown in the sticker (cm) *</span>
           <input name="tileCm" type="number" min="0.5" step="0.5" placeholder="4"></label>
         <label class="f" id="hold-field" hidden><span>Charms it can hold per 10 cm</span>
@@ -5123,10 +5119,6 @@ function paintSku() {
 function paintSoldBy() {
   const byLength = S.draft.soldBy === 'length';
   $('#price-label').textContent = byLength ? 'What a metre cost you *' : 'What it cost you *';
-  // A length has no height to give: the customer chooses how long a piece of it
-  // they want, and only how wide it runs is ours to state.
-  $('#width-label').textContent = byLength ? 'Width (mm) — how wide it runs *' : 'Width (mm)';
-  $('#height-field').hidden = byLength;
   // A strand is drawn by repeating its sticker, so we have to know how much of
   // the chain one sticker shows or the links come out any size at all.
   $('#tile-field').hidden = !byLength;
@@ -5143,7 +5135,9 @@ function paintSoldBy() {
 
 function paintDraftVariants() {
   $('#piece-variants').innerHTML = `<div class="variant-row heads" aria-hidden="true">
-      <span></span><span>Colour</span><span>Size</span><span>W mm</span><span>H mm</span>
+      <span></span><span>Colour</span><span>Size</span>
+      <span>${S.draft.soldBy === 'length' ? 'Wide mm' : 'W mm'}</span>
+      <span>${S.draft.soldBy === 'length' ? '' : 'H mm'}</span>
       <span>Code</span><span>Stock</span><span></span>
     </div>` + S.draft.variants.map((v, i) => `
     <div class="variant-row" data-i="${i}">
@@ -5152,10 +5146,10 @@ function paintDraftVariants() {
       <input value="${esc(v.size || '')}" placeholder="Size — blank if one size" data-f="size"
         aria-label="Size, such as 2.4 in or 12 mm">
       <input type="number" min="0" step="0.5" value="${v.widthMm || ''}" data-f="widthMm"
-        placeholder="${esc(($('#form-piece').widthMm.value || '').trim() || 'W mm')}" aria-label="Width of this size in mm"
+        placeholder="mm" aria-label="Width of this size in mm"
         title="Width in mm for this size — blank to use the component's">
       <input type="number" min="0" step="0.5" value="${v.heightMm || ''}" data-f="heightMm"
-        placeholder="${esc(($('#form-piece').heightMm.value || '').trim() || 'H mm')}" data-h
+        placeholder="${S.draft.soldBy === 'length' ? '—' : 'mm'}" ${S.draft.soldBy === 'length' ? 'disabled' : ''} data-h
         aria-label="Height of this size in mm"
         title="Height in mm for this size — blank to use the component's">
       <span class="sku-cell" data-sku-cell>${esc(v.sku || variantSku(S.draft.sku, v.name, v.size))}</span>
@@ -5199,7 +5193,12 @@ function openPieceDialog(item) {
   S.draft = item
     ? { images: [...item.images], stickers: [...item.stickers],
         glyph: item.images.length ? '' : item.glyph, sku: item.sku, kept: Boolean(item.sku),
-        soldBy: item.soldBy, variants: item.variants.map((v) => ({ ...v })),
+        soldBy: item.soldBy,
+        // The measurements used to live on the component; they belong to the
+        // rows now, so an older component brings them down as it is opened.
+        variants: item.variants.map((v) => ({ ...v,
+          widthMm: v.widthMm || item.widthMm || 0,
+          heightMm: v.heightMm || item.heightMm || 0 })),
         loop: item.loop ? { ...item.loop } : null, loop2: item.loop2 ? { ...item.loop2 } : null,
         renders: [...item.renders],
         spotsAt: item.spotsAt.map((p) => ({ ...p })) }
@@ -5212,8 +5211,6 @@ function openPieceDialog(item) {
     f.category.value = item.category;
     f.price.value = item.cost;
     f.markup.value = item.markup === null ? '' : item.markup;
-    f.widthMm.value = item.widthMm || '';
-    f.heightMm.value = item.heightMm || '';
     f.tileCm.value = item.tileCm || '';
     f.perTenCm.value = item.perTenCm || '';
     f.connector.value = item.connector || '';
@@ -6857,8 +6854,8 @@ function wirePieceDialog() {
       if (soldByLength && !(tileCm > 0)) {
         throw new Error('Say how many centimetres of chain the sticker shows — the design area repeats it at that size.');
       }
-      if (soldByLength && !(Number(data.get('widthMm')) > 0)) {
-        throw new Error('Give the width in millimetres — the design area draws the strand that wide.');
+      if (soldByLength && S.draft.variants.some((v) => !(Number(v.widthMm) > 0))) {
+        throw new Error('Give every row its width in millimetres — the design area draws the strand that wide.');
       }
       if (S.draft.variants.some((v) => !Number.isInteger(v.quantity) || v.quantity < 0)) {
         throw new Error('Every colour needs a whole-number quantity, zero or more.');
@@ -6878,8 +6875,12 @@ function wirePieceDialog() {
         price,
         soldBy: soldByLength ? 'length' : 'piece',
         width: (id && itemOf(id) ? itemOf(id).width : 86),
-        widthMm: Number(data.get('widthMm')) || 0,
-        heightMm: soldByLength ? 0 : Number(data.get('heightMm')) || 0,
+        // The component's own measurements are the first row's: kept so anything
+        // asking a component how big it is, without naming a size, still has an
+        // answer, while the rows remain the one place they are typed.
+        widthMm: Number((S.draft.variants.find((v) => Number(v.widthMm) > 0) || {}).widthMm) || 0,
+        heightMm: soldByLength ? 0
+          : Number((S.draft.variants.find((v) => Number(v.heightMm) > 0) || {}).heightMm) || 0,
         tileCm: soldByLength ? tileCm : 0,
         perTenCm: soldByLength ? Math.max(0, Math.round(Number(data.get('perTenCm')) || 0)) : 0,
         connector: soldByLength ? '' : String(data.get('connector') || ''),

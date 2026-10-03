@@ -646,9 +646,12 @@ own SKU (the size code is added to the end — `BNGLS-BNGL-001-GOLDEN-24IN`), it
 own restock date, and **its own width and height in millimetres**. A 2.6 inch
 bangle is not a 2.4 inch one, so the design area draws each size at the size it
 really is, and the measurements quoted on the product page, the repo and a
-restock request are the chosen row's. Leave a row's millimetres blank and it
-falls back to the component's own; leave the size blank on a piece that comes one
-way, and nothing about it changes.
+restock request are the chosen row's. The millimetres are asked for in that one
+place — a component has no separate width and height of its own any more; it
+takes the first row's, so anything asking how big the component is, without
+naming a size, still has an answer. A component saved before sizes existed brings
+its measurements down onto its rows the first time it is opened. Leave the size
+blank on a piece that comes one way, and nothing about it changes.
 
 Customers see a **Size** row of chips on the product page, under the colours and
 only for components that have sizes. Colour and size are two ways into the same
