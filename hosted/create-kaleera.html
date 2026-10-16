@@ -2706,6 +2706,9 @@ async function connect() {
   S.uid = user ? await user.id() : null;
   S.isStudio = user ? await user.canEdit() : false;
   $('#mode-studio').hidden = !S.isStudio;
+  // Handing a file to whoever is looking is the viewer's call, not the page's,
+  // so the "save the picture" button only exists once that permission answers.
+  claude.use('downloads').then((d) => { S.save = d || null; paint(); }, () => {});
 
   db.doc('meta/settings').onSnapshot((snap) => {
     if (snap.exists) {
@@ -5963,14 +5966,14 @@ function photosHtml(o, asStudio) {
   const rows = Object.entries(made).map(([k, src]) => {
     const [itemId, variantId] = k.split('::');
     const it = itemOf(itemId);
-    return { src, name: it ? label(it, variantId) : 'A piece', file: `${o.no}-${(it ? it.name : 'photo').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.webp` };
+    return { src, key: k, name: it ? label(it, variantId) : 'A piece' };
   });
   return `<div>
     <div class="k facts" style="margin-bottom:6px">${asStudio ? 'Photos to make from' : 'Your photos'}</div>
     <div class="order-photos">${rows.map((r) => `<figure>
       <img src="${esc(r.src)}" alt="${esc(r.name)}">
-      <figcaption>${esc(r.name)}${asStudio
-        ? `<br><a href="${esc(r.src)}" download="${esc(r.file)}">Save the picture</a>` : ''}</figcaption>
+      <figcaption>${esc(r.name)}${asStudio && S.save
+        ? `<br><button class="tiny" data-save-photo="${esc(r.key)}">Save the picture</button>` : ''}</figcaption>
     </figure>`).join('')}</div>
   </div>`;
 }
@@ -6093,6 +6096,26 @@ function customerActions(o, corner = false) {
     </div>
     <span class="window-note">${left} left ${what}</span>
   </div>`;
+}
+
+/**
+ * Puts a customer's photo on the studio's own machine at full size, so the
+ * piece can be made from it. The viewer is asked first and may say no — that
+ * is an ordinary answer, not a fault.
+ */
+async function savePicture(src, base) {
+  if (!S.save) return toast('Saving pictures is not available in this view.');
+  const kind = (/^data:image\/([a-z]+)/.exec(src) || [])[1] || 'png';
+  const ext = kind === 'jpeg' ? 'jpg' : kind;
+  try {
+    const data = await (await fetch(src)).blob();
+    const out = await S.save.save({ filename: `${base}.${ext}`, data });
+    if (out && out.status === 'saved') toast('Picture saved.', 'good');
+  } catch (err) {
+    if (err && err.code === 'declined') return;
+    if (err && err.code === 'rate_limited') return toast('One picture at a time — try that again.');
+    toast('That picture could not be saved.', 'bad');
+  }
 }
 
 function showOrder(o, asStudio = true) {
@@ -10921,6 +10944,15 @@ function wireOrderActions() {
       if (!box.value.trim()) return toast('Write the update first.');
       await postUpdate(id, box.value);
       showOrder(S.orders.find((o) => o.id === id), true);
+      return;
+    }
+    const pic = e.target.closest('[data-save-photo]');
+    if (pic) {
+      const key = pic.dataset.savePhoto;
+      const src = (order.photos || {})[key];
+      if (!src) return toast('That picture is no longer with the order.', 'bad');
+      const it = itemOf(key.split('::')[0]);
+      await savePicture(src, `${order.no}-${(it ? it.name : 'photo').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`);
       return;
     }
     const act = e.target.closest('[data-cust]');

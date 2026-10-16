@@ -730,8 +730,11 @@ one.
 From there it is an ordinary component: the personalised piece is what the tray
 shows, what Create hangs and draws, and what the order's picture is taken of.
 The order also keeps the photo itself, so the studio's copy has a **Photos to
-make from** panel with each picture and a link to save it at full size. The
-written piece marks that charm *with your photo*.
+make from** panel with each picture and a **Save the picture** button that puts
+it on the bench's own machine at full size. Handing over a file is the viewer's
+decision, not the page's, so the browser asks first and the button is simply
+absent in a view that cannot save. The written piece marks that charm *with your
+photo*.
 
 One photo is kept per colour of a component. Two of the same pendant in the same
 colour carry the same picture; two different pictures means two different colours,
