@@ -705,6 +705,26 @@ markup in its editor, which overrides the ladder. The repo lists **Cost** and
 **Sells for** side by side, with the band and the profit under the price. Making
 charges are added on top of all of this.
 
+### The piece in words
+
+An order carries the piece written out beside the picture of it, so the bench can
+make it from the order alone. For each hand: the bangle with its colour, size and
+diameter; then each spot with its chain, the length it is cut to and how wide it
+runs; each connector with how far down it sits and how much it lengthens the
+strand; the lengths a connector leaves (*4.1 8 cm, holds 4 · 4.2 10 cm, holds 4*);
+and every charm in the order it hangs, saying which length it is on, its colour
+and size, its SKU, and how far it has been nudged. It is written when the order is
+placed and kept with it, so a later change to the catalogue never rewrites what
+was ordered.
+
+It shows on the checkout before the order is placed, on the confirmation, on the
+customer's copy of the order and on the studio's — the same words everywhere.
+Alongside it, both at checkout and on every copy afterwards, a note says the
+piece is handmade and the finished one may differ a little from the picture: how
+each charm lies, the exact turn of a connector. A piece arranged freely on the
+canvas rather than built in Create has no written spec — its picture and its bill
+are the record.
+
 ### What an order made
 
 Every order records what each component cost the studio at the moment it was

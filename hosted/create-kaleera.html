@@ -933,6 +933,30 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .profit-card .tot span:first-child { font-family: var(--body); font-size: 14px; font-weight: 600; color: var(--ink); }
 .profit-card .note { margin: 0; font-size: 12px; color: var(--muted); }
 
+.spec { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 10px; }
+.spec-hand { display: grid; gap: 8px; }
+.spec-head { font-weight: 700; font-size: 13.5px; }
+.spec-head .mono { font-weight: 400; margin-left: 6px; font-size: 11px; }
+.spec-spot {
+  border-left: 3px solid var(--accent-soft); padding-left: 10px; display: grid; gap: 4px;
+}
+.spec-spot-head { font-size: 13px; font-weight: 600; color: var(--accent); }
+.spec-line { font-size: 12.5px; }
+.spec-line b { font-weight: 600; }
+.spec-charms { margin: 2px 0 0; padding: 0 0 0 2px; list-style: none; display: grid; gap: 3px; }
+.spec-charms li {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px;
+  align-items: baseline; font-size: 12.5px;
+}
+.spec-charms .where {
+  font-family: var(--mono); font-size: 10.5px; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 1px 0; text-align: center;
+}
+.spec-note {
+  margin: 0; font-size: 12px; color: var(--ochre); background: var(--ochre-soft);
+  padding: 8px 11px; border-radius: 8px;
+}
+
 .note-card {
   border-left: 3px solid var(--gold); background: var(--ochre-soft);
   padding: 11px 13px; border-radius: 0 9px 9px 0; font-size: 13.5px;
@@ -1717,6 +1741,11 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
       <label class="f"><span>Email * (we email you as your order moves along)</span>
         <input name="email" type="email" required autocomplete="email"></label>
       <label class="f"><span>Notes for the maker</span><textarea name="notes" placeholder="Initial letters, wrist size, engraving, the date you need it by…"></textarea></label>
+      <div id="ck-spec"></div>
+      <p class="spec-note" style="margin-top:4px">Every piece is made by hand from the components you
+        chose, exactly as listed above. Because it is handmade, the finished piece may differ a little
+        from the picture — how each charm lies, the exact turn of a connector, a millimetre here or
+        there. We follow your design as closely as we can.</p>
       <p class="notice" id="ck-error" hidden></p>
     </div>
     <footer>
@@ -4202,6 +4231,8 @@ function openCheckout() {
       <button type="button" class="bd-link" id="ck-edit">Change the design</button>`);
     $('#ck-edit').addEventListener('click', () => $('#dlg-checkout').close());
   }
+  // The piece in words, so what is being agreed to is on the same screen as the price.
+  $('#ck-spec').innerHTML = specHtml({ spec: pieceSpec() }, false);
   $('#ck-lines').innerHTML = `<ul class="bill">${lines.map((l) =>
     `<li><span>${esc(l.name)}${l.colour ? ` <span class="muted">· ${esc(l.colour)}</span>` : ''}</span>
      <span class="q">${lineAmount(l)}</span><span class="amt">${money(l.total)}</span></li>`).join('')}</ul>
@@ -4316,6 +4347,8 @@ async function submitOrder(form) {
       charms: S.charms.map(({ itemId, variantId, x, y, w, rot, z, lenCm, flipped }) =>
         ({ itemId, variantId, x, y, w, rot, z, lenCm, flipped: Boolean(flipped) })),
     },
+    // The piece in words, as it was ordered, beside the picture of it.
+    spec: pieceSpec(),
     itemsTotal,
     costTotal: Math.round(lines.reduce((t, l) => t + lineCost(l), 0) * 100) / 100,
     parts: partCount(), makingRate: makingRate(), making: makingOn(itemsTotal),
@@ -4352,6 +4385,7 @@ function showDone(order) {
     <p>Thank you. Order <b class="mono">${esc(order.no)}</b> is on the book.</p>
     ${order.snapshot ? `<img class="snapshot" src="${esc(order.snapshot)}"
       alt="The piece you designed" style="margin-bottom:14px">` : ''}
+    ${specHtml(order)}
     <div class="sum">
       <div><span>Pieces used</span><span class="num">${money(order.itemsTotal)}</span></div>
       ${makingLine(order)}
@@ -5588,6 +5622,106 @@ function wireAdmin() {
   }));
 }
 
+/* ------------------------------------------------------ the written piece
+ * A picture shows what was designed; this says it in words, so the bench can
+ * make the piece from the order alone — which chain, cut how long, where each
+ * connector sits, and every charm in the order it hangs. It is written once,
+ * when the order is placed, and kept with it: later changes to the catalogue
+ * never rewrite what was ordered.
+ */
+function pieceSpec() {
+  if (!S.build || !S.build.active) return null;
+  const hands = [];
+  for (const hand of Object.keys(HANDS)) {
+    const h = S.build.hands[hand];
+    if (!h.baseId) continue;
+    const base = itemOf(h.baseId);
+    const bd = dimOf(base, h.baseVariant);
+    const spots = [];
+    h.slots.forEach((sl, i) => {
+      if (!sl) return;
+      const ch = lenOf(sl) ? itemOf(sl.chain.itemId) : null;
+      const runs = chainRuns(sl);
+      const rooms = segRooms(sl);
+      const many = runs.length > 1;
+      spots.push({
+        spot: i + 1,
+        chain: ch ? {
+          name: ch.name, colour: (variantOf(ch, sl.chain.variantId) || {}).name || '',
+          sku: (variantOf(ch, sl.chain.variantId) || {}).sku || ch.sku,
+          lenCm: sl.chain.lenCm, widthMm: dimOf(ch, sl.chain.variantId).widthMm,
+        } : null,
+        dropCm: strandDrop(sl),
+        lengths: runs.map((cm, g) => ({ name: legName(i, g, many), cm, room: rooms[g] })),
+        joins: (sl.joins || []).map((j) => {
+          const it = itemOf(j.itemId);
+          const v = variantOf(it, j.variantId) || {};
+          return { name: it ? it.name : 'Connector', colour: v.name || '', size: v.size || '',
+            sku: v.sku || (it ? it.sku : ''), atCm: j.atCm, addsCm: joinDrop(j) };
+        }),
+        charms: sl.charms.map((c, k) => {
+          const it = itemOf(c.itemId);
+          const v = variantOf(it, c.variantId) || {};
+          const g = c.seg || 0;
+          return {
+            no: k + 1,
+            on: legName(i, g, many),
+            pos: charmsOn(sl, g).indexOf(c) + 1,
+            name: it ? it.name : 'Charm', colour: v.name || '', size: v.size || '',
+            sku: v.sku || (it ? it.sku : ''),
+            nudgeCm: Number(c.off) || 0,
+          };
+        }),
+      });
+    });
+    hands.push({
+      hand: HANDS[hand],
+      base: base ? {
+        name: base.name, colour: (variantOf(base, h.baseVariant) || {}).name || '',
+        size: (variantOf(base, h.baseVariant) || {}).size || '',
+        sku: (variantOf(base, h.baseVariant) || {}).sku || base.sku,
+        acrossCm: bd.widthMm ? Math.round(bd.widthMm) / 10 : 0,
+        spots: h.slots.length,
+      } : null,
+      spots,
+    });
+  }
+  return hands.length ? hands : null;
+}
+
+/** The written piece, read back: the same words for the studio and the customer. */
+function specHtml(o, note = true) {
+  const spec = o && o.spec;
+  if (!Array.isArray(spec) || !spec.length) return '';
+  const cm = (n) => `${Math.round(n * 10) / 10} cm`;
+  const named = (x) => [x.name, x.colour, x.size].filter(Boolean).join(' · ');
+  return `<div class="spec">
+    <div class="k facts" style="margin-bottom:6px">Made to this</div>
+    ${spec.map((h) => `<div class="spec-hand">
+      <div class="spec-head">${esc(h.hand)}${h.base ? ` — ${esc(named(h.base))}${
+        h.base.acrossCm ? `, ${cm(h.base.acrossCm)} across` : ''}` : ''}
+        ${h.base && h.base.sku ? `<span class="mono muted">${esc(h.base.sku)}</span>` : ''}</div>
+      ${h.spots.length ? h.spots.map((s) => `<div class="spec-spot">
+        <div class="spec-spot-head">Spot ${s.spot}${s.chain
+          ? ` · ${esc(named(s.chain))}, cut ${cm(s.chain.lenCm)}${s.chain.widthMm ? `, ${s.chain.widthMm} mm wide` : ''}`
+          : ' · straight on the bangle, no chain'}${s.joins.length
+            ? ` · hangs ${cm(s.dropCm)} with its connector${s.joins.length === 1 ? '' : 's'}` : ''}</div>
+        ${s.joins.length ? `<div class="spec-line"><b>Connectors</b> ${s.joins.map((j) =>
+          `${esc(named(j))} at ${cm(j.atCm)} down${j.addsCm ? ` (adds ${cm(j.addsCm)})` : ''}`).join('; ')}</div>` : ''}
+        ${s.lengths.length > 1 ? `<div class="spec-line"><b>Lengths</b> ${s.lengths.map((g) =>
+          `${esc(g.name)} ${cm(g.cm)} (holds ${g.room})`).join(' · ')}</div>` : ''}
+        ${s.charms.length ? `<ol class="spec-charms">${s.charms.map((c) => `<li>
+          <span class="where">${esc(c.on)}</span>
+          <span>${esc(named(c))}${c.nudgeCm ? ` <span class="muted">· nudged ${c.nudgeCm > 0 ? 'down' : 'up'} ${cm(Math.abs(c.nudgeCm))}</span>` : ''}</span>
+          <span class="mono muted">${esc(c.sku || '')}</span></li>`).join('')}</ol>`
+          : '<div class="spec-line muted">No charms on this spot.</div>'}
+      </div>`).join('') : '<div class="spec-line muted">The bangle on its own.</div>'}
+    </div>`).join('')}
+    ${note ? `<p class="spec-note">Handmade, so the finished piece may differ a little from the picture —
+      the lie of each charm, the exact turn of a connector. Everything named above is made as listed.</p>` : ''}
+  </div>`;
+}
+
 /** What an order was charged for making, as its own line — blank for the orders
  *  placed before making charges existed. */
 const makingLine = (o) => (o.making ? `<div><span>Making charges${
@@ -5641,6 +5775,8 @@ function orderDetailHtml(o, asStudio) {
           ? `${esc(o.area || '')}<br>${esc(o.address || '').replace(/\n/g, '<br>')}`
           : 'From the studio when ready'}</span>
       </div>
+
+      ${specHtml(o)}
 
       <div>
         <div class="k facts" style="margin-bottom:5px">Pieces</div>
