@@ -523,6 +523,12 @@ knowing:
   placed, so a stale tab cannot claim components that have since gone. Two
   customers ordering the very last charm within the same instant is still
   possible — the self-hosted build closes that window with a transaction.
+- A picture belongs to a colour, not to a row. A component may carry one photo
+  and one sticker per row, or — the usual case once a colour comes in several
+  sizes — one per colour, and the right one is found either way. A 2.4 and a 2.6
+  inch golden bangle share a photograph; red and green pendants do not. Where the
+  counts match neither, every row falls back to the first picture, since nothing
+  says which belongs to what.
 - Component artwork is a set of uploaded photos (or an emoji if you have none),
   shrunk in the browser so each component record stays small.
 - Stickers are files you supply; nothing removes a background for you. A
