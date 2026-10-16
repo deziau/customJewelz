@@ -662,6 +662,21 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .swatch:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
 .swatch.sz { padding: 5px 13px; font-variant-numeric: tabular-nums; }
 
+/* Putting your own photo in a piece */
+.own-photo { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.own-photo .lede { font-size: 13.5px; margin: 0; }
+.own-photo .pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.own-photo input[type="file"] { display: none; }
+.own-photo .shot {
+  width: 130px; height: 130px; border-radius: 10px; display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
+}
+.own-photo .shot img { max-width: 86%; max-height: 86%; object-fit: contain; }
+.own-photo .with { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; align-items: center; }
+.own-photo .tweak { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+.own-photo .tweak label { display: grid; grid-template-columns: 54px 1fr; gap: 8px; align-items: center; }
+.own-photo input[type="range"] { width: 100%; padding: 0; min-height: 0; }
+
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 8px; }
 .stepper button { border: none; background: none; width: 34px; padding: 6px 0; font-size: 16px; line-height: 1; }
 .stepper output {
@@ -952,6 +967,17 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
   font-family: var(--mono); font-size: 10.5px; color: var(--accent);
   background: var(--accent-soft); border-radius: 999px; padding: 1px 0; text-align: center;
 }
+.order-photos { display: flex; gap: 10px; flex-wrap: wrap; }
+.order-photos figure {
+  margin: 0; width: 118px; display: grid; gap: 4px; justify-items: center;
+  border: 1px solid var(--line); border-radius: 10px; padding: 7px;
+}
+.order-photos img {
+  width: 100%; height: 100px; object-fit: contain;
+  background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2)); border-radius: 7px;
+}
+.order-photos figcaption { font-size: 11px; text-align: center; line-height: 1.3; }
+
 .spec-note {
   margin: 0; font-size: 12px; color: var(--ochre); background: var(--ochre-soft);
   padding: 8px 11px; border-radius: 8px;
@@ -1134,6 +1160,11 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .loop-pick .dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
   border: 2px solid var(--accent); background: rgba(255,255,255,.6); pointer-events: none; }
 .loop-pick .dot.auto { border-style: dashed; }
+.loop-pick .photo-box {
+  position: absolute; border: 2px dashed var(--accent); background: rgba(140, 212, 203, .22);
+  pointer-events: none;
+}
+.loop-pick .photo-box.oval { border-radius: 50%; }
 #spots-pick .dot { pointer-events: all; cursor: pointer; display: grid; place-items: center;
   width: 18px; height: 18px; margin: -9px 0 0 -9px; font: 700 10px/1 var(--body); color: var(--accent); }
 .bd .hung .halo { pointer-events: all; }
@@ -1658,6 +1689,7 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
         </div>
         <p class="desc" id="item-desc"></p>
         <div id="item-colours"></div>
+        <div id="item-photo"></div>
         <div>
           <div class="eyebrow" style="margin-bottom:5px" id="qty-label">How many</div>
           <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
@@ -1801,6 +1833,27 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
           <input type="checkbox" name="canFlip" style="width:auto"><span style="color:var(--ink)"
             title="A pendant with a front and a back, or one that faces left or right">Can be flipped left to right</span>
         </label>
+        <label class="f" style="align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
+          <input type="checkbox" name="takesPhoto" id="piece-photo" style="width:auto"><span style="color:var(--ink)"
+            title="A photo pendant, locket or keyring the customer puts their own picture in">Customers put their own photo in it</span>
+        </label>
+      </div>
+      <div id="photo-field" class="loop-field" hidden>
+        <div class="loop-pick" id="photo-pick" title="Click one corner of the window, then the other"></div>
+        <div>
+          <p style="margin:0 0 8px">Click the two opposite corners of the <b>window</b> the photo shows
+            through — top-left, then bottom-right. The customer's picture is fitted into it.</p>
+          <p class="muted" id="photo-note" style="font-size:12.5px;margin:0 0 8px"></p>
+          <div class="bd-tools" style="gap:8px">
+            <label class="f" style="margin:0"><span>Shape</span>
+              <select id="photo-shape"><option value="rect">A rectangle</option>
+                <option value="oval">An oval</option></select></label>
+            <label class="f" style="margin:0;align-self:end;grid-auto-flow:column;justify-content:start;align-items:center;gap:8px">
+              <input type="checkbox" id="photo-ontop" style="width:auto"><span style="color:var(--ink)"
+                title="On for a frame printed over the photo; off for a cut-out window the photo shows through">Photo sits on top of the picture</span></label>
+          </div>
+          <div style="margin-top:8px"><button type="button" id="photo-middle" class="tiny">Put it in the middle</button></div>
+        </div>
       </div>
       <label class="f"><span>Description — customers read this on the item page</span>
         <textarea name="note" placeholder="Materials, size, how it hangs, care notes…"></textarea></label>
@@ -2039,6 +2092,7 @@ const S = {
   zones: [],
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
+  photos: {},          // itemId::variantId -> the customer's picture, laid into that piece
   charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
   picked: null,        // the piece the tools act on
   also: [],            // more pieces selected with it, to move as one
@@ -2158,6 +2212,17 @@ function normalize(id, d) {
     // Off unless the studio says otherwise, so nothing already in the repo
     // suddenly offers a flip it was never checked for.
     canFlip: d.canFlip === true,
+    // A photo pendant: where the customer's own picture sits inside it, as
+    // percentages of the sticker, and whether it lies under the frame (a
+    // cut-out window) or on top of it.
+    photo: d.photo && Number.isFinite(Number(d.photo.w)) && Number(d.photo.w) > 0 ? {
+      x: clamp(Number(d.photo.x) || 0, 0, 100),
+      y: clamp(Number(d.photo.y) || 0, 0, 100),
+      w: clamp(Number(d.photo.w) || 0, 1, 100),
+      h: clamp(Number(d.photo.h) || 0, 1, 100),
+      shape: d.photo.shape === 'oval' ? 'oval' : 'rect',
+      onTop: d.photo.onTop === true,
+    } : null,
     // 'piece' components are counted; 'length' ones (chain, cord, ribbon) are
     // priced per metre and stocked in centimetres.
     soldBy: d.soldBy === 'length' ? 'length' : 'piece',
@@ -2302,6 +2367,11 @@ const stickerIndexFor = (item, variantId) => artIndexFor(item, variantId, item &
  */
 function charmArt(item, variantId) {
   if (!item) return { src: '', cut: false };
+  // A photo pendant with the customer's picture in it is drawn as that.
+  if (item.photo) {
+    const own = photoOn(item.id, variantId);
+    if (own) return { src: own, cut: true };
+  }
   if (item.renders && item.renders.length) {
     const i = artIndexFor(item, variantId, item.renders);
     return { src: item.renders[i] || item.renders[0], cut: true };
@@ -2452,6 +2522,68 @@ function loadTray() {
 
 function saveTray() {
   try { localStorage.setItem(TRAY_KEY, JSON.stringify(S.tray)); } catch { /* private mode */ }
+  savePhotos();
+}
+
+/* ----------------------------------------------------- the customer's photo
+ * A photo pendant is the same component as any other until a picture goes in
+ * it. The picture the customer gives is fitted into the window the studio
+ * marked, composited once, and kept against that colour of that component —
+ * so the tray, the design, the order's picture and the bench all show the same
+ * personalised piece without anything else having to know about it.
+ */
+const PHOTO_KEY = 'cj-photos-v1';
+const photoKey = (itemId, variantId) => `${itemId}::${variantId}`;
+
+function loadPhotos() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+    S.photos = raw && typeof raw === 'object' ? raw : {};
+  } catch { S.photos = {}; }
+}
+
+function savePhotos() {
+  try { localStorage.setItem(PHOTO_KEY, JSON.stringify(S.photos)); } catch { /* private mode */ }
+}
+
+const photoOn = (itemId, variantId) => S.photos[photoKey(itemId, variantId)] || null;
+
+/**
+ * The customer's picture laid into the component's window: the window filled
+ * edge to edge (cropped, never squashed), under the frame for a cut-out window
+ * or over it where the studio says the photo sits on top.
+ */
+async function makePhotoArt(item, variantId, photoSrc, fit) {
+  const w = item.photo;
+  const art = item.stickers[stickerIndexFor(item, variantId)] || item.stickers[0]
+    || item.images[imageIndexFor(item, variantId)] || '';
+  if (!w || !art || !photoSrc) return '';
+  const [frame, pic] = await Promise.all([loadImage(art), loadImage(photoSrc)]);
+  const W = frame.naturalWidth || frame.width;
+  const H = frame.naturalHeight || frame.height;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const box = { x: (w.x / 100) * W, y: (w.y / 100) * H, w: (w.w / 100) * W, h: (w.h / 100) * H };
+  const draw = () => {
+    g.save();
+    g.beginPath();
+    if (w.shape === 'oval') g.ellipse(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
+    else g.rect(box.x, box.y, box.w, box.h);
+    g.clip();
+    // Cover the window, then the customer's own zoom and shift on top of that.
+    const zoom = (fit && fit.zoom ? fit.zoom : 100) / 100;
+    const k = Math.max(box.w / pic.width, box.h / pic.height) * zoom;
+    const pw = pic.width * k;
+    const ph = pic.height * k;
+    const dx = box.x + (box.w - pw) / 2 + ((fit && fit.x ? fit.x : 0) / 100) * box.w;
+    const dy = box.y + (box.h - ph) / 2 + ((fit && fit.y ? fit.y : 0) / 100) * box.h;
+    g.drawImage(pic, dx, dy, pw, ph);
+    g.restore();
+  };
+  if (w.onTop) { g.drawImage(frame, 0, 0, W, H); draw(); }
+  else { draw(); g.drawImage(frame, 0, 0, W, H); }
+  return cv.toDataURL('image/webp', 0.9);
 }
 
 const trayQty = (itemId, variantId) => {
@@ -2969,6 +3101,7 @@ function paintSheet() {
         title="${free <= 0 ? 'Sold out' : `${free} to sell`}">${esc(sz)}</button>`;
     }).join('')}</div>` : '';
   $('#item-colours').innerHTML = colourBlock + sizeBlock;
+  paintOwnPhoto(item, v);
 
   const step = isLength(item) ? 10 : 1;               // chain moves in 10 cm nudges
   S.sheet.qty = clamp(S.sheet.qty, step, Math.max(step, free));
@@ -3008,11 +3141,68 @@ function paintSheet() {
   $('#item-error').hidden = true;
 }
 
+/** Putting your own picture in a photo pendant, on its own page. */
+function paintOwnPhoto(item, v) {
+  const box = $('#item-photo');
+  if (!item.photo) { box.innerHTML = ''; return; }
+  const made = photoOn(item.id, v.id);
+  const fit = S.sheet.fit || { zoom: 100, x: 0, y: 0 };
+  // Changed colour with a picture already given: it goes into the new one too.
+  if (!made && S.sheet.raw && !S.sheet.laying) {
+    S.sheet.laying = true;
+    setOwnPhoto().finally(() => { S.sheet && (S.sheet.laying = false); });
+  }
+  box.innerHTML = `<div class="own-photo">
+    <div class="eyebrow">Your photo</div>
+    <p class="lede">${made
+      ? 'This is how it will be made. Change the picture, or move and zoom it to sit how you like.'
+      : 'This piece is made with your own picture in it. Choose one from your phone or computer — '
+        + 'a clear, square-ish photo works best.'}</p>
+    ${made ? `<div class="with">
+      <span class="shot"><img src="${esc(made)}" alt="Your photo in the piece"></span>
+      <div class="tweak">
+        <label>Zoom<input type="range" id="ph-zoom" min="100" max="300" step="5" value="${fit.zoom}"></label>
+        <label>Across<input type="range" id="ph-x" min="-50" max="50" step="1" value="${fit.x}"></label>
+        <label>Down<input type="range" id="ph-y" min="-50" max="50" step="1" value="${fit.y}"></label>
+      </div>
+    </div>` : ''}
+    <div class="pick">
+      <button type="button" class="solid" id="ph-pick">${made ? 'Use a different photo' : 'Choose a photo'}</button>
+      ${made ? '<button type="button" id="ph-drop">Take it out</button>' : ''}
+      <input type="file" id="ph-file" accept="image/*">
+    </div>
+  </div>`;
+}
+
+/** Lays the chosen picture into the piece and keeps it against that colour. */
+async function setOwnPhoto(file) {
+  const item = itemOf(S.sheet.itemId);
+  const v = variantOf(item, S.sheet.variantId) || item.variants[0];
+  if (!item || !item.photo) return;
+  if (file) {
+    // Held at a sensible size: big enough to print from, small enough to save.
+    S.sheet.raw = await shrink(file, 1400);
+    S.sheet.fit = { zoom: 100, x: 0, y: 0 };
+  }
+  if (!S.sheet.raw) return;
+  const art = await makePhotoArt(item, v.id, S.sheet.raw, S.sheet.fit);
+  if (!art) { toast('That picture could not be used — try another.', 'bad'); return; }
+  S.photos[photoKey(item.id, v.id)] = art;
+  savePhotos();
+  paintSheet();
+  paint();
+}
+
 function addFromSheet() {
   const item = itemOf(S.sheet.itemId);
   const v = variantOf(item, S.sheet.variantId);
   const free = addable(item, v.id);
   const err = $('#item-error');
+  if (item.photo && !photoOn(item.id, v.id)) {
+    err.hidden = false;
+    err.textContent = 'Choose the photo that goes in it first.';
+    return;
+  }
   if (free <= 0) {
     err.hidden = false;
     err.textContent = trayQty(item.id, v.id)
@@ -4362,6 +4552,9 @@ async function submitOrder(form) {
     },
     // The piece in words, as it was ordered, beside the picture of it.
     spec: pieceSpec(),
+    // Every photo the customer put into a piece, as it will be made.
+    photos: Object.fromEntries(lines.map((l) => [photoKey(l.itemId, l.variantId),
+      photoOn(l.itemId, l.variantId)]).filter(([, v]) => v)),
     itemsTotal,
     costTotal: Math.round(lines.reduce((t, l) => t + lineCost(l), 0) * 100) / 100,
     parts: partCount(), makingRate: makingRate(), making: makingOn(itemsTotal),
@@ -5285,9 +5478,10 @@ function openPieceDialog(item) {
           widthMm: v.widthMm || item.widthMm || 0,
           heightMm: v.heightMm || item.heightMm || 0 })),
         loop: item.loop ? { ...item.loop } : null, loop2: item.loop2 ? { ...item.loop2 } : null,
+        photo: item.photo ? { ...item.photo } : null,
         renders: [...item.renders],
         spotsAt: item.spotsAt.map((p) => ({ ...p })) }
-    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, loop2: null, renders: [], spotsAt: [],
+    : { images: [], stickers: [], glyph: '', soldBy: 'piece', sku: '', kept: false, loop: null, loop2: null, photo: null, renders: [], spotsAt: [],
         variants: [{ id: 'v0', name: '', swatch: '#c9a227', sku: '', quantity: 0 }] };
 
   if (item) {
@@ -5299,6 +5493,7 @@ function openPieceDialog(item) {
     f.tileCm.value = item.tileCm || '';
     f.perTenCm.value = item.perTenCm || '';
     f.connector.value = item.connector || '';
+    f.takesPhoto.checked = Boolean(item.photo);
     f.urgentFee.value = item.urgentFee || 0;
     f.note.value = item.note;
     f.glyph.value = S.draft.glyph;
@@ -5313,6 +5508,7 @@ function openPieceDialog(item) {
     f.perTenCm.value = '';
     f.markup.value = '';
     f.connector.value = '';
+    f.takesPhoto.checked = false;
     f.canFlip.checked = false;
     S.draft.soldBy = soldByForSection(f.category.value);
     f.soldBy.value = S.draft.soldBy;
@@ -5348,6 +5544,7 @@ function paintHangFields() {
   $('#rim-field').hidden = role !== 'bangle' || S.draft.spotsAt.length > 0;
   $('#spots-field').hidden = role !== 'bangle';
   if (role === 'bangle') paintSpotsPick();
+  paintPhotoField();
   const joins = f.connector.value === 'charm';
   $('#loop-field').hidden = role !== 'charm';
   $('#foot-field').hidden = !joins;
@@ -5384,6 +5581,27 @@ function paintHangFields() {
     paint('#foot-pick', '#foot-note', S.draft.loop2,
       (info) => ({ x: info.ends.bottom.x * 100, y: info.ends.bottom.y * 100 }));
   }
+}
+
+/** The window a customer's photo shows through, marked on the sticker. */
+function paintPhotoField() {
+  const f = $('#form-piece');
+  const on = f.takesPhoto.checked;
+  $('#photo-field').hidden = !on;
+  if (!on) return;
+  if (!S.draft.photo) S.draft.photo = { x: 22, y: 26, w: 56, h: 44, shape: 'rect', onTop: false };
+  const w = S.draft.photo;
+  $('#photo-shape').value = w.shape;
+  $('#photo-ontop').checked = Boolean(w.onTop);
+  const src = S.draft.stickers[0] || '';
+  const pick = $('#photo-pick');
+  if (!src) { pick.innerHTML = ''; $('#photo-note').textContent = 'Add a sticker first.'; return; }
+  pick.innerHTML = `<img src="${esc(src)}" alt="" draggable="false">
+    <span class="photo-box${w.shape === 'oval' ? ' oval' : ''}"
+      style="left:${w.x}%;top:${w.y}%;width:${w.w}%;height:${w.h}%"></span>`;
+  $('#photo-note').textContent = S.draft.photoCorner
+    ? 'Now click the opposite corner.'
+    : `The window is ${Math.round(w.w)}% across and ${Math.round(w.h)}% down the sticker. Click a corner to set it again.`;
 }
 
 /* ------------------------------------------------------------ studio wiring */
@@ -5683,6 +5901,7 @@ function pieceSpec() {
             name: it ? it.name : 'Charm', colour: v.name || '', size: v.size || '',
             sku: v.sku || (it ? it.sku : ''),
             nudgeCm: Number(c.off) || 0,
+            photo: Boolean(it && it.photo && photoOn(c.itemId, c.variantId)),
           };
         }),
       });
@@ -5725,13 +5944,34 @@ function specHtml(o, note = true) {
           `${esc(g.name)} ${cm(g.cm)} (holds ${g.room})`).join(' · ')}</div>` : ''}
         ${s.charms.length ? `<ol class="spec-charms">${s.charms.map((c) => `<li>
           <span class="where">${esc(c.on)}</span>
-          <span>${esc(named(c))}${c.nudgeCm ? ` <span class="muted">· nudged ${c.nudgeCm > 0 ? 'down' : 'up'} ${cm(Math.abs(c.nudgeCm))}</span>` : ''}</span>
+          <span>${esc(named(c))}${c.photo ? ' <span class="tag on">with your photo</span>' : ''}${
+            c.nudgeCm ? ` <span class="muted">· nudged ${c.nudgeCm > 0 ? 'down' : 'up'} ${cm(Math.abs(c.nudgeCm))}</span>` : ''}</span>
           <span class="mono muted">${esc(c.sku || '')}</span></li>`).join('')}</ol>`
           : '<div class="spec-line muted">No charms on this spot.</div>'}
       </div>`).join('') : '<div class="spec-line muted">The bangle on its own.</div>'}
     </div>`).join('')}
     ${note ? `<p class="spec-note">Handmade, so the finished piece may differ a little from the picture —
       the lie of each charm, the exact turn of a connector. Everything named above is made as listed.</p>` : ''}
+  </div>`;
+}
+
+/** The photos a customer put into their pieces, kept with the order so the
+ *  piece can be made from it. The studio can save each one at full size. */
+function photosHtml(o, asStudio) {
+  const made = o && o.photos && Object.keys(o.photos).length ? o.photos : null;
+  if (!made) return '';
+  const rows = Object.entries(made).map(([k, src]) => {
+    const [itemId, variantId] = k.split('::');
+    const it = itemOf(itemId);
+    return { src, name: it ? label(it, variantId) : 'A piece', file: `${o.no}-${(it ? it.name : 'photo').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.webp` };
+  });
+  return `<div>
+    <div class="k facts" style="margin-bottom:6px">${asStudio ? 'Photos to make from' : 'Your photos'}</div>
+    <div class="order-photos">${rows.map((r) => `<figure>
+      <img src="${esc(r.src)}" alt="${esc(r.name)}">
+      <figcaption>${esc(r.name)}${asStudio
+        ? `<br><a href="${esc(r.src)}" download="${esc(r.file)}">Save the picture</a>` : ''}</figcaption>
+    </figure>`).join('')}</div>
   </div>`;
 }
 
@@ -5790,6 +6030,7 @@ function orderDetailHtml(o, asStudio) {
       </div>
 
       ${specHtml(o)}
+      ${photosHtml(o, asStudio)}
 
       <div>
         <div class="k facts" style="margin-bottom:5px">Pieces</div>
@@ -6542,6 +6783,37 @@ function wireBrowse() {
     paintSheet();
   });
 
+  $('#item-photo').addEventListener('click', (e) => {
+    if (e.target.closest('#ph-pick')) { $('#ph-file').click(); return; }
+    if (e.target.closest('#ph-drop')) {
+      const item = itemOf(S.sheet.itemId);
+      delete S.photos[photoKey(item.id, S.sheet.variantId)];
+      S.sheet.raw = null;
+      savePhotos();
+      paintSheet();
+      paint();
+    }
+  });
+  $('#item-photo').addEventListener('change', guard(async (e) => {
+    if (e.target.id !== 'ph-file') return;
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    await setOwnPhoto(file);
+    toast('Your photo is in the piece.', 'good');
+  }));
+  // Zoom and shift: redrawn as the slider moves, so what is seen is what is made.
+  let laying = null;
+  $('#item-photo').addEventListener('input', (e) => {
+    if (!['ph-zoom', 'ph-x', 'ph-y'].includes(e.target.id)) return;
+    S.sheet.fit = {
+      zoom: Number($('#ph-zoom').value) || 100,
+      x: Number($('#ph-x').value) || 0,
+      y: Number($('#ph-y').value) || 0,
+    };
+    clearTimeout(laying);
+    laying = setTimeout(() => setOwnPhoto(), 110);
+  });
+
   $('#item-colours').addEventListener('click', (e) => {
     const b = e.target.closest('.swatch');
     if (!b || b.disabled) return;
@@ -6896,6 +7168,39 @@ function wirePieceDialog() {
     paintHangFields();
   });
   $('#loop-auto').addEventListener('click', () => { S.draft.loop = null; paintHangFields(); });
+  f.takesPhoto.addEventListener('change', () => paintHangFields());
+  $('#photo-shape').addEventListener('change', (e) => {
+    if (S.draft.photo) S.draft.photo.shape = e.target.value === 'oval' ? 'oval' : 'rect';
+    paintPhotoField();
+  });
+  $('#photo-ontop').addEventListener('change', (e) => {
+    if (S.draft.photo) S.draft.photo.onTop = e.target.checked;
+    paintPhotoField();
+  });
+  $('#photo-middle').addEventListener('click', () => {
+    S.draft.photo = { ...(S.draft.photo || {}), x: 22, y: 26, w: 56, h: 44 };
+    S.draft.photoCorner = null;
+    paintPhotoField();
+  });
+  $('#photo-pick').addEventListener('click', (e) => {
+    const img = e.target.closest('#photo-pick') && $('#photo-pick img');
+    if (!img || !S.draft.photo) return;
+    const r = img.getBoundingClientRect();
+    const at = {
+      x: Math.round(clamp(((e.clientX - r.left) / r.width) * 100, 0, 100) * 10) / 10,
+      y: Math.round(clamp(((e.clientY - r.top) / r.height) * 100, 0, 100) * 10) / 10,
+    };
+    // Two clicks make the window: one corner, then the one across from it.
+    if (!S.draft.photoCorner) { S.draft.photoCorner = at; paintPhotoField(); return; }
+    const a = S.draft.photoCorner;
+    S.draft.photo = {
+      ...S.draft.photo,
+      x: Math.min(a.x, at.x), y: Math.min(a.y, at.y),
+      w: Math.max(1, Math.abs(at.x - a.x)), h: Math.max(1, Math.abs(at.y - a.y)),
+    };
+    S.draft.photoCorner = null;
+    paintPhotoField();
+  });
   $('#foot-pick').addEventListener('click', (e) => {
     const img = e.target.closest('#foot-pick') && $('#foot-pick img');
     if (!img) return;
@@ -7074,6 +7379,7 @@ function wirePieceDialog() {
         markup: String(data.get('markup') || '').trim() === '' ? null : Number(data.get('markup')),
         urgentFee: Number(data.get('urgentFee')) || 0,
         canFlip: f.canFlip.checked,
+        photo: f.takesPhoto.checked ? (S.draft.photo || { x: 22, y: 26, w: 56, h: 44, shape: 'rect', onTop: false }) : null,
         role: String(data.get('role') || ''),
         loop: S.draft.loop || null,
         loop2: S.draft.loop2 || null,
@@ -10715,6 +11021,7 @@ function wireExtras() {
 
 /* Boot last, so every module above is defined before the first paint. */
 loadTray();
+loadPhotos();
 loadBench();
 wireBrowse();
 wireTray();

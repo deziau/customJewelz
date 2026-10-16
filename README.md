@@ -711,6 +711,32 @@ markup in its editor, which overrides the ladder. The repo lists **Cost** and
 **Sells for** side by side, with the band and the profit under the price. Making
 charges are added on top of all of this.
 
+### Pieces made with the customer's own photo
+
+A component can be marked **Customers put their own photo in it** in its editor.
+Ticking it shows the sticker with a window to mark: click the two opposite
+corners of the opening the photo shows through, choose whether it is a rectangle
+or an oval, and say whether the photo lies *under* the frame (a cut-out window,
+the usual case) or *on top* of it.
+
+On the product page such a piece asks for a picture before it can be added to the
+tray. **Choose a photo** opens the phone's camera roll, the camera itself or the
+computer's files — whatever that device offers for an image. The picture is
+fitted into the window, cropped to fill it rather than squashed, and shown as the
+piece will be made; **Zoom**, **Across** and **Down** move it inside the window
+until it sits right. Choosing a different colour lays the same picture into that
+one.
+
+From there it is an ordinary component: the personalised piece is what the tray
+shows, what Create hangs and draws, and what the order's picture is taken of.
+The order also keeps the photo itself, so the studio's copy has a **Photos to
+make from** panel with each picture and a link to save it at full size. The
+written piece marks that charm *with your photo*.
+
+One photo is kept per colour of a component. Two of the same pendant in the same
+colour carry the same picture; two different pictures means two different colours,
+or two orders.
+
 ### The piece in words
 
 An order carries the piece written out beside the picture of it, so the bench can
