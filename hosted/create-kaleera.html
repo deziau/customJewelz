@@ -1191,6 +1191,10 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-strand-sum.sub { margin-top: -4px; font-size: 13.5px; color: var(--muted); }
 #bd-cost .bill li { grid-template-columns: 1fr auto auto; align-items: start; }
 #bd-cost .sum { margin-top: 10px; }
+#dlg-copy { max-width: 640px; }
+.copy-list li { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+.copy-list select { font-size: 13px; min-height: 36px; padding: 6px 8px; }
+.kind[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .bd-drop {
   display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline;
   margin-top: 8px; padding: 9px 12px; border-radius: 10px;
@@ -1200,6 +1204,13 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
 .bd-drop button { min-height: 30px; padding: 3px 11px; font-size: 12.5px; background: var(--surface); }
 .bd-on .place input[data-join-at] { width: 60px; }
 .bd-on .place input[data-move="strand"] { width: 54px; }
+.bd-on .place .nudge { gap: 2px; }
+.bd-on .place .nudge span { display: flex; gap: 2px; }
+.bd-on .place .nudge button {
+  width: 22px; height: 28px; min-height: 28px; padding: 0; border-radius: 6px;
+  font-size: 9px; line-height: 1; color: var(--muted);
+}
+.bd-on .place .nudge button:hover { color: var(--accent); border-color: var(--accent); }
 .bd-leglabel {
   margin: 10px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--accent);
@@ -1656,6 +1667,16 @@ body.in-build .toasts { bottom: calc(var(--bar-h) + 16px); }
   </footer>
 </dialog>
 
+<dialog id="dlg-copy">
+  <header><h2 id="copy-title">Make the other hand</h2></header>
+  <div class="body" id="copy-body"></div>
+  <footer>
+    <button id="copy-cancel">Not now</button>
+    <span style="flex:1"></span>
+    <button class="solid" id="copy-go">Make it</button>
+  </footer>
+</dialog>
+
 <dialog id="dlg-leftover">
   <header><h2>Some picks aren't on your piece</h2></header>
   <div class="body" id="leftover-body"></div>
@@ -2007,6 +2028,7 @@ const S = {
   hideOut: false,
   adminView: 'overview',
   repoFind: '',        // studio: what the component repo is being searched for
+  copy: { mirrored: false, mode: 'same', colour: '', swaps: {} },   // making the other hand
   sheet: null,         // { itemId, variantId, qty, image }
   draft: null,         // studio: component being edited
   account: null,       // the customer's own details, once given
@@ -6996,6 +7018,8 @@ const BUILD_KEY = 'cj.build.v1';
 const SLOT_DEFAULT = 7;          // spots along the lower edge of a bangle
 const SLOT_SPREAD = 78;          // degrees either side of the bottom they run to, as real kaleeras fan out
 const RING_R = 2.3;              // jump ring radius, mm
+const NUDGE_STEP = 0.2;          // cm a charm moves each nudge
+const NUDGE_EDGE = 3.7;          // mm a nudged charm keeps clear of a connector
 const RING_W = 0.62;             // jump ring wire, mm
 const VIRTUAL_MM = 160;          // how much the free layout's canvas is taken to cover
 const CM_PER_CHARM = 1.5;        // fallback when the studio has not said how many a chain holds
@@ -7038,7 +7062,10 @@ function asStrand(s) {
   const charms = (Array.isArray(s.charms) ? s.charms : s.itemId ? [s] : [])
     .filter((c) => c && c.itemId)
     // seg is which length of chain it hangs from, counting from the bangle.
-    .map((c) => ({ itemId: c.itemId, variantId: c.variantId, seg: Math.max(0, Math.round(Number(c.seg) || 0)) }));
+    .map((c) => ({ itemId: c.itemId, variantId: c.variantId,
+      seg: Math.max(0, Math.round(Number(c.seg) || 0)),
+      // How far up (-) or down (+) its even spot it has been nudged, in cm.
+      off: Number.isFinite(Number(c.off)) ? clamp(Number(c.off), -60, 60) : 0 }));
   // Connectors sitting in the chain, each a distance down from the spot.
   const joins = (Array.isArray(s.joins) ? s.joins : [])
     .filter((j) => j && j.itemId && Number.isFinite(Number(j.atCm)))
@@ -7464,6 +7491,9 @@ function warmArt() {
   for (const s of S.build.slots) {
     if (!s) continue;
     for (const c of s.charms) srcs.push(charmArt(itemOf(c.itemId), c.variantId).src);
+    // A connector's picture matters as much as a charm's: its two loops are
+    // read from it, and until they are it hangs by a guess.
+    for (const j of (s.joins || [])) srcs.push(charmArt(itemOf(j.itemId), j.variantId).src);
     if (s.chain) srcs.push(charmArt(itemOf(s.chain.itemId), s.chain.variantId).src);
   }
   const todo = srcs.filter((s) => s && !infoNow(s));
@@ -7608,7 +7638,11 @@ function layout(hand = S.build.hand) {
           const take = Math.min(mine.length, run > 0 ? roomFor(run / 10, chainItem) : 0);
           const share = tail ? run / take : run / (take + 1);
           mine.forEach((x, q) => {
-            spots[s.charms.indexOf(x)] = q < take ? from + share * (q + 1) : c;
+            const even = q < take ? from + share * (q + 1) : c;
+            // Nudged by hand, but never off its own length of chain.
+            const low = from + (g === 0 ? 0 : NUDGE_EDGE);
+            const high = c - (tail ? 0 : NUDGE_EDGE);
+            spots[s.charms.indexOf(x)] = clamp(even + (Number(x.off) || 0) * 10, Math.min(low, high), high);
           });
           from = c;
           g += 1;
@@ -8550,6 +8584,17 @@ function unhang(at = S.build.sel, k = -1) {
  * far down that strand it hangs. Moving it to another strand takes the charm
  * with it and follows it there, so the list stays under the eye.
  */
+/** Moves one charm a little up or down its own length of chain. */
+function nudgeCharm(i, way) {
+  const s = S.build.slots[S.build.sel];
+  const c = s && s.charms[i];
+  if (!c || !lenOf(s)) return;
+  c.off = Math.round(((Number(c.off) || 0) + way * NUDGE_STEP) * 10) / 10;
+  if (Math.abs(c.off) < 0.05) c.off = 0;
+  commit();
+  swing(S.build.sel, 4);
+}
+
 function moveCharm(i, toSlot, toPos, toSeg = null) {
   const b = S.build;
   const from = b.slots[b.sel];
@@ -8574,6 +8619,7 @@ function moveCharm(i, toSlot, toPos, toSeg = null) {
   const mates = charmsOn(to, seg).filter((x) => x !== c);
   const pos = clamp(Math.round(Number(toPos)) || 0, 0, mates.length);
   from.charms.splice(from.charms.indexOf(c), 1);
+  if (c.seg !== seg || !same) c.off = 0;      // a new length, a fresh start
   c.seg = seg;
   const before = to.charms.filter((x) => (x.seg || 0) < seg).length;
   to.charms.splice(before + pos, 0, c);
@@ -8674,6 +8720,149 @@ function mirror() {
 }
 
 /** This hand's design, made again on the other hand — the same, or mirrored so the pair matches. */
+/* ------------------------------------------------- the other hand, planned
+ * Copying a hand is not just a copy: the pieces for the second one have to
+ * exist. The plan says, for every component the copy needs, whether the tray
+ * already holds it, whether the shop can add it, or whether it cannot be had at
+ * all — and lets the customer put something else in its place, or leave that
+ * spot empty, before anything is taken.
+ */
+
+/** The colour a charm would be made in on the copy, or null if it is not made in it. */
+function inColour(c, colour) {
+  const it = itemOf(c.itemId);
+  if (!it) return null;
+  if (!colour) return { itemId: c.itemId, variantId: c.variantId };
+  const was = variantOf(it, c.variantId) || {};
+  const same = it.variants.find((v) => v.name === colour && (v.size || '') === (was.size || ''));
+  const any = it.variants.find((v) => v.name === colour);
+  const v = same || any;
+  return v ? { itemId: c.itemId, variantId: v.id } : null;
+}
+
+/** What one source charm becomes on the copy: a swap, a colour, or itself. */
+function copyTarget(c) {
+  const k = `${c.itemId}::${c.variantId}`;
+  const swap = S.copy.swaps[k];
+  if (swap === 'empty') return null;
+  if (swap) return { ...swap };
+  return inColour(c, S.copy.mode === 'colour' ? S.copy.colour : '');
+}
+
+/** Every colour any charm on this hand is also made in — what a copy could be. */
+function copyColours() {
+  const from = S.build.hands[S.build.hand];
+  const names = new Set();
+  for (const sl of from.slots) {
+    for (const c of (sl ? sl.charms : [])) {
+      const it = itemOf(c.itemId);
+      for (const v of (it ? it.variants : [])) if (v.name) names.add(v.name);
+    }
+  }
+  return [...names];
+}
+
+/**
+ * What the copy needs and whether it can be had: one row per component, with
+ * the charms' rows carrying the source they came from so they can be swapped.
+ */
+function copyPlan() {
+  const from = S.build.hands[S.build.hand];
+  const rows = new Map();
+  const add = (key, row, n) => {
+    const got = rows.get(key) || { ...row, need: 0 };
+    got.need += n;
+    rows.set(key, got);
+  };
+  if (from.baseId) {
+    add(`b:${from.baseId}::${from.baseVariant}`,
+      { kind: 'bangle', itemId: from.baseId, variantId: from.baseVariant }, 1);
+  }
+  for (const sl of from.slots) {
+    if (!sl) continue;
+    if (lenOf(sl)) {
+      add(`c:${sl.chain.itemId}::${sl.chain.variantId}`,
+        { kind: 'chain', itemId: sl.chain.itemId, variantId: sl.chain.variantId }, sl.chain.lenCm);
+    }
+    for (const j of (sl.joins || [])) {
+      add(`j:${j.itemId}::${j.variantId}`, { kind: 'connector', itemId: j.itemId, variantId: j.variantId }, 1);
+    }
+    for (const c of sl.charms) {
+      const src = `${c.itemId}::${c.variantId}`;
+      const to = copyTarget(c);
+      const key = to ? `h:${src}:${to.itemId}::${to.variantId}` : `h:${src}:none`;
+      add(key, { kind: 'charm', src, from: { ...c }, itemId: to ? to.itemId : c.itemId,
+        variantId: to ? to.variantId : c.variantId, missing: !to }, 1);
+    }
+  }
+  // Charms on the hand it is copied from are not free to use twice: the tray
+  // has to hold a second set, or the shop has to.
+  return [...rows.values()].map((r) => {
+    const spare = sparePicks(r.itemId, r.variantId);
+    const shop = addable(itemOf(r.itemId), r.variantId);
+    const state = r.missing ? 'none'
+      : spare >= r.need ? 'have'
+        : spare + shop >= r.need ? 'add' : 'short';
+    return { ...r, spare, shop, state, buy: Math.max(0, r.need - spare) };
+  });
+}
+
+function openCopy(mirrored) {
+  const b = S.build;
+  if (!b.hands[b.hand].baseId) return;
+  S.copy = { mirrored, mode: 'same', colour: '', swaps: {} };
+  paintCopy();
+  $('#dlg-copy').showModal();
+}
+
+function paintCopy() {
+  const hand = HANDS[otherHand()].toLowerCase();
+  const plan = copyPlan();
+  const colours = copyColours();
+  const stuck = plan.filter((r) => r.state === 'none' || r.state === 'short');
+  const buying = plan.filter((r) => r.state === 'add');
+  const amount = (r) => (r.kind === 'chain' ? fmtLen(r.need) : `×${r.need}`);
+  const swapsFor = (r) => trayHangables().filter((t) => t.spare > 0 || `${t.itemId}::${t.variantId}` === `${r.itemId}::${r.variantId}`);
+  $('#copy-title').textContent = `Make the ${hand}${S.copy.mirrored ? ', mirrored' : ''}`;
+  $('#copy-body').innerHTML = `
+    <div class="kinds" style="margin-bottom:14px">
+      <button type="button" class="kind" data-mode="same" aria-pressed="${S.copy.mode === 'same'}">
+        <b>The same charms</b><span>The ${hand} comes out exactly like this one.</span></button>
+      <button type="button" class="kind" data-mode="colour" aria-pressed="${S.copy.mode === 'colour'}">
+        <b>The same charms in another colour</b><span>${colours.length
+          ? 'Each charm becomes that colour where it is made in it.' : 'None of these charms comes in another colour.'}</span></button>
+    </div>
+    ${S.copy.mode === 'colour' && colours.length ? `<div class="bd-label">Colour for the ${hand}</div>
+      <div class="bd-chips" style="margin-bottom:14px">${colours.map((n) => `<button type="button" class="bd-chip"
+        data-colour="${esc(n)}" aria-pressed="${n === S.copy.colour}">${esc(n)}</button>`).join('')}</div>` : ''}
+    <div class="bd-label">What the ${hand} needs</div>
+    <ul class="bill copy-list">${plan.map((r) => {
+      const it = itemOf(r.itemId);
+      const note = r.state === 'have' ? '<span class="tag ok">in your tray</span>'
+        : r.state === 'add' ? `<span class="tag low">${r.kind === 'chain' ? fmtLen(r.buy) : r.buy} added to your tray</span>`
+          : r.state === 'short' ? `<span class="tag out">only ${r.kind === 'chain' ? fmtLen(r.spare + r.shop) : r.spare + r.shop} to be had</span>`
+            : `<span class="tag out">not made in ${esc(S.copy.colour)}</span>`;
+      return `<li>
+        <span>${esc(r.missing ? label(itemOf(r.from.itemId), r.from.variantId) : label(it, r.variantId))}
+          <br><span class="muted" style="font-size:12px">${note}</span>
+          ${r.kind === 'charm' && r.state !== 'have' ? `<br><select data-swap="${esc(r.src)}" style="margin-top:6px;max-width:260px">
+            <option value="">${r.state === 'add' ? 'Add them to my tray' : 'Choose what goes there instead…'}</option>
+            ${swapsFor(r).map((t) => `<option value="${esc(t.itemId)}::${esc(t.variantId)}"
+              ${S.copy.swaps[r.src] && S.copy.swaps[r.src].itemId === t.itemId && S.copy.swaps[r.src].variantId === t.variantId ? 'selected' : ''}
+              >${esc(label(t.item, t.variantId))} — ${t.spare} spare</option>`).join('')}
+            <option value="empty" ${S.copy.swaps[r.src] === 'empty' ? 'selected' : ''}>Leave those spots empty</option>
+          </select>` : ''}</span>
+        <span class="q">${amount(r)}</span></li>`;
+    }).join('')}</ul>
+    <p class="bd-hint">${stuck.length
+      ? `Choose something else for the ${stuck.length === 1 ? 'piece' : 'pieces'} that cannot be had, or leave those spots empty — the rest of the ${hand} is made either way.`
+      : buying.length ? `Making it adds what is missing to your tray and charges for it with the rest of the piece.`
+        : `Everything the ${hand} needs is already in your tray.`}</p>`;
+  $('#copy-go').textContent = stuck.length ? `Make it, leaving ${stuck.length === 1 ? 'that' : 'those'} out`
+    : `Make the ${hand}`;
+}
+
+/** Makes the other hand from the plan the customer has just agreed to. */
 async function copyHand(mirrored) {
   const b = S.build;
   const from = b.hands[b.hand];
@@ -8681,29 +8870,64 @@ async function copyHand(mirrored) {
   const to = b.hands[hand];
   if (!from.baseId) return;
   if (hungCount(hand) && !await ask(`Replace the ${HANDS[hand].toLowerCase()}?`,
-    'Its charms go back to the shop and this design is made on it instead.', 'Replace it')) return;
+    'Its charms go back to your tray and this design is made on it instead.', 'Replace it')) return;
   to.slots.forEach((x) => releaseSlot(x));
   if (to.baseId) release(to.baseId, to.baseVariant, 1);
   Object.assign(to, emptySide());
-  if (claim(itemOf(from.baseId), from.baseVariant, 1)) {
-    to.baseId = from.baseId;
-    to.baseVariant = from.baseVariant;
-    const n = from.slots.length;
-    let missed = 0;
-    to.slots = Array.from({ length: n }, (_, i) => {
-      const s = from.slots[mirrored ? n - 1 - i : i];
-      const copy = s && claimStrand(s);
-      if (s && !copy) missed++;
-      return copy || null;
-    });
-    toast(missed ? `The shop ran short for ${missed} strand${missed === 1 ? '' : 's'}; the rest is on the ${HANDS[hand].toLowerCase()}.`
-      : `The ${HANDS[hand].toLowerCase()} now ${mirrored ? 'mirrors' : 'matches'} this one.`, missed ? 'bad' : 'good');
+
+  // Everything the plan says to buy goes into the tray first, so the strands
+  // below can be built from it exactly as a customer's own picks are.
+  const plan = copyPlan();
+  const left = [];
+  for (const r of plan) {
+    if (r.state === 'add') trayAdd(r.itemId, r.variantId, r.buy);
+    else if (r.state === 'short' && r.shop > 0) trayAdd(r.itemId, r.variantId, r.shop);
+    if (r.state === 'short' || r.state === 'none') left.push(r);
   }
+  // What is to be had of each piece, counted down as the copy takes it.
+  const purse = new Map();
+  const grab = (id, v, n) => {
+    const k = `${id}::${v}`;
+    if (!purse.has(k)) purse.set(k, sparePicks(id, v));
+    if (purse.get(k) < n) return false;
+    purse.set(k, purse.get(k) - n);
+    return true;
+  };
+  if (!grab(from.baseId, from.baseVariant, 1)) {
+    toast(`There is no second ${itemOf(from.baseId).name} to be had, so the ${HANDS[hand].toLowerCase()} cannot be made.`, 'bad');
+    return;
+  }
+  to.baseId = from.baseId;
+  to.baseVariant = from.baseVariant;
+  const n = from.slots.length;
+  let dropped = 0;
+  to.slots = Array.from({ length: n }, (_, i) => {
+    const sl = from.slots[mirrored ? n - 1 - i : i];
+    if (!sl) return null;
+    const chain = lenOf(sl) && grab(sl.chain.itemId, sl.chain.variantId, sl.chain.lenCm)
+      ? { ...sl.chain } : null;
+    if (lenOf(sl) && !chain) { dropped += sl.charms.length; return null; }
+    const joins = (sl.joins || []).filter((j) => grab(j.itemId, j.variantId, 1)).map((j) => ({ ...j }));
+    const charms = [];
+    for (const c of sl.charms) {
+      const put = copyTarget(c);
+      if (!put || !grab(put.itemId, put.variantId, 1)) { dropped += 1; continue; }
+      charms.push({ ...c, itemId: put.itemId, variantId: put.variantId });
+    }
+    const made = chain || charms.length ? { chain, charms, joins, ...(sl.wantCm ? { wantCm: sl.wantCm } : {}) } : null;
+    return made ? seatCharms(made) : null;
+  });
   b.hand = hand;
   b.sel = nextEmpty(-1);
   b.at = -1;
+  b.leg = 0;
   b.choosing = false;
   commit();
+  const said = S.copy && S.copy.mode === 'colour' && S.copy.colour ? ` in ${S.copy.colour}` : '';
+  toast(dropped
+    ? `The ${HANDS[hand].toLowerCase()} is made${said}, with ${dropped} spot${dropped === 1 ? '' : 's'} left empty — there was not enough to fill ${dropped === 1 ? 'it' : 'them'}.`
+    : `The ${HANDS[hand].toLowerCase()} now ${mirrored ? 'mirrors' : 'matches'} this one${said}.`,
+  dropped ? 'bad' : 'good');
 }
 
 /* ------------------------------------------------------------------ shapes
@@ -9027,6 +9251,10 @@ function spotHtml() {
           data-move="strand" data-i="${i}" aria-label="Which strand ${esc(it.name)} hangs from"></label>
         <label>Pos<input type="number" min="1" max="${charmsOn(s, g).length}" step="1" value="${pos + 1}"
           data-move="pos" data-i="${i}" aria-label="Position of ${esc(it.name)} down that length"></label>
+        <label class="nudge">${c.off ? `${c.off > 0 ? '+' : ''}${Math.round(c.off * 10) / 10}` : 'Nudge'}
+          <span><button type="button" data-nudge="up" data-i="${i}"
+            aria-label="Move ${esc(it.name)} up the chain">▲</button><button type="button" data-nudge="down" data-i="${i}"
+            aria-label="Move ${esc(it.name)} down the chain">▼</button></span></label>
       </span>
       <span class="acts"><button type="button" data-at="${i}" aria-pressed="${swapping && i === k}">Swap</button><button type="button" class="x"
         data-off="${i}" aria-label="Remove ${esc(it.name)}">Remove</button></span>
@@ -9305,7 +9533,40 @@ function paintBuildBar() {
 
 /* ----------------------------------------------------------------- wiring */
 
+function wireCopy() {
+  const dlg = $('#dlg-copy');
+  dlg.addEventListener('click', (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    if (t.dataset.mode) {
+      S.copy.mode = t.dataset.mode;
+      if (S.copy.mode === 'colour' && !S.copy.colour) S.copy.colour = copyColours()[0] || '';
+      S.copy.swaps = {};
+      paintCopy();
+    }
+    if (t.dataset.colour !== undefined) { S.copy.colour = t.dataset.colour; S.copy.swaps = {}; paintCopy(); }
+  });
+  dlg.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-swap]');
+    if (!sel) return;
+    const src = sel.dataset.swap;
+    if (!sel.value) delete S.copy.swaps[src];
+    else if (sel.value === 'empty') S.copy.swaps[src] = 'empty';
+    else {
+      const [itemId, variantId] = sel.value.split('::');
+      S.copy.swaps[src] = { itemId, variantId };
+    }
+    paintCopy();
+  });
+  $('#copy-cancel').addEventListener('click', () => dlg.close());
+  $('#copy-go').addEventListener('click', async () => {
+    dlg.close();
+    await copyHand(S.copy.mirrored);
+  });
+}
+
 function wireBuilder() {
+  wireCopy();
   $('#mode-build').addEventListener('click', () => backToBuilder());
   $('#bd-order').addEventListener('click', () => startOrder());
   $('#bd-amend-drop').addEventListener('click', () => dropAmend());
@@ -9370,7 +9631,7 @@ function wireBuilder() {
   });
 
   /** The second hand, made from the first: switch to the first and copy it over. */
-  const fromOther = (mirrored) => { S.build.hand = otherHand(); return copyHand(mirrored); };
+  const fromOther = (mirrored) => { S.build.hand = otherHand(); return openCopy(mirrored); };
 
   const panel = $('#bd-panel');
   panel.addEventListener('click', (e) => {
@@ -9391,6 +9652,7 @@ function wireBuilder() {
       b.at = focusAt() === i && lenOf(b.slots[b.sel]) ? -1 : i;
       return paintBuilder();
     }
+    if (t.dataset.nudge) return nudgeCharm(Number(t.dataset.i), t.dataset.nudge === 'up' ? -1 : 1);
     if (t.dataset.leg !== undefined) { b.leg = Number(t.dataset.leg); return paintBuilder(); }
     if (t.dataset.cat !== undefined) { b.filter = t.dataset.cat; return paintBuilder(); }
     switch (t.dataset.bd) {
@@ -9400,8 +9662,8 @@ function wireBuilder() {
       case 'remove': return unhang();
       case 'fill': return fillEmpty();
       case 'mirror': return mirror();
-      case 'copy': return copyHand(false);
-      case 'copy-mirror': return copyHand(true);
+      case 'copy': return openCopy(false);
+      case 'copy-mirror': return openCopy(true);
       case 'copy-back': return fromOther(false);
       case 'mirror-back': return fromOther(true);
       case 'strip': return stripCharms();

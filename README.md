@@ -572,6 +572,10 @@ spot by spot, in proportion, from what is in their tray.
   in hand holds a charm, and clears that strand alone: its chain and connectors
   stay as they are, and its charms go back to the tray, free to hang again.
   **Take it all off**, under *Finish the pair*, clears every strand on the hand.
+- **A charm can be nudged** a little up or down its own length of chain with the
+  ▲▼ on its row, 2 mm at a time. The row shows how far it has been moved, and a
+  nudge never carries a charm past the bangle, past the tip, or onto a connector.
+  Moving it to another length starts it level again.
 - **Where a charm sits is typed, not dragged.** Each charm on the list carries a
   *strand* and a *pos* box — strand 1, position 3 from the top. Change either and
   the charm moves: up or down its own strand, or across to another spot on the
@@ -715,6 +719,24 @@ book adds a **Profit** column and a running total across the orders listed.
 None of this is ever shown to a customer: the panel is drawn only on the
 studio's view of an order. Orders placed before costs were recorded fall back to
 today's costs and are marked as an estimate.
+
+### Making the other hand
+
+**Copy to the right hand** and **Mirror onto the right hand** open a plan rather
+than copying on the spot. It offers two ways to make it — *the same charms*, or
+*the same charms in another colour*, with the colours any charm on the piece is
+also made in — and then lists every component the copy needs and whether it can
+be had:
+
+- **in your tray** — a second set is already picked;
+- **N added to your tray** — the shop has them, and making it buys them;
+- **only N to be had**, or **not made in that colour** — it cannot be filled.
+
+Every charm that is not simply there carries a dropdown: put another charm from
+the tray in its place, or leave those spots empty. The button says which it will
+be (*Make the right hand* / *Make it, leaving that out*), and nothing is taken
+from the tray or the shop until it is pressed. Spots that could not be filled are
+left empty and counted in the message afterwards.
 
 ### Making charges
 
