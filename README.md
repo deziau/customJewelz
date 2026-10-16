@@ -723,9 +723,29 @@ On the product page such a piece asks for a picture before it can be added to th
 tray. **Choose a photo** opens the phone's camera roll, the camera itself or the
 computer's files — whatever that device offers for an image. The picture is
 fitted into the window, cropped to fill it rather than squashed, and shown as the
-piece will be made; **Zoom**, **Across** and **Down** move it inside the window
-until it sits right. Choosing a different colour lays the same picture into that
+piece will be made. Choosing a different colour lays the same picture into that
 one.
+
+**Moving the picture.** The piece itself is the editor, the way a phone's own
+cropper works: the pendant is drawn at a decent size and the picture is **dragged
+inside its window** to sit where it should. **Pinching** on a phone or
+**scrolling** on a computer zooms, and whatever is under the fingers or the
+pointer stays where it is, so zooming in on a face keeps that face in view.
+Underneath sit **−**, **+**, **Turn** (a quarter turn, for a photo taken
+sideways) and **Fit it all in**; arrow keys move the picture and `+`, `-` and `r`
+do the same as the buttons, for anyone not using a pointer. There is nothing to
+translate into a result — what is on screen already is the piece.
+
+The picture can never be dragged far enough to show a gap: the window stays
+covered edge to edge, so the piece is always makeable. Dragging only moves the
+picture on screen; the piece is composited again a moment after the hand comes
+off, which keeps a drag smooth however large the photo is.
+
+The picture as it was given is kept beside the finished piece, so it can still be
+moved after closing the shop and coming back. It is much the larger of the two,
+and if the browser's little store will not hold both, the originals are dropped
+and the finished pieces kept — the editor then shows the piece and asks for the
+photo again before it can be moved.
 
 From there it is an ordinary component: the personalised piece is what the tray
 shows, what Create hangs and draws, and what the order's picture is taken of.

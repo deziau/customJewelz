@@ -672,10 +672,26 @@ dialog > footer, dialog > form > footer { padding: 16px 24px; border-top: 1px so
   background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
 }
 .own-photo .shot img { max-width: 86%; max-height: 86%; object-fit: contain; }
-.own-photo .with { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; align-items: center; }
-.own-photo .tweak { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
-.own-photo .tweak label { display: grid; grid-template-columns: 54px 1fr; gap: 8px; align-items: center; }
-.own-photo input[type="range"] { width: 100%; padding: 0; min-height: 0; }
+
+/* The piece itself is the editor: the picture is dragged and pinched inside
+   the window the studio marked, so what is seen is exactly what is made. */
+.ph-stage {
+  position: relative; width: 100%; max-width: 290px; margin: 0 auto; border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 42%, var(--velvet-1), var(--velvet-2));
+  touch-action: none; overflow: hidden;
+}
+.ph-stage .ph-art { display: block; width: 100%; height: auto; position: relative; z-index: 2; pointer-events: none; }
+.ph-stage .ph-win { position: absolute; overflow: hidden; z-index: 1; cursor: grab; touch-action: none; }
+.ph-stage.over .ph-art { z-index: 1; }
+.ph-stage.over .ph-win { z-index: 2; }
+.ph-win.oval { border-radius: 50%; }
+.ph-win.dragging { cursor: grabbing; }
+.ph-win:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ph-raw { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; }
+.ph-flat { display: block; width: 100%; height: auto; }
+.ph-tools { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.ph-tools button { min-width: 38px; }
+.ph-hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 8px; }
 .stepper button { border: none; background: none; width: 34px; padding: 6px 0; font-size: 16px; line-height: 1; }
@@ -2093,6 +2109,7 @@ const S = {
   orders: [],
   tray: [],            // [{ itemId, variantId, qty }] — this shopper's picks
   photos: {},          // itemId::variantId -> the customer's picture, laid into that piece
+  raws: {},            // the same key -> the picture as given, so it can still be moved
   charms: [],          // on the canvas: [{ uid, itemId, variantId, x, y, w, rot, z, lenCm }]
   picked: null,        // the piece the tools act on
   also: [],            // more pieces selected with it, to move as one
@@ -2548,6 +2565,63 @@ function savePhotos() {
 
 const photoOn = (itemId, variantId) => S.photos[photoKey(itemId, variantId)] || null;
 
+/* The picture as the customer gave it, kept beside the finished piece so it can
+ * still be moved and zoomed after a reload. It is much the larger of the two,
+ * so if the browser's little store will not hold it the originals are dropped
+ * and the finished pieces kept — the editor then asks for the photo again. */
+const RAW_KEY = 'cj-photo-raws-v1';
+
+function loadRaws() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RAW_KEY) || '{}');
+    S.raws = raw && typeof raw === 'object' ? raw : {};
+  } catch { S.raws = {}; }
+}
+
+function saveRaws() {
+  try { localStorage.setItem(RAW_KEY, JSON.stringify(S.raws)); }
+  catch { try { localStorage.removeItem(RAW_KEY); } catch { /* nothing to do */ } }
+}
+
+const PH_ZOOM = { min: 100, max: 400 };
+
+/**
+ * Where the customer's picture sits inside the window: the window covered edge
+ * to edge, then their own zoom on top of that. Turning the picture a quarter
+ * turn swaps which of its sides has to cover which. Both the live editor and
+ * the finished composite work from these same numbers.
+ */
+function photoLay(fit, picW, picH, boxW, boxH) {
+  const turned = ((((fit && fit.rot) || 0) / 90) % 2 + 2) % 2 === 1;
+  const spanW = turned ? picH : picW;
+  const spanH = turned ? picW : picH;
+  const k = Math.max(boxW / spanW, boxH / spanH) * (((fit && fit.zoom) || 100) / 100);
+  return { k, w: picW * k, h: picH * k, spanW: spanW * k, spanH: spanH * k };
+}
+
+/** A picture may be moved only as far as its own edges: no gap ever shows. */
+function photoFit(fit, picW, picH, boxW, boxH) {
+  const zoom = clamp(Number(fit && fit.zoom) || 100, PH_ZOOM.min, PH_ZOOM.max);
+  const rot = ((Math.round(((fit && fit.rot) || 0) / 90) * 90) % 360 + 360) % 360;
+  const lay = photoLay({ zoom, rot }, picW, picH, boxW, boxH);
+  const room = (span, box) => Math.max(0, ((span - box) / 2 / box) * 100);
+  const rx = room(lay.spanW, boxW);
+  const ry = room(lay.spanH, boxH);
+  return { zoom, rot, x: clamp(Number(fit && fit.x) || 0, -rx, rx), y: clamp(Number(fit && fit.y) || 0, -ry, ry) };
+}
+
+/** Zoom while holding still whatever is under the fingers or the pointer. */
+function photoZoomAt(fit, want, u, v, picW, picH, boxW, boxH) {
+  const zoom = clamp(want, PH_ZOOM.min, PH_ZOOM.max);
+  const grow = photoLay({ ...fit, zoom }, picW, picH, boxW, boxH).k
+    / photoLay(fit, picW, picH, boxW, boxH).k;
+  const cx = boxW / 2 + ((fit.x || 0) / 100) * boxW;
+  const cy = boxH / 2 + ((fit.y || 0) / 100) * boxH;
+  return photoFit({ ...fit, zoom,
+    x: ((u - (u - cx) * grow - boxW / 2) / boxW) * 100,
+    y: ((v - (v - cy) * grow - boxH / 2) / boxH) * 100 }, picW, picH, boxW, boxH);
+}
+
 /**
  * The customer's picture laid into the component's window: the window filled
  * edge to edge (cropped, never squashed), under the frame for a cut-out window
@@ -2571,14 +2645,12 @@ async function makePhotoArt(item, variantId, photoSrc, fit) {
     if (w.shape === 'oval') g.ellipse(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
     else g.rect(box.x, box.y, box.w, box.h);
     g.clip();
-    // Cover the window, then the customer's own zoom and shift on top of that.
-    const zoom = (fit && fit.zoom ? fit.zoom : 100) / 100;
-    const k = Math.max(box.w / pic.width, box.h / pic.height) * zoom;
-    const pw = pic.width * k;
-    const ph = pic.height * k;
-    const dx = box.x + (box.w - pw) / 2 + ((fit && fit.x ? fit.x : 0) / 100) * box.w;
-    const dy = box.y + (box.h - ph) / 2 + ((fit && fit.y ? fit.y : 0) / 100) * box.h;
-    g.drawImage(pic, dx, dy, pw, ph);
+    // Exactly what the editor showed: covered, zoomed, shifted and turned.
+    const lay = photoLay(fit, pic.width, pic.height, box.w, box.h);
+    g.translate(box.x + box.w / 2 + (((fit && fit.x) || 0) / 100) * box.w,
+      box.y + box.h / 2 + (((fit && fit.y) || 0) / 100) * box.h);
+    if (fit && fit.rot) g.rotate((fit.rot * Math.PI) / 180);
+    g.drawImage(pic, -lay.w / 2, -lay.h / 2, lay.w, lay.h);
     g.restore();
   };
   if (w.onTop) { g.drawImage(frame, 0, 0, W, H); draw(); }
@@ -3144,37 +3216,91 @@ function paintSheet() {
   $('#item-error').hidden = true;
 }
 
-/** Putting your own picture in a photo pendant, on its own page. */
+/**
+ * Putting your own picture in a photo pendant, on its own page. The piece is
+ * shown at a decent size and the picture is moved inside its window by dragging
+ * it, the way a phone's own cropper works — no sliders to translate into a
+ * result, because the piece on screen already is the result.
+ */
 function paintOwnPhoto(item, v) {
   const box = $('#item-photo');
   if (!item.photo) { box.innerHTML = ''; return; }
   const made = photoOn(item.id, v.id);
-  const fit = S.sheet.fit || { zoom: 100, x: 0, y: 0 };
+  const w = item.photo;
+  const kept = S.raws[photoKey(item.id, v.id)];
+  // Back on a colour that already has a picture: edit the one that made it.
+  if (made && kept && kept.raw && !phDrag.ids.size) {
+    S.sheet.raw = kept.raw;
+    S.sheet.fit = { ...(kept.fit || {}) };
+  }
   // Changed colour with a picture already given: it goes into the new one too.
   if (!made && S.sheet.raw && !S.sheet.laying) {
     S.sheet.laying = true;
     setOwnPhoto().finally(() => { S.sheet && (S.sheet.laying = false); });
   }
+  const art = item.stickers[stickerIndexFor(item, v.id)] || item.stickers[0]
+    || item.images[imageIndexFor(item, v.id)] || '';
+  const live = made && S.sheet.raw && art;
   box.innerHTML = `<div class="own-photo">
     <div class="eyebrow">Your photo</div>
     <p class="lede">${made
-      ? 'This is how it will be made. Change the picture, or move and zoom it to sit how you like.'
+      ? (live
+        ? 'This is how it will be made. Drag your picture to sit it where you like.'
+        : 'This is how it will be made. Choose the photo again to move or zoom it.')
       : 'This piece is made with your own picture in it. Choose one from your phone or computer — '
         + 'a clear, square-ish photo works best.'}</p>
-    ${made ? `<div class="with">
-      <span class="shot"><img src="${esc(made)}" alt="Your photo in the piece"></span>
-      <div class="tweak">
-        <label>Zoom<input type="range" id="ph-zoom" min="100" max="300" step="5" value="${fit.zoom}"></label>
-        <label>Across<input type="range" id="ph-x" min="-50" max="50" step="1" value="${fit.x}"></label>
-        <label>Down<input type="range" id="ph-y" min="-50" max="50" step="1" value="${fit.y}"></label>
+    ${live ? `<div class="ph-stage${w.onTop ? ' over' : ''}">
+      <img class="ph-art" src="${esc(art)}" alt="" draggable="false">
+      <div class="ph-win${w.shape === 'oval' ? ' oval' : ''}" id="ph-win" tabindex="0"
+        role="application" aria-label="Your photo in the piece — drag to move it, scroll to zoom"
+        style="left:${w.x}%;top:${w.y}%;width:${w.w}%;height:${w.h}%">
+        <img class="ph-raw" id="ph-raw" src="${esc(S.sheet.raw)}" alt="Your photo" draggable="false">
       </div>
-    </div>` : ''}
+    </div>
+    <div class="ph-tools">
+      <button type="button" class="tiny" id="ph-out" data-ph="out" aria-label="Zoom out">&minus;</button>
+      <button type="button" class="tiny" id="ph-in" data-ph="in" aria-label="Zoom in">+</button>
+      <button type="button" class="tiny" data-ph="turn">Turn</button>
+      <button type="button" class="tiny" data-ph="fit">Fit it all in</button>
+    </div>
+    <p class="ph-hint">Drag the picture to move it. Pinch or scroll to zoom.</p>`
+    : (made ? `<span class="shot"><img src="${esc(made)}" alt="Your photo in the piece"></span>` : '')}
     <div class="pick">
       <button type="button" class="solid" id="ph-pick">${made ? 'Use a different photo' : 'Choose a photo'}</button>
       ${made ? '<button type="button" id="ph-drop">Take it out</button>' : ''}
       <input type="file" id="ph-file" accept="image/*">
     </div>
   </div>`;
+  const raw = $('#ph-raw');
+  if (raw) {
+    if (raw.complete && raw.naturalWidth) layPhoto();
+    else raw.addEventListener('load', layPhoto, { once: true });
+    // The window's size follows the piece's picture, which may still be coming.
+    const frame = box.querySelector('.ph-art');
+    if (frame && !frame.complete) frame.addEventListener('load', layPhoto, { once: true });
+  }
+}
+
+/** Draws the picture where the current zoom, shift and turn put it. */
+function layPhoto() {
+  const win = $('#ph-win');
+  const raw = $('#ph-raw');
+  if (!win || !raw || !raw.naturalWidth) return;
+  const bw = win.clientWidth;
+  const bh = win.clientHeight;
+  if (!bw || !bh) return;
+  const fit = photoFit(S.sheet.fit || {}, raw.naturalWidth, raw.naturalHeight, bw, bh);
+  S.sheet.fit = fit;
+  const lay = photoLay(fit, raw.naturalWidth, raw.naturalHeight, bw, bh);
+  raw.style.width = `${lay.w}px`;
+  raw.style.height = `${lay.h}px`;
+  raw.style.left = `${bw / 2 + (fit.x / 100) * bw}px`;
+  raw.style.top = `${bh / 2 + (fit.y / 100) * bh}px`;
+  raw.style.transform = `translate(-50%, -50%) rotate(${fit.rot}deg)`;
+  const out = $('#ph-out');
+  const inn = $('#ph-in');
+  if (out) out.disabled = fit.zoom <= PH_ZOOM.min;
+  if (inn) inn.disabled = fit.zoom >= PH_ZOOM.max;
 }
 
 /** Lays the chosen picture into the piece and keeps it against that colour. */
@@ -3185,15 +3311,146 @@ async function setOwnPhoto(file) {
   if (file) {
     // Held at a sensible size: big enough to print from, small enough to save.
     S.sheet.raw = await shrink(file, 1400);
-    S.sheet.fit = { zoom: 100, x: 0, y: 0 };
+    S.sheet.fit = { zoom: 100, x: 0, y: 0, rot: 0 };
   }
   if (!S.sheet.raw) return;
   const art = await makePhotoArt(item, v.id, S.sheet.raw, S.sheet.fit);
   if (!art) { toast('That picture could not be used — try another.', 'bad'); return; }
   S.photos[photoKey(item.id, v.id)] = art;
+  S.raws[photoKey(item.id, v.id)] = { raw: S.sheet.raw, fit: { ...(S.sheet.fit || {}) } };
   savePhotos();
+  saveRaws();
   paintSheet();
   paint();
+}
+
+/* ------------------------------------------------------ moving the picture
+ * Dragging, pinching and scrolling move the picture itself; the piece is only
+ * composited again once the hand comes off, so a drag stays smooth however
+ * large the photo is.
+ */
+const phDrag = { ids: new Map(), base: null, from: [], moved: false };
+
+/** The window's size on screen, and the picture's own size, or nothing yet. */
+function photoBox() {
+  const win = $('#ph-win');
+  const raw = $('#ph-raw');
+  if (!win || !raw || !raw.naturalWidth) return null;
+  const r = win.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  return { win, raw, r, picW: raw.naturalWidth, picH: raw.naturalHeight };
+}
+
+let phSettle = null;
+/** Keeps the finished piece in step with the editor, a moment after the move. */
+function photoSettle(wait = 160) {
+  clearTimeout(phSettle);
+  phSettle = setTimeout(() => setOwnPhoto(), wait);
+}
+
+/** The buttons under the piece, for a mouse with no wheel and for the keyboard. */
+function photoTool(what) {
+  const b = photoBox();
+  if (!b) return;
+  const fit = S.sheet.fit || {};
+  if (what === 'turn') S.sheet.fit = photoFit({ ...fit, rot: (fit.rot || 0) + 90 }, b.picW, b.picH, b.r.width, b.r.height);
+  else if (what === 'fit') S.sheet.fit = { zoom: 100, x: 0, y: 0, rot: fit.rot || 0 };
+  else {
+    const want = (fit.zoom || 100) * (what === 'in' ? 1.25 : 1 / 1.25);
+    S.sheet.fit = photoZoomAt(photoFit(fit, b.picW, b.picH, b.r.width, b.r.height),
+      want, b.r.width / 2, b.r.height / 2, b.picW, b.picH, b.r.width, b.r.height);
+  }
+  layPhoto();
+  photoSettle(60);
+}
+
+function wirePhotoEditor() {
+  const host = $('#item-photo');
+
+  host.addEventListener('pointerdown', (e) => {
+    const win = e.target.closest('#ph-win');
+    if (!win) return;
+    win.setPointerCapture(e.pointerId);
+    phDrag.ids.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    phDrag.base = { ...(S.sheet.fit || {}) };
+    phDrag.from = [...phDrag.ids.values()];
+    phDrag.moved = false;
+    win.classList.add('dragging');
+  });
+
+  host.addEventListener('pointermove', (e) => {
+    if (!phDrag.ids.has(e.pointerId)) return;
+    phDrag.ids.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const b = photoBox();
+    if (!b) return;
+    const now = [...phDrag.ids.values()];
+    if (now.length > 1 && phDrag.from.length > 1) {
+      // Two fingers: the gap between them is the zoom, their middle holds still.
+      const span = (q) => Math.hypot(q[0].x - q[1].x, q[0].y - q[1].y) || 1;
+      S.sheet.fit = photoZoomAt(phDrag.base, (phDrag.base.zoom || 100) * (span(now) / span(phDrag.from)),
+        (now[0].x + now[1].x) / 2 - b.r.left, (now[0].y + now[1].y) / 2 - b.r.top,
+        b.picW, b.picH, b.r.width, b.r.height);
+    } else {
+      S.sheet.fit = photoFit({ ...phDrag.base,
+        x: (phDrag.base.x || 0) + ((now[0].x - phDrag.from[0].x) / b.r.width) * 100,
+        y: (phDrag.base.y || 0) + ((now[0].y - phDrag.from[0].y) / b.r.height) * 100 },
+      b.picW, b.picH, b.r.width, b.r.height);
+    }
+    phDrag.moved = true;
+    layPhoto();
+  });
+
+  const lift = (e) => {
+    if (!phDrag.ids.has(e.pointerId)) return;
+    phDrag.ids.delete(e.pointerId);
+    if (phDrag.ids.size) {
+      // A finger lifted off a pinch: carry on from where the rest are now.
+      phDrag.base = { ...(S.sheet.fit || {}) };
+      phDrag.from = [...phDrag.ids.values()];
+      return;
+    }
+    const win = $('#ph-win');
+    if (win) win.classList.remove('dragging');
+    if (phDrag.moved) photoSettle(0);
+    phDrag.moved = false;
+  };
+  host.addEventListener('pointerup', lift);
+  host.addEventListener('pointercancel', lift);
+
+  host.addEventListener('wheel', (e) => {
+    if (!e.target.closest('#ph-win')) return;
+    const b = photoBox();
+    if (!b) return;
+    e.preventDefault();
+    const fit = photoFit(S.sheet.fit || {}, b.picW, b.picH, b.r.width, b.r.height);
+    S.sheet.fit = photoZoomAt(fit, fit.zoom * (e.deltaY < 0 ? 1.09 : 1 / 1.09),
+      e.clientX - b.r.left, e.clientY - b.r.top, b.picW, b.picH, b.r.width, b.r.height);
+    layPhoto();
+    photoSettle();
+  }, { passive: false });
+
+  // The same moves from the keyboard, for anyone not using a pointer.
+  host.addEventListener('keydown', (e) => {
+    if (!e.target.closest('#ph-win')) return;
+    const step = e.shiftKey ? 6 : 2;
+    const fit = S.sheet.fit || {};
+    const by = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (by) {
+      const b = photoBox();
+      if (!b) return;
+      e.preventDefault();
+      S.sheet.fit = photoFit({ ...fit, x: (fit.x || 0) + by[0], y: (fit.y || 0) + by[1] },
+        b.picW, b.picH, b.r.width, b.r.height);
+      layPhoto();
+      photoSettle();
+      return;
+    }
+    const tool = { '+': 'in', '=': 'in', '-': 'out', _: 'out', r: 'turn', R: 'turn' }[e.key];
+    if (tool) { e.preventDefault(); photoTool(tool); }
+  });
+
+  // The window is a share of the piece, so its size moves with the page.
+  window.addEventListener('resize', () => { if ($('#ph-win')) layPhoto(); });
 }
 
 function addFromSheet() {
@@ -6811,11 +7068,16 @@ function wireBrowse() {
     if (e.target.closest('#ph-drop')) {
       const item = itemOf(S.sheet.itemId);
       delete S.photos[photoKey(item.id, S.sheet.variantId)];
+      delete S.raws[photoKey(item.id, S.sheet.variantId)];
       S.sheet.raw = null;
       savePhotos();
+      saveRaws();
       paintSheet();
       paint();
+      return;
     }
+    const tool = e.target.closest('[data-ph]');
+    if (tool) photoTool(tool.dataset.ph);
   });
   $('#item-photo').addEventListener('change', guard(async (e) => {
     if (e.target.id !== 'ph-file') return;
@@ -6824,18 +7086,7 @@ function wireBrowse() {
     await setOwnPhoto(file);
     toast('Your photo is in the piece.', 'good');
   }));
-  // Zoom and shift: redrawn as the slider moves, so what is seen is what is made.
-  let laying = null;
-  $('#item-photo').addEventListener('input', (e) => {
-    if (!['ph-zoom', 'ph-x', 'ph-y'].includes(e.target.id)) return;
-    S.sheet.fit = {
-      zoom: Number($('#ph-zoom').value) || 100,
-      x: Number($('#ph-x').value) || 0,
-      y: Number($('#ph-y').value) || 0,
-    };
-    clearTimeout(laying);
-    laying = setTimeout(() => setOwnPhoto(), 110);
-  });
+  wirePhotoEditor();
 
   $('#item-colours').addEventListener('click', (e) => {
     const b = e.target.closest('.swatch');
@@ -11054,6 +11305,7 @@ function wireExtras() {
 /* Boot last, so every module above is defined before the first paint. */
 loadTray();
 loadPhotos();
+loadRaws();
 loadBench();
 wireBrowse();
 wireTray();
