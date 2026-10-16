@@ -2215,11 +2215,27 @@ function variantOf(item, variantId) {
  * follows the colour the customer picked. Any other number of photos is treated
  * as a plain gallery and the first one stands for the component.
  */
-function imageIndexFor(item, variantId) {
-  if (!item || item.images.length !== item.variants.length) return 0;
-  const i = item.variants.findIndex((v) => v.id === variantId);
-  return i < 0 ? 0 : i;
+/**
+ * Which picture in a list belongs to one row of a component. A component may
+ * carry one picture per row, or — now that a colour comes in several sizes —
+ * one per colour, which is the usual case: the 2.4 in and the 2.6 in of a
+ * golden bangle are the same photograph. Anything else falls back to the first,
+ * since there is no way to tell which belongs to what.
+ */
+function artIndexFor(item, variantId, list) {
+  if (!item || !list || !list.length) return 0;
+  const vi = item.variants.findIndex((v) => v.id === variantId);
+  if (list.length === item.variants.length) return vi < 0 ? 0 : vi;
+  const colours = coloursOf(item);
+  if (list.length === colours.length) {
+    const v = vi < 0 ? item.variants[0] : item.variants[vi];
+    const ci = colours.indexOf(v ? v.name : '');
+    return ci < 0 ? 0 : ci;
+  }
+  return 0;
 }
+
+const imageIndexFor = (item, variantId) => artIndexFor(item, variantId, item && item.images);
 
 /** Picture for an item, in a given colour or at a given gallery position. */
 function shotHtml(item, variantId) {
@@ -2277,11 +2293,7 @@ async function encodeAlpha(canvas) {
  * Which sticker stands for a colour. One sticker per colour, in the same order,
  * follows the colour the customer picked — the rule the photos already use.
  */
-function stickerIndexFor(item, variantId) {
-  if (!item || item.stickers.length !== item.variants.length) return 0;
-  const i = item.variants.findIndex((v) => v.id === variantId);
-  return i < 0 ? 0 : i;
-}
+const stickerIndexFor = (item, variantId) => artIndexFor(item, variantId, item && item.stickers);
 
 /**
  * What to lay on the canvas. A sticker is required on every new component, so
@@ -2291,8 +2303,7 @@ function stickerIndexFor(item, variantId) {
 function charmArt(item, variantId) {
   if (!item) return { src: '', cut: false };
   if (item.renders && item.renders.length) {
-    const i = item.renders.length === item.variants.length
-      ? Math.max(0, item.variants.findIndex((v) => v.id === variantId)) : 0;
+    const i = artIndexFor(item, variantId, item.renders);
     return { src: item.renders[i] || item.renders[0], cut: true };
   }
   const sticker = item.stickers[stickerIndexFor(item, variantId)] || item.stickers[0] || '';
@@ -2919,10 +2930,12 @@ function paintSheet() {
   $('#item-desc').textContent = item.note || 'Handmade in the studio.';
   paintGallery(item);
 
+  const shotNames = item.images.length === item.variants.length
+    ? item.variants.map((x) => [x.name, x.size].filter(Boolean).join(' · '))
+    : (item.images.length === coloursOf(item).length ? coloursOf(item) : []);
   $('#item-thumbs').innerHTML = item.images.length > 1
     ? item.images.map((src, k) => {
-      const paired = item.images.length === item.variants.length ? item.variants[k] : null;
-      const name = paired && paired.name ? paired.name : `Photo ${k + 1}`;
+      const name = shotNames[k] || `Photo ${k + 1}`;
       return `<button data-shot="${k}" aria-pressed="${k === S.sheet.image}"
         aria-label="${esc(name)}" title="${esc(name)}"><img src="${esc(src)}" alt=""></button>`;
     }).join('')
